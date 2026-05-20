@@ -1,0 +1,19 @@
+{
+  "name": "ai-playwright-framework",
+  "version": "1.0.0",
+  "description": "AI-assisted Playwright framework that generates test steps and validates UI with Claude",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "test:generated_tests": "playwright test generated_tests",
+    "report:generated_tests": "playwright show-report playwright-report",
+    "playwright:install": "playwright install"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.41.0",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.54.2"
+  }
+}
