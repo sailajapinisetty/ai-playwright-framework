@@ -319,6 +319,49 @@ body {
   gap: 10px;
 }
 
+.hidden {
+  display: none;
+}
+
+.panel-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.actions-tight {
+  margin-top: 0;
+}
+
+#manual-cases-meta {
+  margin: 10px 0 14px;
+}
+
+.table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.cases-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: rgba(255, 255, 255, 0.75);
+}
+
+.cases-table th,
+.cases-table td {
+  border: 1px solid rgba(28, 26, 24, 0.14);
+  padding: 9px;
+  font-size: 13px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.cases-table th {
+  background: rgba(28, 26, 24, 0.08);
+}
+
 @media (max-width: 960px) {
   .shell {
     grid-template-columns: 1fr;

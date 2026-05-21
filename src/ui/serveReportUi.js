@@ -19,6 +19,9 @@ const mimeTypes = {
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
+  '.svg': 'image/svg+xml',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
   '.md': 'text/markdown; charset=utf-8'
 };
 
@@ -27,7 +30,12 @@ function contentType(filePath) {
 }
 
 function writeJson(res, statusCode, payload) {
-  res.writeHead(statusCode, { 'Content-Type': 'application/json; charset=utf-8' });
+  res.writeHead(statusCode, {
+    'Content-Type': 'application/json; charset=utf-8',
+    'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+    Pragma: 'no-cache',
+    Expires: '0'
+  });
   res.end(JSON.stringify(payload));
 }
 
@@ -101,6 +109,155 @@ async function pathExists(targetPath) {
   } catch {
     return false;
   }
+}
+
+async function listDirectories(dirPath) {
+  if (!(await pathExists(dirPath))) {
+    return [];
+  }
+
+  const entries = await fs.readdir(dirPath, { withFileTypes: true });
+  return entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();
+}
+
+async function readJsonFileIfExists(filePath, fallbackValue) {
+  if (!(await pathExists(filePath))) {
+    return fallbackValue;
+  }
+
+  try {
+    const raw = await fs.readFile(filePath, 'utf8');
+    return JSON.parse(raw);
+  } catch {
+    return fallbackValue;
+  }
+}
+
+function csvEscape(value) {
+  const text = String(value ?? '');
+  if (/[",\n]/.test(text)) {
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+  return text;
+}
+
+function htmlEscape(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+async function readManualTestCases() {
+  const generatedTestsDir = path.join(rootDir, 'generated_tests');
+  const storyFolders = await listDirectories(generatedTestsDir);
+  const items = [];
+
+  for (const storyFolder of storyFolders) {
+    const storyDir = path.join(generatedTestsDir, storyFolder);
+    const manualPath = path.join(storyDir, 'manual-test-cases.json');
+    const manualCatalog = await readJsonFileIfExists(manualPath, {});
+    const testCases = Array.isArray(manualCatalog?.testCases) ? manualCatalog.testCases : [];
+    const storyTitle = String(manualCatalog?.storyTitle || storyFolder);
+
+    for (const testCase of testCases) {
+      items.push({
+        storyFolder,
+        storyTitle,
+        caseId: String(testCase?.id || ''),
+        title: String(testCase?.title || ''),
+        type: String(testCase?.type || ''),
+        priority: String(testCase?.priority || ''),
+        expectedResult: String(testCase?.expectedResult || ''),
+        automationReason: String(testCase?.automationReason || '')
+      });
+    }
+  }
+
+  return {
+    generatedAt: new Date().toISOString(),
+    storyCount: storyFolders.length,
+    totalCases: items.length,
+    items
+  };
+}
+
+function buildManualCasesCsv(manualData) {
+  const header = [
+    'Story Folder',
+    'Story Title',
+    'Case ID',
+    'Title',
+    'Type',
+    'Priority',
+    'Expected Result',
+    'Automation Reason'
+  ];
+
+  const rows = manualData.items.map((item) => [
+    item.storyFolder,
+    item.storyTitle,
+    item.caseId,
+    item.title,
+    item.type,
+    item.priority,
+    item.expectedResult,
+    item.automationReason
+  ]);
+
+  return [header, ...rows].map((row) => row.map(csvEscape).join(',')).join('\n');
+}
+
+function buildManualCasesWordHtml(manualData) {
+  const rows = manualData.items.map((item) => `
+    <tr>
+      <td>${htmlEscape(item.storyFolder)}</td>
+      <td>${htmlEscape(item.storyTitle)}</td>
+      <td>${htmlEscape(item.caseId)}</td>
+      <td>${htmlEscape(item.title)}</td>
+      <td>${htmlEscape(item.type)}</td>
+      <td>${htmlEscape(item.priority)}</td>
+      <td>${htmlEscape(item.expectedResult)}</td>
+      <td>${htmlEscape(item.automationReason)}</td>
+    </tr>
+  `).join('');
+
+  return `<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Manual Test Cases</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 20px; }
+      h1 { margin-bottom: 8px; }
+      p { color: #555; margin-top: 0; }
+      table { width: 100%; border-collapse: collapse; }
+      th, td { border: 1px solid #ccc; padding: 8px; text-align: left; vertical-align: top; }
+      th { background: #f2f2f2; }
+    </style>
+  </head>
+  <body>
+    <h1>Manual Test Cases</h1>
+    <p>Generated: ${htmlEscape(manualData.generatedAt)} | Total Cases: ${htmlEscape(manualData.totalCases)}</p>
+    <table>
+      <thead>
+        <tr>
+          <th>Story Folder</th>
+          <th>Story Title</th>
+          <th>Case ID</th>
+          <th>Title</th>
+          <th>Type</th>
+          <th>Priority</th>
+          <th>Expected Result</th>
+          <th>Automation Reason</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </body>
+</html>`;
 }
 
 async function readRunHistory() {
@@ -287,6 +444,9 @@ function resolveRequestPath(urlPath) {
   if (decoded.startsWith('/generated_tests/')) {
     return path.join(rootDir, decoded);
   }
+  if (decoded.startsWith('/playwright-report/')) {
+    return path.join(rootDir, decoded);
+  }
   return path.join(reportUiDir, decoded);
 }
 
@@ -302,6 +462,46 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'GET' && url.pathname === '/api/default-url') {
     const appUrl = await readDefaultUrlFromEnvFile();
     writeJson(res, 200, { appUrl });
+    return;
+  }
+
+  if (req.method === 'GET' && url.pathname === '/api/manual-test-cases') {
+    const manualData = await readManualTestCases();
+    writeJson(res, 200, manualData);
+    return;
+  }
+
+  if (req.method === 'GET' && url.pathname === '/api/manual-test-cases/download') {
+    const format = String(url.searchParams.get('format') || '').toLowerCase();
+    const manualData = await readManualTestCases();
+
+    if (format === 'excel') {
+      const csv = buildManualCasesCsv(manualData);
+      res.writeHead(200, {
+        'Content-Type': 'text/csv; charset=utf-8',
+        'Content-Disposition': 'attachment; filename="manual-test-cases.csv"',
+        'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+        Pragma: 'no-cache',
+        Expires: '0'
+      });
+      res.end(csv);
+      return;
+    }
+
+    if (format === 'word') {
+      const wordHtml = buildManualCasesWordHtml(manualData);
+      res.writeHead(200, {
+        'Content-Type': 'application/msword; charset=utf-8',
+        'Content-Disposition': 'attachment; filename="manual-test-cases.doc"',
+        'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+        Pragma: 'no-cache',
+        Expires: '0'
+      });
+      res.end(wordHtml);
+      return;
+    }
+
+    writeJson(res, 400, { error: 'Unsupported format. Use format=word or format=excel.' });
     return;
   }
 
@@ -367,7 +567,12 @@ const server = http.createServer(async (req, res) => {
   const requestPath = resolveRequestPath(req.url || '/');
   try {
     const data = await fs.readFile(requestPath);
-    res.writeHead(200, { 'Content-Type': contentType(requestPath) });
+    res.writeHead(200, {
+      'Content-Type': contentType(requestPath),
+      'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+      Pragma: 'no-cache',
+      Expires: '0'
+    });
     res.end(data);
   } catch {
     res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
