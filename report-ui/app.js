@@ -14,6 +14,19 @@ function escapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
 
+function toAssetUrl(value) {
+  const cleanPath = String(value || '').trim().replace(/^\.\//, '');
+  if (!cleanPath) {
+    return '';
+  }
+
+  if (cleanPath.startsWith('generated_tests/') || cleanPath.startsWith('playwright-report/')) {
+    return `/${cleanPath}`;
+  }
+
+  return `./${cleanPath}`;
+}
+
 function renderGlobalStats(report) {
   const totals = report.totals;
   return [
@@ -76,10 +89,61 @@ function collectFailedCases(report) {
   return failedCases;
 }
 
+function collectPassedCases(report) {
+  const passedCases = [];
+  for (const story of Array.isArray(report?.stories) ? report.stories : []) {
+    for (const item of Array.isArray(story?.cases) ? story.cases : []) {
+      if (item.executionStatus === 'PASS') {
+        passedCases.push({
+          storyTitle: story.title,
+          caseId: item.caseId,
+          title: item.title,
+          screenshotFiles: Array.isArray(item.screenshotFiles)
+            ? item.screenshotFiles.map((filePath) => toAssetUrl(filePath)).filter(Boolean)
+            : []
+        });
+      }
+    }
+  }
+
+  return passedCases;
+}
+
+function renderPassedCases(passedCases) {
+  if (passedCases.length === 0) {
+    return '<p>No passed automated tests found yet.</p>';
+  }
+
+  return `
+    <div class="passed-case-grid">
+      ${passedCases.map((item) => `
+        <article class="pass-case-card">
+          <p class="eyebrow">${escapeHtml(item.storyTitle)}</p>
+          <h4>${escapeHtml(item.caseId)} - ${escapeHtml(item.title)}</h4>
+          ${item.screenshotFiles.length > 0 ? `
+            <div class="screenshot-grid">
+              ${item.screenshotFiles.map((screenshotPath) => `
+                <a href="${escapeHtml(screenshotPath)}" target="_blank" rel="noopener">
+                  <img class="screenshot-thumb" src="${escapeHtml(screenshotPath)}" alt="${escapeHtml(item.caseId)} screenshot" loading="lazy" />
+                </a>
+              `).join('')}
+            </div>
+          ` : '<p>No screenshot captured for this passed test.</p>'}
+        </article>
+      `).join('')}
+    </div>
+  `;
+}
+
 function renderReportDetail(report) {
+  const passedCases = collectPassedCases(report);
   const failedCases = collectFailedCases(report);
   const detailPanel = document.getElementById('detail-panel');
   detailPanel.innerHTML = `
+    <article class="section-card">
+      <p class="eyebrow">Passed Tests With Screenshots</p>
+      ${renderPassedCases(passedCases)}
+    </article>
     <article class="section-card">
       <p class="eyebrow">Failed Tests (Click To Debug)</p>
       ${renderFailedCases(failedCases)}
@@ -278,6 +342,8 @@ async function initRunnerPage() {
   const historyList = document.getElementById('history-list');
   const historyDetail = document.getElementById('history-detail');
   let manualCasesLoaded = false;
+  let manualCasesAvailable = false;
+  let latestManualCasesPayload = null;
 
   historyDetail.addEventListener('click', (event) => {
     const target = event.target;
@@ -307,7 +373,36 @@ async function initRunnerPage() {
     historyDetail.innerHTML = renderHistoryDetail(items[0] || null);
   }
 
+  async function refreshManualCasesAvailability() {
+    try {
+      const payload = await loadManualTestCases();
+      latestManualCasesPayload = payload;
+      manualCasesAvailable = Number(payload?.totalCases || 0) > 0;
+      testCasesBtn.disabled = !manualCasesAvailable;
+      downloadWordBtn.disabled = !manualCasesAvailable;
+      downloadExcelBtn.disabled = !manualCasesAvailable;
+
+      if (!manualCasesAvailable) {
+        manualCasesLoaded = false;
+        manualCasesPanel.classList.add('hidden');
+        manualCasesMeta.textContent = 'Manual test cases will appear after generation.';
+        manualCasesView.innerHTML = '<p>No manual test cases found.</p>';
+      }
+    } catch {
+      manualCasesAvailable = false;
+      latestManualCasesPayload = null;
+      testCasesBtn.disabled = true;
+      downloadWordBtn.disabled = true;
+      downloadExcelBtn.disabled = true;
+      manualCasesLoaded = false;
+      manualCasesPanel.classList.add('hidden');
+      manualCasesMeta.textContent = 'Manual test cases are unavailable.';
+      manualCasesView.innerHTML = '<p>No manual test cases found.</p>';
+    }
+  }
+
   await refreshHistory();
+  await refreshManualCasesAvailability();
 
   const savedDefaultUrl = await loadDefaultUrl();
   if (savedDefaultUrl && !appUrlInput.value.trim()) {
@@ -353,8 +448,11 @@ async function initRunnerPage() {
       await submitRun(appUrl, userStory, Boolean(saveDefaultUrlInput?.checked));
       runStatus.textContent = 'Run complete. You can open report now.';
       showReportBtn.disabled = false;
+      runBtn.disabled = true;
       await refreshHistory();
       manualCasesLoaded = false;
+      latestManualCasesPayload = null;
+      await refreshManualCasesAvailability();
       if (!manualCasesPanel.classList.contains('hidden')) {
         await showManualCasesPanel();
       }
@@ -362,8 +460,12 @@ async function initRunnerPage() {
       runStatus.textContent = `Run failed: ${error.message}`;
       await refreshHistory();
       manualCasesLoaded = false;
+      latestManualCasesPayload = null;
+      await refreshManualCasesAvailability();
     } finally {
-      runBtn.disabled = false;
+      if (showReportBtn.disabled) {
+        runBtn.disabled = false;
+      }
     }
   });
 
@@ -372,6 +474,12 @@ async function initRunnerPage() {
   });
 
   async function showManualCasesPanel() {
+    if (!manualCasesAvailable) {
+      runStatus.textContent = 'Manual test cases are not generated yet. Run tests first.';
+      manualCasesPanel.classList.add('hidden');
+      return;
+    }
+
     manualCasesPanel.classList.remove('hidden');
     if (manualCasesLoaded) {
       return;
@@ -381,8 +489,9 @@ async function initRunnerPage() {
     manualCasesView.innerHTML = '<p>Loading...</p>';
 
     try {
-      const payload = await loadManualTestCases();
+      const payload = latestManualCasesPayload || await loadManualTestCases();
       manualCasesLoaded = true;
+      latestManualCasesPayload = payload;
       manualCasesMeta.textContent = `Stories: ${payload.storyCount || 0} | Manual test cases: ${payload.totalCases || 0} | Generated: ${new Date(payload.generatedAt).toLocaleString()}`;
       manualCasesView.innerHTML = renderManualCasesTable(payload.items || []);
     } catch (error) {

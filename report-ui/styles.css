@@ -1,13 +1,13 @@
 :root {
-  --bg: #f2ede3;
-  --surface: rgba(255, 250, 242, 0.82);
-  --surface-strong: rgba(255, 248, 236, 0.96);
+  --bg: #e3eff2;
+  --surface: rgba(217, 233, 232, 0.82);
+  --surface-strong: rgba(237, 240, 241, 0.96);
   --ink: #1c1a18;
   --muted: #675f56;
   --accent: #bf5b35;
   --accent-soft: #efd2b1;
   --success: #246a4a;
-  --warn: #9d6415;
+  --warn: #a8c4e4;
   --danger: #8a2f2f;
   --shadow: 0 24px 60px rgba(58, 37, 20, 0.12);
   --radius: 24px;
@@ -360,6 +360,39 @@ body {
 
 .cases-table th {
   background: rgba(28, 26, 24, 0.08);
+}
+
+.passed-case-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px;
+}
+
+.pass-case-card {
+  border: 1px solid rgba(28, 26, 24, 0.12);
+  border-radius: 14px;
+  background: rgba(255, 251, 245, 0.85);
+  padding: 14px;
+}
+
+.pass-case-card h4 {
+  margin: 0 0 10px;
+}
+
+.screenshot-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.screenshot-thumb {
+  width: 100%;
+  height: 96px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid rgba(28, 26, 24, 0.18);
+  display: block;
+  background: #fff;
 }
 
 @media (max-width: 960px) {
