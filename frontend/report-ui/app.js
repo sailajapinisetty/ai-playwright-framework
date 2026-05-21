@@ -5,6 +5,24 @@ function statusClass(value) {
   return 'warn';
 }
 
+const rawApiBaseUrl = String(
+  window.__API_BASE_URL || window.localStorage.getItem('API_BASE_URL') || ''
+).trim();
+const API_BASE_URL = rawApiBaseUrl ? rawApiBaseUrl.replace(/\/+$/, '') : '';
+
+function apiUrl(path) {
+  const cleanPath = String(path || '').trim();
+  if (!cleanPath) {
+    return cleanPath;
+  }
+
+  if (/^https?:\/\//i.test(cleanPath)) {
+    return cleanPath;
+  }
+
+  return API_BASE_URL ? `${API_BASE_URL}${cleanPath}` : cleanPath;
+}
+
 function escapeHtml(value) {
   return String(value || '')
     .replace(/&/g, '&amp;')
@@ -21,7 +39,7 @@ function toAssetUrl(value) {
   }
 
   if (cleanPath.startsWith('generated_tests/') || cleanPath.startsWith('playwright-report/')) {
-    return `/${cleanPath}`;
+    return apiUrl(`/${cleanPath}`);
   }
 
   return `./${cleanPath}`;
@@ -238,7 +256,7 @@ function toReportUrl(runId) {
 
 async function loadHistory() {
   const cacheBust = Date.now();
-  const response = await fetch(`/api/history?t=${cacheBust}`, { cache: 'no-store' });
+  const response = await fetch(apiUrl(`/api/history?t=${cacheBust}`), { cache: 'no-store' });
   const contentType = String(response.headers.get('content-type') || '').toLowerCase();
   if (!response.ok || !contentType.includes('application/json')) {
     return [];
@@ -250,7 +268,7 @@ async function loadHistory() {
 async function checkApiHealth() {
   try {
     const cacheBust = Date.now();
-    const response = await fetch(`/api/history?t=${cacheBust}`, { cache: 'no-store' });
+    const response = await fetch(apiUrl(`/api/history?t=${cacheBust}`), { cache: 'no-store' });
     const contentType = String(response.headers.get('content-type') || '').toLowerCase();
     return response.ok && contentType.includes('application/json');
   } catch {
@@ -265,7 +283,7 @@ function wireReport(report) {
 }
 
 async function submitRun(appUrl, userStory, saveDefaultUrl) {
-  const response = await fetch('/api/run-tests', {
+  const response = await fetch(apiUrl('/api/run-tests'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ appUrl, userStory, saveDefaultUrl })
@@ -290,7 +308,7 @@ async function submitRun(appUrl, userStory, saveDefaultUrl) {
 
 async function loadDefaultUrl() {
   const cacheBust = Date.now();
-  const response = await fetch(`/api/default-url?t=${cacheBust}`, { cache: 'no-store' });
+  const response = await fetch(apiUrl(`/api/default-url?t=${cacheBust}`), { cache: 'no-store' });
   if (!response.ok) {
     return '';
   }
@@ -301,7 +319,7 @@ async function loadDefaultUrl() {
 
 async function loadManualTestCases() {
   const cacheBust = Date.now();
-  const response = await fetch(`/api/manual-test-cases?t=${cacheBust}`, { cache: 'no-store' });
+  const response = await fetch(apiUrl(`/api/manual-test-cases?t=${cacheBust}`), { cache: 'no-store' });
   if (!response.ok) {
     throw new Error('Unable to load manual test cases.');
   }
@@ -368,9 +386,13 @@ async function initRunnerPage() {
   let runLockedAfterSuccess = false;
 
   function apiUnavailableMessage() {
+    if (API_BASE_URL) {
+      return `Backend API unavailable at ${API_BASE_URL}. Check deployed backend health/CORS.`;
+    }
+
     const host = String(window.location.hostname || '').toLowerCase();
     if (host.includes('github.io')) {
-      return 'Backend API unavailable on GitHub Pages. Run `npm start` locally and open http://localhost:4173.';
+      return 'Backend API unavailable on GitHub Pages. Set window.__API_BASE_URL to your deployed HTTPS backend URL.';
     }
 
     return 'Backend API unavailable. Start server with npm start and open http://localhost:4173.';
@@ -558,11 +580,11 @@ async function initRunnerPage() {
   });
 
   downloadWordBtn.addEventListener('click', () => {
-    window.open('/api/manual-test-cases/download?format=word', '_blank', 'noopener');
+    window.open(apiUrl('/api/manual-test-cases/download?format=word'), '_blank', 'noopener');
   });
 
   downloadExcelBtn.addEventListener('click', () => {
-    window.open('/api/manual-test-cases/download?format=excel', '_blank', 'noopener');
+    window.open(apiUrl('/api/manual-test-cases/download?format=excel'), '_blank', 'noopener');
   });
 }
 
@@ -593,7 +615,7 @@ async function initReportPage() {
 
   if (playwrightReportBtn) {
     playwrightReportBtn.addEventListener('click', () => {
-      window.open('/playwright-report/index.html', '_blank', 'noopener');
+      window.open(apiUrl('/playwright-report/index.html'), '_blank', 'noopener');
     });
   }
 }
