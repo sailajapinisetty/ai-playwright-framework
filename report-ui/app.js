@@ -17,11 +17,9 @@ function escapeHtml(value) {
 function renderGlobalStats(report) {
   const totals = report.totals;
   return [
-    ['Number Tests', totals.tests || 0],
-    ['Manual Tests', totals.manual || 0],
-    ['Automated Tests', totals.automated || 0],
-    ['Automated Run Passed', totals.automatedRunPassed || 0],
-    ['Automated Run Failed', totals.automatedRunFailed || 0],
+    ['Total Automated Tests', totals.automated || 0],
+    ['Execution Passed', totals.automatedRunPassed || 0],
+    ['Execution Failed', totals.automatedRunFailed || 0],
     ['Overall Coverage', `${report.coverage?.overallPercent || 0}%`]
   ].map(([label, value]) => `
     <article class="metric-card">
@@ -48,33 +46,40 @@ function renderStoryCard(story) {
 
 function renderFailedCases(failedCases) {
   if (failedCases.length === 0) {
-    return '<p>No failed automated tests for this story.</p>';
+    return '<p>No failed automated tests found.</p>';
   }
 
-  return `<ul class="list-block">${failedCases.map((item) => `<li><button type="button" class="debug-btn" data-case-id="${escapeHtml(item.caseId)}">${escapeHtml(item.caseId)} - ${escapeHtml(item.title)}</button></li>`).join('')}</ul>`;
+  return `<ul class="list-block">${failedCases.map((item) => `<li><button type="button" class="debug-btn" data-failed-key="${escapeHtml(item.failedKey)}">${escapeHtml(item.caseId)} - ${escapeHtml(item.title)} (${escapeHtml(item.storyTitle)})</button></li>`).join('')}</ul>`;
 }
 
-function renderStoryDetail(story) {
-  const failedCases = (story.cases || []).filter((item) => item.executionStatus === 'FAIL');
+function collectFailedCases(report) {
+  const failedCases = [];
+  for (const story of Array.isArray(report?.stories) ? report.stories : []) {
+    for (const item of Array.isArray(story?.cases) ? story.cases : []) {
+      if (item.executionStatus === 'FAIL') {
+        failedCases.push({
+          failedKey: `${story.id}::${item.caseId}`,
+          storyId: story.id,
+          storyTitle: story.title,
+          caseId: item.caseId,
+          title: item.title,
+          failureCause: item.failureCause,
+          validationSummary: item.validationSummary,
+          debugCommand: item.debugCommand,
+          scriptFiles: item.scriptFiles,
+          outputTail: item.outputTail
+        });
+      }
+    }
+  }
+
+  return failedCases;
+}
+
+function renderReportDetail(report) {
+  const failedCases = collectFailedCases(report);
   const detailPanel = document.getElementById('detail-panel');
   detailPanel.innerHTML = `
-    <div class="detail-panel-grid">
-      <article class="metric-card">
-        <p class="eyebrow">Story Coverage</p>
-        <h3>${escapeHtml(story.coverage?.percent || 0)}%</h3>
-        <p>${escapeHtml(story.totals?.covered || 0)} covered / ${escapeHtml(story.totals?.automatable || 0)} automatable</p>
-      </article>
-      <article class="metric-card">
-        <p class="eyebrow">Automated Run Results</p>
-        <h3>${escapeHtml((story.totals?.automatedRunPassed || 0) + (story.totals?.automatedRunFailed || 0))}</h3>
-        <p>${escapeHtml(story.totals?.automatedRunPassed || 0)} passed / ${escapeHtml(story.totals?.automatedRunFailed || 0)} failed</p>
-      </article>
-      <article class="metric-card">
-        <p class="eyebrow">Overall Coverage</p>
-        <h3>${escapeHtml(story.coverage?.percent || 0)}%</h3>
-        <p>${escapeHtml(story.totals?.covered || 0)} covered / ${escapeHtml(story.totals?.automatable || 0)} total automatable</p>
-      </article>
-    </div>
     <article class="section-card">
       <p class="eyebrow">Failed Tests (Click To Debug)</p>
       ${renderFailedCases(failedCases)}
@@ -84,11 +89,20 @@ function renderStoryDetail(story) {
       <p>Click a failed test to view failure cause and debug steps.</p>
     </article>
   `;
+
+  const failedCaseMap = new Map(failedCases.map((item) => [item.failedKey, item]));
+  const debugButtons = [...document.querySelectorAll('.debug-btn')];
+  debugButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      const failedKey = button.getAttribute('data-failed-key');
+      const failedItem = failedCaseMap.get(String(failedKey || ''));
+      renderDebugPanel(failedItem);
+    });
+  });
 }
 
-function renderDebugPanel(story, caseId) {
+function renderDebugPanel(item) {
   const debugPanel = document.getElementById('debug-panel');
-  const item = (story.cases || []).find((testCase) => testCase.caseId === caseId);
   if (!debugPanel || !item) {
     return;
   }
@@ -103,7 +117,8 @@ function renderDebugPanel(story, caseId) {
 }
 
 async function loadReport() {
-  const response = await fetch('./data/report-data.json');
+  const cacheBust = Date.now();
+  const response = await fetch(`./data/report-data.json?t=${cacheBust}`, { cache: 'no-store' });
   if (!response.ok) {
     throw new Error('Unable to load report data. Run tests first.');
   }
@@ -150,14 +165,16 @@ function renderHistoryDetail(item) {
 }
 
 function toReportUrl(runId) {
+  const cacheBust = Date.now();
   if (!runId) {
-    return './report.html';
+    return `./report.html?t=${cacheBust}`;
   }
-  return `./report.html?runId=${encodeURIComponent(runId)}`;
+  return `./report.html?runId=${encodeURIComponent(runId)}&t=${cacheBust}`;
 }
 
 async function loadHistory() {
-  const response = await fetch('/api/history');
+  const cacheBust = Date.now();
+  const response = await fetch(`/api/history?t=${cacheBust}`, { cache: 'no-store' });
   if (!response.ok) {
     return [];
   }
@@ -168,36 +185,7 @@ async function loadHistory() {
 function wireReport(report) {
   document.getElementById('generated-at').textContent = `Generated ${new Date(report.generatedAt).toLocaleString()}`;
   document.getElementById('global-stats').innerHTML = renderGlobalStats(report);
-
-  const storyGrid = document.getElementById('story-grid');
-  storyGrid.innerHTML = report.stories.map(renderStoryCard).join('');
-
-  const cards = [...storyGrid.querySelectorAll('.story-card')];
-  const storiesById = new Map(report.stories.map((story) => [story.id, story]));
-
-  function selectStory(storyId) {
-    const story = storiesById.get(storyId);
-    cards.forEach((card) => {
-      card.classList.toggle('active', card.dataset.storyId === storyId);
-    });
-    renderStoryDetail(story);
-
-    const debugButtons = [...document.querySelectorAll('.debug-btn')];
-    debugButtons.forEach((button) => {
-      button.addEventListener('click', () => {
-        const caseId = button.getAttribute('data-case-id');
-        renderDebugPanel(story, caseId);
-      });
-    });
-  }
-
-  cards.forEach((card) => {
-    card.addEventListener('click', () => selectStory(card.dataset.storyId));
-  });
-
-  if (report.stories.length > 0) {
-    selectStory(report.stories[0].id);
-  }
+  renderReportDetail(report);
 }
 
 async function submitRun(appUrl, userStory, saveDefaultUrl) {
@@ -216,13 +204,61 @@ async function submitRun(appUrl, userStory, saveDefaultUrl) {
 }
 
 async function loadDefaultUrl() {
-  const response = await fetch('/api/default-url');
+  const cacheBust = Date.now();
+  const response = await fetch(`/api/default-url?t=${cacheBust}`, { cache: 'no-store' });
   if (!response.ok) {
     return '';
   }
 
   const payload = await response.json();
   return String(payload.appUrl || '').trim();
+}
+
+async function loadManualTestCases() {
+  const cacheBust = Date.now();
+  const response = await fetch(`/api/manual-test-cases?t=${cacheBust}`, { cache: 'no-store' });
+  if (!response.ok) {
+    throw new Error('Unable to load manual test cases.');
+  }
+
+  return response.json();
+}
+
+function renderManualCasesTable(items) {
+  if (!items || items.length === 0) {
+    return '<p>No manual test cases found.</p>';
+  }
+
+  const rows = items.map((item) => `
+    <tr>
+      <td>${escapeHtml(item.storyFolder)}</td>
+      <td>${escapeHtml(item.storyTitle)}</td>
+      <td>${escapeHtml(item.caseId)}</td>
+      <td>${escapeHtml(item.title)}</td>
+      <td>${escapeHtml(item.type)}</td>
+      <td>${escapeHtml(item.priority)}</td>
+      <td>${escapeHtml(item.expectedResult)}</td>
+    </tr>
+  `).join('');
+
+  return `
+    <div class="table-wrap">
+      <table class="cases-table">
+        <thead>
+          <tr>
+            <th>Story Folder</th>
+            <th>Story Title</th>
+            <th>Case ID</th>
+            <th>Title</th>
+            <th>Type</th>
+            <th>Priority</th>
+            <th>Expected Result</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `;
 }
 
 async function initRunnerPage() {
@@ -233,8 +269,15 @@ async function initRunnerPage() {
   const saveDefaultUrlInput = document.getElementById('save-default-url');
   const runBtn = document.getElementById('run-tests-btn');
   const showReportBtn = document.getElementById('show-report-btn');
+  const testCasesBtn = document.getElementById('test-cases-btn');
+  const manualCasesPanel = document.getElementById('manual-cases-panel');
+  const manualCasesMeta = document.getElementById('manual-cases-meta');
+  const manualCasesView = document.getElementById('manual-cases-view');
+  const downloadWordBtn = document.getElementById('download-word-btn');
+  const downloadExcelBtn = document.getElementById('download-excel-btn');
   const historyList = document.getElementById('history-list');
   const historyDetail = document.getElementById('history-detail');
+  let manualCasesLoaded = false;
 
   historyDetail.addEventListener('click', (event) => {
     const target = event.target;
@@ -311,9 +354,14 @@ async function initRunnerPage() {
       runStatus.textContent = 'Run complete. You can open report now.';
       showReportBtn.disabled = false;
       await refreshHistory();
+      manualCasesLoaded = false;
+      if (!manualCasesPanel.classList.contains('hidden')) {
+        await showManualCasesPanel();
+      }
     } catch (error) {
       runStatus.textContent = `Run failed: ${error.message}`;
       await refreshHistory();
+      manualCasesLoaded = false;
     } finally {
       runBtn.disabled = false;
     }
@@ -322,10 +370,44 @@ async function initRunnerPage() {
   showReportBtn.addEventListener('click', () => {
     window.location.href = toReportUrl('');
   });
+
+  async function showManualCasesPanel() {
+    manualCasesPanel.classList.remove('hidden');
+    if (manualCasesLoaded) {
+      return;
+    }
+
+    manualCasesMeta.textContent = 'Loading manual test cases...';
+    manualCasesView.innerHTML = '<p>Loading...</p>';
+
+    try {
+      const payload = await loadManualTestCases();
+      manualCasesLoaded = true;
+      manualCasesMeta.textContent = `Stories: ${payload.storyCount || 0} | Manual test cases: ${payload.totalCases || 0} | Generated: ${new Date(payload.generatedAt).toLocaleString()}`;
+      manualCasesView.innerHTML = renderManualCasesTable(payload.items || []);
+    } catch (error) {
+      manualCasesMeta.textContent = 'Manual test cases are unavailable.';
+      manualCasesView.innerHTML = `<p>${escapeHtml(error.message)}</p>`;
+    }
+  }
+
+  testCasesBtn.addEventListener('click', async () => {
+    await showManualCasesPanel();
+    manualCasesPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+
+  downloadWordBtn.addEventListener('click', () => {
+    window.open('/api/manual-test-cases/download?format=word', '_blank', 'noopener');
+  });
+
+  downloadExcelBtn.addEventListener('click', () => {
+    window.open('/api/manual-test-cases/download?format=excel', '_blank', 'noopener');
+  });
 }
 
 async function initReportPage() {
   const backMainBtn = document.getElementById('back-main-btn');
+  const playwrightReportBtn = document.getElementById('open-playwright-report-btn');
   const generatedAtNode = document.getElementById('generated-at');
   const query = new URLSearchParams(window.location.search);
   const selectedRunId = query.get('runId');
@@ -347,6 +429,12 @@ async function initReportPage() {
       window.location.href = './index.html';
     });
   }
+
+  if (playwrightReportBtn) {
+    playwrightReportBtn.addEventListener('click', () => {
+      window.open('/playwright-report/index.html', '_blank', 'noopener');
+    });
+  }
 }
 
 async function main() {
@@ -355,7 +443,7 @@ async function main() {
     return;
   }
 
-  if (document.getElementById('story-grid')) {
+  if (document.getElementById('detail-panel')) {
     await initReportPage();
   }
 }
