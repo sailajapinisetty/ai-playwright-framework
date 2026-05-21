@@ -102,7 +102,7 @@ function normalizeStoryTitle(storySource, manualCatalog) {
 export async function buildReportData() {
   const rootDir = process.cwd();
   const generatedTestsDir = path.join(rootDir, 'generated_tests');
-  const reportUiDir = path.join(rootDir, 'report-ui');
+  const reportUiDir = path.resolve(rootDir, '../frontend/report-ui');
   const dataDir = path.join(reportUiDir, 'data');
   await fs.mkdir(dataDir, { recursive: true });
 
