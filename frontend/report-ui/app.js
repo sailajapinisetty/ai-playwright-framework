@@ -367,13 +367,22 @@ async function initRunnerPage() {
   let latestManualCasesPayload = null;
   let runLockedAfterSuccess = false;
 
+  function apiUnavailableMessage() {
+    const host = String(window.location.hostname || '').toLowerCase();
+    if (host.includes('github.io')) {
+      return 'Backend API unavailable on GitHub Pages. Run `npm start` locally and open http://localhost:4173.';
+    }
+
+    return 'Backend API unavailable. Start server with npm start and open http://localhost:4173.';
+  }
+
   runBtn.disabled = true;
 
   function applyApiHealth(isHealthy) {
     if (!isHealthy) {
       runBtn.disabled = true;
       if (!runLockedAfterSuccess) {
-        runStatus.textContent = 'Backend API unavailable. Start server with npm start and refresh.';
+        runStatus.textContent = apiUnavailableMessage();
       }
       return;
     }

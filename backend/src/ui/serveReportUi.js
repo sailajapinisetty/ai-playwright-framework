@@ -5,7 +5,7 @@ import { spawn } from 'child_process';
 import { buildReportData } from './buildReportData.js';
 
 const rootDir = process.cwd();
-const reportUiDir = path.join(rootDir, 'report-ui');
+const reportUiDir = path.resolve(rootDir, '../frontend/report-ui');
 const envFilePath = path.join(rootDir, '.env');
 const port = Number(process.env.REPORT_UI_PORT || 4173);
 const uiHistoryPath = path.join(reportUiDir, 'data', 'ui-run-history.json');

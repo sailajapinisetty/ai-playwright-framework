@@ -1,14 +1,14 @@
 node_modules/
 .env
-playwright-report/
-test-results/
-artifacts/
+backend/playwright-report/
+backend/test-results/
+backend/artifacts/
 
 # Playwright runtime artifacts
-.playwright-output/
+backend/.playwright-output/
 
 # Generated UI runtime data
-report-ui/data/
+frontend/report-ui/data/
 
 # OS/editor noise
 .DS_Store
