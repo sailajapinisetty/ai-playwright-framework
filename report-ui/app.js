@@ -239,11 +239,23 @@ function toReportUrl(runId) {
 async function loadHistory() {
   const cacheBust = Date.now();
   const response = await fetch(`/api/history?t=${cacheBust}`, { cache: 'no-store' });
-  if (!response.ok) {
+  const contentType = String(response.headers.get('content-type') || '').toLowerCase();
+  if (!response.ok || !contentType.includes('application/json')) {
     return [];
   }
   const payload = await response.json();
   return Array.isArray(payload.items) ? payload.items : [];
+}
+
+async function checkApiHealth() {
+  try {
+    const cacheBust = Date.now();
+    const response = await fetch(`/api/history?t=${cacheBust}`, { cache: 'no-store' });
+    const contentType = String(response.headers.get('content-type') || '').toLowerCase();
+    return response.ok && contentType.includes('application/json');
+  } catch {
+    return false;
+  }
 }
 
 function wireReport(report) {
@@ -259,12 +271,21 @@ async function submitRun(appUrl, userStory, saveDefaultUrl) {
     body: JSON.stringify({ appUrl, userStory, saveDefaultUrl })
   });
 
-  const payload = await response.json();
-  if (!response.ok) {
-    throw new Error(payload.error || 'Run failed');
+  const contentType = String(response.headers.get('content-type') || '').toLowerCase();
+  if (contentType.includes('application/json')) {
+    const payload = await response.json();
+    if (!response.ok) {
+      throw new Error(payload.error || 'Run failed');
+    }
+    return payload;
   }
 
-  return payload;
+  const rawText = await response.text();
+  const preview = rawText.replace(/\s+/g, ' ').trim().slice(0, 120);
+  throw new Error(
+    `Run failed: server returned non-JSON response (${response.status}). ` +
+    `Make sure Report UI server is running with npm start. Response preview: ${preview}`
+  );
 }
 
 async function loadDefaultUrl() {
@@ -344,6 +365,26 @@ async function initRunnerPage() {
   let manualCasesLoaded = false;
   let manualCasesAvailable = false;
   let latestManualCasesPayload = null;
+  let runLockedAfterSuccess = false;
+
+  runBtn.disabled = true;
+
+  function applyApiHealth(isHealthy) {
+    if (!isHealthy) {
+      runBtn.disabled = true;
+      if (!runLockedAfterSuccess) {
+        runStatus.textContent = 'Backend API unavailable. Start server with npm start and refresh.';
+      }
+      return;
+    }
+
+    if (!runLockedAfterSuccess) {
+      runBtn.disabled = false;
+      if (runStatus.textContent.includes('Backend API unavailable')) {
+        runStatus.textContent = 'Set URL and user story, then click Run Tests.';
+      }
+    }
+  }
 
   historyDetail.addEventListener('click', (event) => {
     const target = event.target;
@@ -372,6 +413,8 @@ async function initRunnerPage() {
 
     historyDetail.innerHTML = renderHistoryDetail(items[0] || null);
   }
+
+  applyApiHealth(await checkApiHealth());
 
   async function refreshManualCasesAvailability() {
     try {
@@ -448,6 +491,7 @@ async function initRunnerPage() {
       await submitRun(appUrl, userStory, Boolean(saveDefaultUrlInput?.checked));
       runStatus.textContent = 'Run complete. You can open report now.';
       showReportBtn.disabled = false;
+      runLockedAfterSuccess = true;
       runBtn.disabled = true;
       await refreshHistory();
       manualCasesLoaded = false;
@@ -458,14 +502,13 @@ async function initRunnerPage() {
       }
     } catch (error) {
       runStatus.textContent = `Run failed: ${error.message}`;
+      runLockedAfterSuccess = false;
       await refreshHistory();
       manualCasesLoaded = false;
       latestManualCasesPayload = null;
       await refreshManualCasesAvailability();
     } finally {
-      if (showReportBtn.disabled) {
-        runBtn.disabled = false;
-      }
+      applyApiHealth(await checkApiHealth());
     }
   });
 
