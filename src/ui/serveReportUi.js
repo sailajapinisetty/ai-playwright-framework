@@ -282,6 +282,24 @@ async function appendRunHistory(entry) {
   await fs.writeFile(uiHistoryPath, JSON.stringify(recent, null, 2));
 }
 
+async function appendPrecheckFailure({ reason, appUrl, userStory }) {
+  const now = new Date().toISOString();
+  const entry = {
+    runId: `run_${Date.now()}`,
+    startedAt: now,
+    finishedAt: now,
+    status: 'FAIL',
+    exitCode: -1,
+    outputTail: String(reason || 'Precheck failed'),
+    appUrl: String(appUrl || ''),
+    userStoryPreview: String(userStory || '').slice(0, 200),
+    totals: { executed: 0, passed: 0, failed: 1 }
+  };
+
+  await appendRunHistory(entry);
+  return entry;
+}
+
 async function readLatestReportTotals() {
   const reportDataPath = path.join(reportUiDir, 'data', 'report-data.json');
   if (!(await pathExists(reportDataPath))) {
@@ -531,13 +549,23 @@ const server = http.createServer(async (req, res) => {
       const saveDefaultUrl = Boolean(body.saveDefaultUrl);
 
       if (!appUrl) {
-        writeJson(res, 400, { error: 'appUrl is required.' });
+        const failureEntry = await appendPrecheckFailure({
+          reason: 'appUrl is required.',
+          appUrl,
+          userStory
+        });
+        writeJson(res, 400, { error: 'appUrl is required.', run: failureEntry });
         return;
       }
 
       const urlValidation = await validateUrlReachability(appUrl);
       if (!urlValidation.ok) {
-        writeJson(res, 400, { error: urlValidation.message });
+        const failureEntry = await appendPrecheckFailure({
+          reason: urlValidation.message,
+          appUrl,
+          userStory
+        });
+        writeJson(res, 400, { error: urlValidation.message, run: failureEntry });
         return;
       }
 

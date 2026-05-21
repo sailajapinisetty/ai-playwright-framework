@@ -50,7 +50,6 @@ export async function runGeneratedTest(testFiles = []) {
 
     proc.on('error', (err) => reject(err));
     proc.on('close', async (code) => {
-      await cleanPlaywrightArtifacts();
       if (code === 0) {
         resolve({ passed: true, code, outputTail: outputBuffer.trim() });
       } else {

@@ -3,3 +3,13 @@ node_modules/
 playwright-report/
 test-results/
 artifacts/
+
+# Playwright runtime artifacts
+.playwright-output/
+
+# Generated UI runtime data
+report-ui/data/
+
+# OS/editor noise
+.DS_Store
+*.log

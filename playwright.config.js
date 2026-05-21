@@ -65,7 +65,7 @@ export default defineConfig({
   timeout: defaultTimeoutMs,
   retries: retryCount,
   outputDir: '.playwright-output',
-  preserveOutput: 'never',
+  preserveOutput: 'always',
   reporter: [
     ['line'],
     ['html', { open: 'never', outputFolder: 'playwright-report' }]
@@ -76,7 +76,7 @@ export default defineConfig({
     viewport: null,
     navigationTimeout: navigationTimeoutMs,
     screenshot: screenshotOnFailure ? 'only-on-failure' : 'off',
-    trace: 'off',
+    trace: 'on',
     video: 'off'
   },
   projects: [
