@@ -1,12 +1,12 @@
 [
   {
-    "generatedAt": "2026-05-21T18:20:07.447Z",
+    "generatedAt": "2026-05-21T21:16:28.826Z",
     "overallStatus": "PARTIAL_FAIL",
-    "summary": "Total automated cases: 2 | Execution passed: 0 | Execution failed: 2",
+    "summary": "Total automated cases: 2 | Execution passed: 1 | Execution failed: 1",
     "totals": {
       "total": 2,
-      "executionPassed": 0,
-      "executionFailed": 2,
+      "executionPassed": 1,
+      "executionFailed": 1,
       "validationPassed": 2,
       "validationFailed": 0
     },
@@ -14,208 +14,51 @@
       {
         "caseId": "tc-001",
         "attempt": 1,
-        "scriptPath": "generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_search_for_desk_lamp_returns_relevant.spec.js",
+        "scriptPath": "generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_view_cart_with_items_successfully_added.spec.js",
         "executionStatus": "FAIL",
         "executionCode": 1,
         "failureCause": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoContainText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed",
-        "debugCommand": "npx playwright test generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_search_for_desk_lamp_returns_relevant.spec.js --headed --project=chromium",
-        "outputTail": "Running 1 test using 1 worker\n\n\u001b[1A\u001b[2K[1/1] [chromium] › generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_search_for_desk_lamp_returns_relevant.spec.js:113:1 › Search for Desk Lamp returns relevant results\n\u001b[1A\u001b[2K  1) [chromium] › generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_search_for_desk_lamp_returns_relevant.spec.js:113:1 › Search for Desk Lamp returns relevant results \n\n    Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoContainText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\n    Locator: locator('input[type=\\'search\\'], input[placeholder*=\\'Search\\'], input[name=\\'search\\']').first()\n    Expected substring: \u001b[32m\"Desk Lamp\"\u001b[39m\n    Received string:    \u001b[31m\"\"\u001b[39m\n    Timeout: 5000ms\n\n    Call log:\n    \u001b[2m  - Expect \"toContainText\" with timeout 5000ms\u001b[22m\n    \u001b[2m  - waiting for locator('input[type=\\'search\\'], input[placeholder*=\\'Search\\'], input[name=\\'search\\']').first()\u001b[22m\n    \u001b[2m    14 × locator resolved to <input id=\"search\" type=\"search\" value=\"Desk Lamp\" placeholder=\"Try: Watch\" data-testid=\"search-input\"/>\u001b[22m\n    \u001b[2m       - unexpected value \"\"\u001b[22m\n\n\n      108 | async function expectTextWithFallback(page, selector, value, description) {\n      109 |   const locator = await resolveLocator(page, selector, description);\n    > 110 |   await expect(locator).toContainText(value);\n          |                         ^\n      111 | }\n      112 |\n      113 | test('Search for Desk Lamp returns relevant results', async ({ page }, testInfo) => {\n        at expectTextWithFallback (/Users/sailaja.pinisetty/ai-playwright-framework/generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_search_for_desk_lamp_returns_relevant.spec.js:110:25)\n        at /Users/sailaja.pinisetty/ai-playwright-framework/generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_search_for_desk_lamp_returns_relevant.spec.js:139:5\n\n    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────\n    .playwright-output/user_story_1-cli-input-tes-fcc5c-mp-returns-relevant-results-chromium/test-failed-1.png\n    ────────────────────────────────────────────────────────────────────────────────────────────────\n\n    Error Context: .playwright-output/user_story_1-cli-input-tes-fcc5c-mp-returns-relevant-results-chromium/error-context.md\n\n\n\u001b[1A\u001b[2K  1 failed\n    [chromium] › generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_search_for_desk_lamp_returns_relevant.spec.js:113:1 › Search for Desk Lamp returns relevant results",
+        "debugCommand": "npx playwright test generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_view_cart_with_items_successfully_added.spec.js --headed --project=chromium",
+        "outputTail": "Running 1 test using 1 worker\n\n\u001b[1A\u001b[2K[1/1] [chromium] › generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_view_cart_with_items_successfully_added.spec.js:113:1 › View cart with items successfully added\n\u001b[1A\u001b[2K  1) [chromium] › generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_view_cart_with_items_successfully_added.spec.js:113:1 › View cart with items successfully added \n\n    Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoContainText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\n    Locator: getByRole('link', { name: /cart/i }).first()\n    Expected substring: \u001b[32m\"$\"\u001b[39m\n    Received string:    \u001b[31m\"Cart1\"\u001b[39m\n    Timeout: 5000ms\n\n    Call log:\n    \u001b[2m  - Expect \"toContainText\" with timeout 5000ms\u001b[22m\n    \u001b[2m  - waiting for getByRole('link', { name: /cart/i }).first()\u001b[22m\n    \u001b[2m    14 × locator resolved to <a href=\"#/cart\" data-discover=\"true\" data-testid=\"nav-cart\">…</a>\u001b[22m\n    \u001b[2m       - unexpected value \"Cart1\"\u001b[22m\n\n\n      108 | async function expectTextWithFallback(page, selector, value, description) {\n      109 |   const locator = await resolveLocator(page, selector, description);\n    > 110 |   await expect(locator).toContainText(value);\n          |                         ^\n      111 | }\n      112 |\n      113 | test('View cart with items successfully added', async ({ page }, testInfo) => {\n        at expectTextWithFallback (/Users/sailaja.pinisetty/ai-playwright-framework/backend/generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_view_cart_with_items_successfully_added.spec.js:110:25)\n        at /Users/sailaja.pinisetty/ai-playwright-framework/backend/generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_view_cart_with_items_successfully_added.spec.js:157:5\n\n    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────\n    .playwright-output/user_story_1-cli-input-tes-fb7e7-th-items-successfully-added-chromium/test-failed-1.png\n    ────────────────────────────────────────────────────────────────────────────────────────────────\n\n    Error Context: .playwright-output/user_story_1-cli-input-tes-fb7e7-th-items-successfully-added-chromium/error-context.md\n\n    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────\n    .playwright-output/user_story_1-cli-input-tes-fb7e7-th-items-successfully-added-chromium/trace.zip\n    Usage:\n\n        npx playwright show-trace .playwright-output/user_story_1-cli-input-tes-fb7e7-th-items-successfully-added-chromium/trace.zip\n\n    ────────────────────────────────────────────────────────────────────────────────────────────────\n\n\n\u001b[1A\u001b[2K  1 failed\n    [chromium] › generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_view_cart_with_items_successfully_added.spec.js:113:1 › View cart with items successfully added",
         "validationStatus": "PASS",
-        "validationSummary": "All validation criteria are met. The search results section is visible, the input retains 'Desk Lamp', at least one matching product ('Nova Desk Lamp') is displayed, and no 'no results found' message is present.",
+        "validationSummary": "The cart page is fully displayed with a product listed, showing name, quantity, unit price, and a subtotal section with currency symbol and numeric value.",
         "improvementPriority": "high",
         "improvements": [
-          "Replace `toContainText` with `toHaveValue` when asserting the retained value of an input element. Input fields expose their content via the `value` attribute/property, not inner text, so `expect(locator).toHaveValue('Desk Lamp')` is the correct Playwright assertion. The current use of `toContainText` on an `<input>` always receives an empty string, causing a false failure even when the field is correctly populated.",
-          "Update the `expectTextWithFallback` helper to detect whether the resolved locator is an input/textarea element and branch accordingly: use `toHaveValue(value)` for form controls and `toContainText(value)` for all other elements. This makes the helper universally correct without requiring call-site changes.",
-          "Add `data-testid='search-input'` as the primary selector for the search bar (it is already present on the element per the call log) and demote the generic CSS fallbacks (`input[type='search']`, `input[placeholder*='Search']`, `input[name='search']`) to secondary options. This eliminates ambiguous multi-selector `.first()` resolution and improves selector stability.",
-          "After filling the search field with `page.fill(selector, 'Desk Lamp')`, add an explicit assertion `await expect(page.getByTestId('search-input')).toHaveValue('Desk Lamp')` before proceeding to submit, so fill-confirmation failures are caught early and separately from results-page assertions.",
-          "Increase the assertion timeout for the search-input value check to at least 10 000 ms (or use the global `actionTimeout`) to tolerate any single-page-app re-render that may momentarily clear the field between navigation and assertion evaluation.",
-          "Add a dedicated assertion for the results list using a stable selector (e.g., `data-testid='product-card'` or `data-testid='search-results'`) with `toBeVisible()` and a `filter({ hasText: 'Desk Lamp' })` check, mirroring the validated UI state where 'Nova Desk Lamp' is confirmed present. This closes the coverage gap between the UI validation PASS and the script FAIL."
+          "Remove the assertion that checks the cart navigation link text contains '$' — the nav cart link ('Cart1') shows item count badge, not price; price assertions must be scoped to the cart page body, not the nav element",
+          "Replace `getByRole('link', { name: /cart/i }).first()` with `page.getByTestId('nav-cart')` for the nav cart link since the element has `data-testid='nav-cart'`, making the locator stable and unambiguous",
+          "After navigating to the cart page, assert the total/subtotal using a dedicated locator scoped to the cart content area (e.g., `page.locator('[data-testid=\"cart-subtotal\"]')` or `page.locator('text=Subtotal')`) rather than the nav link",
+          "Split the test into clear phases: (1) add item to cart, (2) click nav cart link and verify navigation to cart page, (3) assert item name, quantity, unit price, and subtotal independently with separate expect statements for better failure isolation",
+          "Add an explicit `await page.waitForURL(/cart/)` or `await expect(page).toHaveURL(/cart/)` assertion after clicking the cart nav link to confirm page navigation before asserting cart contents",
+          "Use `data-testid` attributes for all cart content assertions (e.g., `nav-cart`, cart item name, price, quantity, subtotal) rather than role/text selectors to reduce brittleness from UI text changes",
+          "Assert cart item count badge on nav separately using a numeric matcher (e.g., `expect(page.getByTestId('nav-cart')).toContainText('1')`) so badge count validation is explicit and purposeful, not confused with price validation",
+          "Add a precondition setup helper (beforeEach or fixture) that programmatically adds an item to the cart via API or direct UI flow before the main assertions, ensuring test isolation and consistent cart state"
         ],
-        "executedAt": "2026-05-21T18:19:15.180Z"
+        "executedAt": "2026-05-21T21:15:31.152Z"
       },
       {
         "caseId": "tc-001",
         "attempt": 2,
-        "scriptPath": "generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_search_for_desk_lamp_returns_relevant.spec.js",
-        "executionStatus": "FAIL",
-        "executionCode": 1,
-        "failureCause": "Error: Unable to resolve locator. selector=\"[data-testid='product-card']\" description=\"Assert at least one product card is visible in the results\"",
-        "debugCommand": "npx playwright test generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_search_for_desk_lamp_returns_relevant.spec.js --headed --project=chromium",
-        "outputTail": "Running 1 test using 1 worker\n\n\u001b[1A\u001b[2K[1/1] [chromium] › generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_search_for_desk_lamp_returns_relevant.spec.js:113:1 › Search for Desk Lamp returns relevant results\n\u001b[1A\u001b[2K  1) [chromium] › generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_search_for_desk_lamp_returns_relevant.spec.js:113:1 › Search for Desk Lamp returns relevant results \n\n    Error: Unable to resolve locator. selector=\"[data-testid='product-card']\" description=\"Assert at least one product card is visible in the results\"\n\n      76 |   const resolved = await firstExisting(candidates);\n      77 |   if (!resolved) {\n    > 78 |     throw new Error(`Unable to resolve locator. selector=\"${selectorText}\" description=\"${descriptionText}\"`);\n         |           ^\n      79 |   }\n      80 |   return resolved;\n      81 | }\n        at resolveLocator (/Users/sailaja.pinisetty/ai-playwright-framework/generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_search_for_desk_lamp_returns_relevant.spec.js:78:11)\n        at expectVisibleWithFallback (/Users/sailaja.pinisetty/ai-playwright-framework/generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_search_for_desk_lamp_returns_relevant.spec.js:104:19)\n        at /Users/sailaja.pinisetty/ai-playwright-framework/generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_search_for_desk_lamp_returns_relevant.spec.js:142:5\n\n    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────\n    .playwright-output/user_story_1-cli-input-tes-fcc5c-mp-returns-relevant-results-chromium/test-failed-1.png\n    ────────────────────────────────────────────────────────────────────────────────────────────────\n\n    Error Context: .playwright-output/user_story_1-cli-input-tes-fcc5c-mp-returns-relevant-results-chromium/error-context.md\n\n\n\u001b[1A\u001b[2K  1 failed\n    [chromium] › generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_search_for_desk_lamp_returns_relevant.spec.js:113:1 › Search for Desk Lamp returns relevant results",
+        "scriptPath": "generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_view_cart_with_items_successfully_added.spec.js",
+        "executionStatus": "PASS",
+        "executionCode": 0,
+        "failureCause": "",
+        "debugCommand": "npx playwright test generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_view_cart_with_items_successfully_added.spec.js --headed --project=chromium",
+        "outputTail": "Running 1 test using 1 worker\n\n\u001b[1A\u001b[2K[1/1] [chromium] › generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_view_cart_with_items_successfully_added.spec.js:113:1 › View cart with items successfully added\n\u001b[1A\u001b[2K  1 passed (2.9s)",
         "validationStatus": "PASS",
-        "validationSummary": "All validation criteria are met. The search input contains 'Desk Lamp', results are visible, at least one product card ('Nova Desk Lamp') is displayed, and no empty-state message is shown.",
-        "improvementPriority": "high",
+        "validationSummary": "The cart page is fully functional and displays all required elements including product name, quantity, unit price, subtotal with currency symbol. The Cart nav link is visible in the header. Cannot verify data-testid attributes or URL from screenshot alone.",
+        "improvementPriority": "medium",
         "improvements": [
-          "Replace the primary selector '[data-testid='product-card']' with a broader fallback chain that includes semantic and structural alternatives such as '.product-card', '[class*=\"product\"]', '[class*=\"card\"]', 'article', and 'li[class*=\"item\"]' so the resolveLocator helper can find real DOM elements when data-testid attributes are absent",
-          "After search submission, add an explicit 'waitForLoadState(\"networkidle\")' or 'waitForSelector' on the results container before attempting to resolve product card locators, preventing race conditions where assertions run before results render",
-          "Inject a page-inspection step that captures 'page.content()' or runs 'page.evaluate(() => document.body.innerHTML)' on failure to log the actual DOM structure, enabling faster diagnosis of missing data-testid attributes in future failures",
-          "Add a DOM-attribute audit step pre-test that checks whether '[data-testid=\"product-card\"]' exists at all; if absent, emit a warning and automatically switch to the best structural fallback rather than throwing a hard error",
-          "Coordinate with the development team to enforce consistent application of 'data-testid' attributes on product card elements as part of the definition of done, eliminating selector brittleness at the source",
-          "Extend the fallback selector list inside resolveLocator to include text-based locators such as 'page.locator(\":text('Desk Lamp')\")' and 'page.getByRole(\"listitem\")' as last-resort candidates when all CSS selectors fail",
-          "Since the validation result confirms the UI is correct (confidence 98, all checks PASS), mark this failure as a test-infrastructure defect rather than a product defect and add a regression guard: assert that at least one fallback selector resolves before the test is published to CI",
-          "Parameterise the search keyword ('Desk Lamp') as a test data variable and add a data-driven second case with a partial match (e.g., 'Lamp') to increase coverage of the search relevance acceptance criterion"
+          "Add explicit URL assertion after cart navigation: use `await expect(page).toHaveURL(/\\/cart\\//);` to resolve the UNKNOWN check on URL pattern and prevent false positives from in-place drawer rendering",
+          "Assert `data-testid='nav-cart'` attribute directly in the test: use `await expect(page.getByTestId('nav-cart')).toBeVisible();` so the data-testid criterion moves from UNKNOWN to a verified PASS/FAIL",
+          "Add a `waitForURL` or `waitForLoadState('networkidle')` call after clicking the cart link to ensure full page navigation completes before assertions run, reducing flakiness on slower CI environments",
+          "Expand the test to add two or more distinct products before navigating to cart, then assert each product name appears individually, improving coverage of the 'all items displayed' acceptance criterion beyond a single-item happy path",
+          "Assert that the subtotal value equals the mathematical sum of (unit price × quantity) for each cart item using a computed locator check, e.g. extracting inner text and comparing parsed floats, to validate accurate total calculation rather than just currency symbol presence",
+          "Add a quantity mutation step: increase qty of the existing item via the quantity input or stepper, then assert the subtotal updates accordingly, covering dynamic recalculation which is currently untested",
+          "Capture a full-page screenshot on test failure using `page.screenshot({ path: 'screenshots/tc-001-failure.png', fullPage: true })` inside an `afterEach` hook to aid debugging when confidence drops below threshold",
+          "Parameterize the test with at least one guest-user and one logged-in-user context using Playwright `test.describe` blocks or projects, since the preconditions list both but the current run only exercises one auth state",
+          "Assert cart item count badge or number in the header nav updates correctly after item addition, linking the nav indicator to the cart page state as an additional acceptance criterion coverage point"
         ],
-        "executedAt": "2026-05-21T18:19:46.832Z"
-      }
-    ]
-  },
-  {
-    "generatedAt": "2026-05-21T18:42:38.592Z",
-    "overallStatus": "PARTIAL_FAIL",
-    "summary": "Total automated cases: 2 | Execution passed: 0 | Execution failed: 2",
-    "totals": {
-      "total": 2,
-      "executionPassed": 0,
-      "executionFailed": 2,
-      "validationPassed": 0,
-      "validationFailed": 2
-    },
-    "caseResults": [
-      {
-        "caseId": "tc-001",
-        "attempt": 1,
-        "scriptPath": "generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_user_can_draw_on_canvas_by.spec.js",
-        "executionStatus": "FAIL",
-        "executionCode": 1,
-        "failureCause": "Error: Unable to resolve locator. selector=\"canvas\" description=\"Wait for the canvas element to be present and visible in the DOM\"",
-        "debugCommand": "npx playwright test generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_user_can_draw_on_canvas_by.spec.js --headed --project=chromium",
-        "outputTail": "Running 1 test using 1 worker\n\n\u001b[1A\u001b[2K[1/1] [chromium] › generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_user_can_draw_on_canvas_by.spec.js:113:1 › User can draw on canvas by clicking and dragging\n\u001b[1A\u001b[2K  1) [chromium] › generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_user_can_draw_on_canvas_by.spec.js:113:1 › User can draw on canvas by clicking and dragging \n\n    Error: Unable to resolve locator. selector=\"canvas\" description=\"Wait for the canvas element to be present and visible in the DOM\"\n\n      76 |   const resolved = await firstExisting(candidates);\n      77 |   if (!resolved) {\n    > 78 |     throw new Error(`Unable to resolve locator. selector=\"${selectorText}\" description=\"${descriptionText}\"`);\n         |           ^\n      79 |   }\n      80 |   return resolved;\n      81 | }\n        at resolveLocator (/Users/sailaja.pinisetty/ai-playwright-framework/generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_user_can_draw_on_canvas_by.spec.js:78:11)\n        at waitForWithFallback (/Users/sailaja.pinisetty/ai-playwright-framework/generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_user_can_draw_on_canvas_by.spec.js:99:19)\n        at /Users/sailaja.pinisetty/ai-playwright-framework/generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_user_can_draw_on_canvas_by.spec.js:121:5\n\n    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────\n    .playwright-output/user_story_1-cli-input-tes-00536-as-by-clicking-and-dragging-chromium/test-failed-1.png\n    ────────────────────────────────────────────────────────────────────────────────────────────────\n\n    Error Context: .playwright-output/user_story_1-cli-input-tes-00536-as-by-clicking-and-dragging-chromium/error-context.md\n\n\n\u001b[1A\u001b[2K  1 failed\n    [chromium] › generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_user_can_draw_on_canvas_by.spec.js:113:1 › User can draw on canvas by clicking and dragging",
-        "validationStatus": "FAIL",
-        "validationSummary": "The page shows a GitHub Pages 404 error, meaning the drawing application was never loaded. No canvas, drawing tools, or interactive elements are present.",
-        "improvementPriority": "high",
-        "improvements": [
-          "Add a pre-test URL health check step that performs an HTTP GET request to the target base URL and asserts a 2xx status code before proceeding; if the check fails, skip or abort the test with a descriptive message such as 'Application unreachable – verify BASE_URL configuration'",
-          "Externalize the base URL into a required environment variable (e.g., DRAWING_APP_URL) and validate its presence at the start of the test suite, throwing a clear configuration error if it is missing or pointing to a non-existent deployment",
-          "Replace the bare 'canvas' selector with a prioritized fallback selector chain: ['canvas#drawing-canvas', 'canvas[data-testid]', 'canvas'] and add a page.waitForLoadState('networkidle') call after navigation to ensure the SPA/application has fully initialized before attempting canvas resolution",
-          "Capture the full page URL and page title inside the resolveLocator error handler so that 404 or redirect scenarios are immediately identifiable in the failure log without needing to inspect the screenshot separately",
-          "Add an explicit assertion immediately after navigation – e.g., expect(page.url()).not.toContain('404') and await expect(page.locator('body')).not.toContainText('404') – so the test fails fast with a meaningful message rather than propagating to canvas interaction steps",
-          "Introduce a global setup fixture that verifies the drawing application is deployed and reachable before any test in the suite runs, preventing all dependent tests from executing against a broken environment",
-          "Document the correct application URL in a README or .env.example file and add a CI pipeline step that validates the deployment URL resolves successfully before triggering the Playwright test run"
-        ],
-        "executedAt": "2026-05-21T18:41:44.138Z"
-      },
-      {
-        "caseId": "tc-001",
-        "attempt": 2,
-        "scriptPath": "generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_user_can_draw_on_canvas_by.spec.js",
-        "executionStatus": "FAIL",
-        "executionCode": 1,
-        "failureCause": "Error: Unable to resolve locator. selector=\"canvas\" description=\"Wait for network idle to ensure SPA has fully initialized before canvas interaction\"",
-        "debugCommand": "npx playwright test generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_user_can_draw_on_canvas_by.spec.js --headed --project=chromium",
-        "outputTail": "Running 1 test using 1 worker\n\n\u001b[1A\u001b[2K[1/1] [chromium] › generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_user_can_draw_on_canvas_by.spec.js:113:1 › User can draw on canvas by clicking and dragging\n\u001b[1A\u001b[2K  1) [chromium] › generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_user_can_draw_on_canvas_by.spec.js:113:1 › User can draw on canvas by clicking and dragging \n\n    Error: Unable to resolve locator. selector=\"canvas\" description=\"Wait for network idle to ensure SPA has fully initialized before canvas interaction\"\n\n      76 |   const resolved = await firstExisting(candidates);\n      77 |   if (!resolved) {\n    > 78 |     throw new Error(`Unable to resolve locator. selector=\"${selectorText}\" description=\"${descriptionText}\"`);\n         |           ^\n      79 |   }\n      80 |   return resolved;\n      81 | }\n        at resolveLocator (/Users/sailaja.pinisetty/ai-playwright-framework/generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_user_can_draw_on_canvas_by.spec.js:78:11)\n        at waitForWithFallback (/Users/sailaja.pinisetty/ai-playwright-framework/generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_user_can_draw_on_canvas_by.spec.js:99:19)\n        at /Users/sailaja.pinisetty/ai-playwright-framework/generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_user_can_draw_on_canvas_by.spec.js:127:5\n\n    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────\n    .playwright-output/user_story_1-cli-input-tes-00536-as-by-clicking-and-dragging-chromium/test-failed-1.png\n    ────────────────────────────────────────────────────────────────────────────────────────────────\n\n    Error Context: .playwright-output/user_story_1-cli-input-tes-00536-as-by-clicking-and-dragging-chromium/error-context.md\n\n\n\u001b[1A\u001b[2K  1 failed\n    [chromium] › generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_user_can_draw_on_canvas_by.spec.js:113:1 › User can draw on canvas by clicking and dragging",
-        "validationStatus": "FAIL",
-        "validationSummary": "The screenshot shows a marketplace/e-commerce application, not a drawing application. There is no canvas element visible, and the app does not support drawing functionality as required by the user story.",
-        "improvementPriority": "high",
-        "improvements": [
-          "Verify and correct the base URL in the Playwright configuration (playwright.config.js or .env) — the test is navigating to a marketplace/e-commerce app instead of a drawing application. The `baseURL` must point to the actual drawing tool URL (e.g., http://localhost:3000/draw) before any canvas interaction can succeed.",
-          "Add an explicit URL assertion at test start using `expect(page).toHaveURL(/draw|canvas|paint/i)` immediately after navigation to fail fast with a clear message if the wrong application is loaded, rather than failing silently at canvas lookup.",
-          "Replace the generic `canvas` selector fallback chain with a more resilient multi-strategy locator: try `canvas[id]`, `canvas[data-testid]`, `role=img` with canvas tag, and `document.querySelector('canvas')` via `page.evaluate()` — log which strategy succeeded to aid debugging.",
-          "Add a pre-condition guard that checks the page title or a known DOM landmark unique to the drawing app (e.g., `await expect(page.locator('[data-app=\"drawing\"]')).toBeVisible()`) before proceeding, and skip/fail with a descriptive message if the wrong environment is detected.",
-          "Increase canvas wait timeout and use `page.waitForFunction(() => !!document.querySelector('canvas'))` with a 15-second timeout instead of relying solely on `networkidle`, since SPA canvas elements may mount after network activity settles.",
-          "After resolving the correct URL, implement pixel-level drawing verification: capture a screenshot of the canvas bounding box before and after the drag interaction using `page.evaluate()` to read `canvas.toDataURL()`, then assert that the two base64 strings differ to confirm a stroke was rendered.",
-          "Parameterize the application URL via environment variable `DRAWING_APP_URL` and add a CI/CD config validation step that asserts the variable is set and reachable before test execution begins, preventing wrong-environment test runs.",
-          "Add a diagnostic screenshot and `page.evaluate(() => document.documentElement.outerHTML.slice(0, 2000))` dump on canvas locator failure to expose the actual DOM structure in the error report, making root-cause analysis faster."
-        ],
-        "executedAt": "2026-05-21T18:42:17.559Z"
-      }
-    ]
-  },
-  {
-    "generatedAt": "2026-05-21T18:43:48.941Z",
-    "overallStatus": "PARTIAL_FAIL",
-    "summary": "Total automated cases: 2 | Execution passed: 0 | Execution failed: 2",
-    "totals": {
-      "total": 2,
-      "executionPassed": 0,
-      "executionFailed": 2,
-      "validationPassed": 0,
-      "validationFailed": 2
-    },
-    "caseResults": [
-      {
-        "caseId": "tc-001",
-        "attempt": 1,
-        "scriptPath": "generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_verify_login_button_is_clickable_and.spec.js",
-        "executionStatus": "FAIL",
-        "executionCode": 1,
-        "failureCause": "Error: Unable to resolve locator. selector=\"role=button[name='Login']\" description=\"Wait for the Login button to be visible on the page\"",
-        "debugCommand": "npx playwright test generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_verify_login_button_is_clickable_and.spec.js --headed --project=chromium",
-        "outputTail": "Running 1 test using 1 worker\n\n\u001b[1A\u001b[2K[1/1] [chromium] › generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_verify_login_button_is_clickable_and.spec.js:113:1 › Verify login button is clickable and initiates login process\n\u001b[1A\u001b[2K  1) [chromium] › generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_verify_login_button_is_clickable_and.spec.js:113:1 › Verify login button is clickable and initiates login process \n\n    Error: Unable to resolve locator. selector=\"role=button[name='Login']\" description=\"Wait for the Login button to be visible on the page\"\n\n      76 |   const resolved = await firstExisting(candidates);\n      77 |   if (!resolved) {\n    > 78 |     throw new Error(`Unable to resolve locator. selector=\"${selectorText}\" description=\"${descriptionText}\"`);\n         |           ^\n      79 |   }\n      80 |   return resolved;\n      81 | }\n        at resolveLocator (/Users/sailaja.pinisetty/ai-playwright-framework/generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_verify_login_button_is_clickable_and.spec.js:78:11)\n        at waitForWithFallback (/Users/sailaja.pinisetty/ai-playwright-framework/generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_verify_login_button_is_clickable_and.spec.js:99:19)\n        at /Users/sailaja.pinisetty/ai-playwright-framework/generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_verify_login_button_is_clickable_and.spec.js:121:5\n\n    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────\n    .playwright-output/user_story_1-cli-input-tes-38bd6-and-initiates-login-process-chromium/test-failed-1.png\n    ────────────────────────────────────────────────────────────────────────────────────────────────\n\n    Error Context: .playwright-output/user_story_1-cli-input-tes-38bd6-and-initiates-login-process-chromium/error-context.md\n\n\n\u001b[1A\u001b[2K  1 failed\n    [chromium] › generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_verify_login_button_is_clickable_and.spec.js:113:1 › Verify login button is clickable and initiates login process",
-        "validationStatus": "FAIL",
-        "validationSummary": "The screenshot shows a 404 GitHub Pages error page, not a login page. No login button is present, and none of the validation criteria can be satisfied.",
-        "improvementPriority": "high",
-        "improvements": [
-          "Add a pre-flight URL validation step at the start of the test that asserts the page does not return a 404 or error state before proceeding, using `await expect(page).not.toHaveURL(/404/)` and `await expect(page.locator('body')).not.toContainText('404')` to fail fast with a meaningful message",
-          "Introduce a configurable BASE_URL environment variable (e.g., `process.env.BASE_URL`) and validate it is set and reachable before test execution, throwing a descriptive setup error if the target URL is unreachable or misconfigured",
-          "Expand the login button selector fallback chain to include multiple strategies: `role=button[name='Login']`, `role=button[name='Sign In']`, `[data-testid='login-button']`, `button[type='submit']`, `input[type='submit']`, and `text=Login` to handle varied implementations",
-          "Wrap the `page.goto()` call with a response status check: `const response = await page.goto(BASE_URL); if (!response || response.status() >= 400) throw new Error('Page load failed with status: ' + response?.status())` to catch 404/5xx errors immediately",
-          "Add a `waitForLoadState('networkidle')` or `waitForLoadState('domcontentloaded')` assertion after navigation before any element resolution to ensure the login page is fully rendered before selector resolution begins",
-          "Capture and attach the page URL and page title in the error context when `resolveLocator` fails, so diagnostics clearly show whether the wrong page was loaded rather than just a missing element",
-          "Create a smoke test fixture or setup hook that verifies the application login page is accessible and returns HTTP 200 before any TC-001 test logic executes, gating the entire suite on environment availability",
-          "Store the screenshot path from `.playwright-output` in the execution result and cross-reference it in the validation step to confirm the visible page matches the expected login page context before running UI assertions"
-        ],
-        "executedAt": "2026-05-21T18:42:58.886Z"
-      },
-      {
-        "caseId": "tc-001",
-        "attempt": 2,
-        "scriptPath": "generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_verify_login_button_is_clickable_and.spec.js",
-        "executionStatus": "FAIL",
-        "executionCode": 1,
-        "failureCause": "Error: Unable to resolve locator. selector=\"css=button[type='submit']\" description=\"Wait for a submit-type button to be visible on the page\"",
-        "debugCommand": "npx playwright test generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_verify_login_button_is_clickable_and.spec.js --headed --project=chromium",
-        "outputTail": "Running 1 test using 1 worker\n\n\u001b[1A\u001b[2K[1/1] [chromium] › generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_verify_login_button_is_clickable_and.spec.js:113:1 › Verify login button is clickable and initiates login process\n\u001b[1A\u001b[2K  1) [chromium] › generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_verify_login_button_is_clickable_and.spec.js:113:1 › Verify login button is clickable and initiates login process \n\n    Error: Unable to resolve locator. selector=\"css=button[type='submit']\" description=\"Wait for a submit-type button to be visible on the page\"\n\n      76 |   const resolved = await firstExisting(candidates);\n      77 |   if (!resolved) {\n    > 78 |     throw new Error(`Unable to resolve locator. selector=\"${selectorText}\" description=\"${descriptionText}\"`);\n         |           ^\n      79 |   }\n      80 |   return resolved;\n      81 | }\n        at resolveLocator (/Users/sailaja.pinisetty/ai-playwright-framework/generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_verify_login_button_is_clickable_and.spec.js:78:11)\n        at waitForWithFallback (/Users/sailaja.pinisetty/ai-playwright-framework/generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_verify_login_button_is_clickable_and.spec.js:99:19)\n        at /Users/sailaja.pinisetty/ai-playwright-framework/generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_verify_login_button_is_clickable_and.spec.js:127:5\n\n    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────\n    .playwright-output/user_story_1-cli-input-tes-38bd6-and-initiates-login-process-chromium/test-failed-1.png\n    ────────────────────────────────────────────────────────────────────────────────────────────────\n\n    Error Context: .playwright-output/user_story_1-cli-input-tes-38bd6-and-initiates-login-process-chromium/error-context.md\n\n\n\u001b[1A\u001b[2K  1 failed\n    [chromium] › generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_verify_login_button_is_clickable_and.spec.js:113:1 › Verify login button is clickable and initiates login process",
-        "validationStatus": "FAIL",
-        "validationSummary": "The application page returns a 404 error from GitHub Pages, meaning the site does not exist. No login button is present, and none of the login-related criteria can be satisfied.",
-        "improvementPriority": "high",
-        "improvements": [
-          "Validate the target URL is reachable and returns HTTP 200 before executing any test steps; add a pre-test network check using Playwright's `page.goto()` response status assertion: `const response = await page.goto(BASE_URL); expect(response.status()).toBe(200);` and fail fast with a clear message if the page returns 4xx/5xx.",
-          "Externalize the base URL into a `.env` file or Playwright `playwright.config.js` `use.baseURL` property so the correct environment URL is injected at runtime and never hardcoded to a broken GitHub Pages URL.",
-          "Expand the login button selector fallback chain to cover more real-world patterns before throwing: try in order — `button[type='submit']`, `input[type='submit']`, `button:has-text('Login')`, `button:has-text('Sign in')`, `[data-testid='login-btn']`, `a:has-text('Login')` — using `page.locator().first()` with `isVisible()` checks.",
-          "Add a page-load guard using `await expect(page).not.toHaveURL(/404/)` and `await expect(page.locator('body')).not.toContainText('404')` immediately after navigation to detect error pages early and surface a meaningful failure message instead of a selector resolution error.",
-          "Introduce a dedicated smoke-check test that verifies the environment URL resolves correctly and the login page renders expected landmarks (heading, username field, password field, submit button) before running the full TC-001 flow, so infrastructure failures are distinguished from functional failures.",
-          "Store environment-specific credentials (username, password) in Playwright's `process.env` or a secrets manager and reference them via `process.env.TEST_USERNAME` / `process.env.TEST_PASSWORD` to avoid hardcoded values and support multi-environment runs.",
-          "After a successful login click, add an explicit navigation assertion such as `await expect(page).toHaveURL(/dashboard|home/)` and a visible-element assertion on a post-login landmark (e.g., `await expect(page.locator('[data-testid=\"user-menu\"]')).toBeVisible()`) to fully validate the acceptance criterion that the user is redirected to the dashboard."
-        ],
-        "executedAt": "2026-05-21T18:43:29.122Z"
-      }
-    ]
-  },
-  {
-    "generatedAt": "2026-05-21T19:00:50.616Z",
-    "overallStatus": "PARTIAL_FAIL",
-    "summary": "Total automated cases: 1 | Execution passed: 0 | Execution failed: 1",
-    "totals": {
-      "total": 1,
-      "executionPassed": 0,
-      "executionFailed": 1,
-      "validationPassed": 0,
-      "validationFailed": 1
-    },
-    "caseResults": [
-      {
-        "caseId": "tc-001",
-        "attempt": 1,
-        "scriptPath": "generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_verify_basic_page_load_and_primary.spec.js",
-        "executionStatus": "FAIL",
-        "executionCode": 1,
-        "failureCause": "Error: Unable to resolve locator. selector=\"role=main\" description=\"Verify the main content area is visible\"",
-        "debugCommand": "npx playwright test generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_verify_basic_page_load_and_primary.spec.js --headed --project=chromium",
-        "outputTail": "Running 1 test using 1 worker\n\n\u001b[1A\u001b[2K[1/1] [chromium] › generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_verify_basic_page_load_and_primary.spec.js:113:1 › verify basic page load and primary interaction responds correctly\n\u001b[1A\u001b[2K  1) [chromium] › generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_verify_basic_page_load_and_primary.spec.js:113:1 › verify basic page load and primary interaction responds correctly \n\n    Error: Unable to resolve locator. selector=\"role=main\" description=\"Verify the main content area is visible\"\n\n      76 |   const resolved = await firstExisting(candidates);\n      77 |   if (!resolved) {\n    > 78 |     throw new Error(`Unable to resolve locator. selector=\"${selectorText}\" description=\"${descriptionText}\"`);\n         |           ^\n      79 |   }\n      80 |   return resolved;\n      81 | }\n        at resolveLocator (/Users/sailaja.pinisetty/ai-playwright-framework/generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_verify_basic_page_load_and_primary.spec.js:78:11)\n        at expectVisibleWithFallback (/Users/sailaja.pinisetty/ai-playwright-framework/generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_verify_basic_page_load_and_primary.spec.js:104:19)\n        at /Users/sailaja.pinisetty/ai-playwright-framework/generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_verify_basic_page_load_and_primary.spec.js:124:5\n\n    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────\n    .playwright-output/user_story_1-cli-input-tes-51f45-eraction-responds-correctly-chromium/test-failed-1.png\n    ────────────────────────────────────────────────────────────────────────────────────────────────\n\n    Error Context: .playwright-output/user_story_1-cli-input-tes-51f45-eraction-responds-correctly-chromium/error-context.md\n\n\n\u001b[1A\u001b[2K  1 failed\n    [chromium] › generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_verify_basic_page_load_and_primary.spec.js:113:1 › verify basic page load and primary interaction responds correctly",
-        "validationStatus": "FAIL",
-        "validationSummary": "The page shows a GitHub Pages 404 error, meaning the site does not exist. All criteria related to content, search functionality, and valid results cannot be met.",
-        "improvementPriority": "high",
-        "improvements": [
-          "Add a URL reachability pre-check at the start of the test: perform a page.goto() and assert response.status() === 200 before any UI interaction; if the check fails, skip the test with a clear message like 'Target URL returned 404 – environment not reachable' instead of propagating a misleading locator error",
-          "Introduce an environment validation fixture or global setup step that verifies the base URL is live and returns a non-error HTTP status before any test suite runs, preventing all downstream selector failures caused by a missing application",
-          "Replace the generic 'role=main' ARIA selector fallback chain with page-specific, DOM-verified selectors (e.g., data-testid, semantic landmarks confirmed in the actual deployed app); the current fallback list is resolving against a GitHub Pages 404 page that has no <main> element",
-          "Store the target base URL in a Playwright project configuration (playwright.config.js baseURL) and validate it against an allowed-environments list at test initialisation, throwing a descriptive setup error rather than a runtime locator error when the URL is wrong or unreachable",
-          "Capture and log the full page title and URL in the error context whenever resolveLocator() throws, so failure messages immediately surface '404 – GitHub Pages' instead of only 'Unable to resolve locator', reducing diagnosis time",
-          "Add a smoke guard step as the very first test action: assert that page.title() does not match known error patterns (e.g., /404|not found|error/i) and that page.url() matches the expected origin, failing fast with an environment-level error before any functional assertion is attempted",
-          "Parameterise test runs with a required ENV variable (e.g., BASE_URL) and gate CI execution on a prior health-check job that curls the URL; block test execution entirely if the health-check fails, keeping test results clean and meaningful",
-          "Update the resolveLocator fallback strategy to include at least three progressively broader selectors tied to the actual application's HTML structure (confirmed via screenshot analysis or DOM snapshot), and remove ARIA role selectors that are absent on error pages from the primary candidate list"
-        ],
-        "executedAt": "2026-05-21T19:00:24.824Z"
+        "executedAt": "2026-05-21T21:16:06.059Z"
       }
     ]
   }

@@ -474,7 +474,8 @@ async function runPipeline({ appUrl, userStory }) {
         return;
       }
 
-      resolve({ ok: code === 0, status: code === 0 ? 200 : 500, entry });
+      // Non-zero exit means tests failed, but the run itself completed successfully.
+      resolve({ ok: true, status: 200, entry });
     });
 
     proc.stdin.write(`${String(userStory || '').trim()}\n`);

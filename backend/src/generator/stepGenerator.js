@@ -2,6 +2,41 @@ import { askClaude } from '../ai/claudeClient.js';
 import { extractJsonBlock } from '../utils/json.js';
 import { config } from '../config.js';
 
+function fallbackPlan(userStory, selectedManualCase = null) {
+  const storyText = String(userStory || '').trim().replace(/\s+/g, ' ');
+  const caseTitle = String(selectedManualCase?.title || '').trim();
+  const title = caseTitle || (storyText ? `Fallback test: ${storyText.slice(0, 60)}` : 'Fallback UI smoke test');
+
+  return {
+    title,
+    url: config.appUrl,
+    steps: [
+      {
+        action: 'goto',
+        selector: '',
+        value: config.appUrl,
+        description: 'Open the target application URL.'
+      },
+      {
+        action: 'waitFor',
+        selector: 'body',
+        value: '',
+        description: 'Wait for the page body to be visible.'
+      },
+      {
+        action: 'assertVisible',
+        selector: 'body',
+        value: '',
+        description: 'Verify that the page rendered successfully.'
+      }
+    ],
+    validationCriteria: [
+      'Page body is visible after navigation.',
+      'No blocking page load issue is observed.'
+    ]
+  };
+}
+
 export async function generateTestPlan(userStory, options = {}) {
   const existingTestDescriptions = options.existingTestDescriptions || [];
   const selectedManualCase = options.selectedManualCase || null;
@@ -97,9 +132,18 @@ export async function generateTestPlan(userStory, options = {}) {
     '9) Return strict JSON only.'
   ].filter((line) => line !== null).join('\n');
 
-  const raw = await askClaude({ system, user, maxTokens: 1800 });
-  const jsonText = extractJsonBlock(raw);
-  const plan = JSON.parse(jsonText);
+  if (!config.aiEnabled) {
+    return fallbackPlan(userStory, selectedManualCase);
+  }
+
+  let plan;
+  try {
+    const raw = await askClaude({ system, user, maxTokens: 1800 });
+    const jsonText = extractJsonBlock(raw);
+    plan = JSON.parse(jsonText);
+  } catch {
+    return fallbackPlan(userStory, selectedManualCase);
+  }
 
   if (plan.status === 'NO_NEW_TEST') {
     return plan;

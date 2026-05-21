@@ -519,11 +519,20 @@ async function initRunnerPage() {
     runStatus.textContent = 'Running tests. Please wait...';
 
     try {
-      await submitRun(appUrl, userStory, Boolean(saveDefaultUrlInput?.checked));
-      runStatus.textContent = 'Run complete. You can open report now.';
+      const runResponse = await submitRun(appUrl, userStory, Boolean(saveDefaultUrlInput?.checked));
+      const runOutcome = String(runResponse?.run?.status || '').toUpperCase();
+
+      if (runOutcome === 'FAIL' || runOutcome === 'ERROR') {
+        runStatus.textContent = 'Run completed with failed tests. Open report/history for details.';
+        runLockedAfterSuccess = false;
+        runBtn.disabled = false;
+      } else {
+        runStatus.textContent = 'Run complete. You can open report now.';
+        runLockedAfterSuccess = true;
+        runBtn.disabled = true;
+      }
+
       showReportBtn.disabled = false;
-      runLockedAfterSuccess = true;
-      runBtn.disabled = true;
       await refreshHistory();
       manualCasesLoaded = false;
       latestManualCasesPayload = null;

@@ -1,23 +1,35 @@
 # Multi-Agent Dashboard - CLI input
 
-Generated at: 2026-05-21T19:00:50.616Z
+Generated at: 2026-05-21T21:16:28.826Z
 Overall status: PARTIAL_FAIL
 
 | Case ID | Attempt | Execution | UI Validation | Priority | Script |
 | --- | --- | --- | --- | --- | --- |
-| tc-001 | 1 | FAIL | FAIL | high | generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_verify_basic_page_load_and_primary.spec.js |
+| tc-001 | 1 | FAIL | PASS | high | generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_view_cart_with_items_successfully_added.spec.js |
+| tc-001 | 2 | PASS | PASS | medium | generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_view_cart_with_items_successfully_added.spec.js |
 
 ## Summary
-Total automated cases: 1 | Execution passed: 0 | Execution failed: 1
+Total automated cases: 2 | Execution passed: 1 | Execution failed: 1
 
 ## Improvement Suggestions
 
 ### tc-001
-- Add a URL reachability pre-check at the start of the test: perform a page.goto() and assert response.status() === 200 before any UI interaction; if the check fails, skip the test with a clear message like 'Target URL returned 404 – environment not reachable' instead of propagating a misleading locator error
-- Introduce an environment validation fixture or global setup step that verifies the base URL is live and returns a non-error HTTP status before any test suite runs, preventing all downstream selector failures caused by a missing application
-- Replace the generic 'role=main' ARIA selector fallback chain with page-specific, DOM-verified selectors (e.g., data-testid, semantic landmarks confirmed in the actual deployed app); the current fallback list is resolving against a GitHub Pages 404 page that has no <main> element
-- Store the target base URL in a Playwright project configuration (playwright.config.js baseURL) and validate it against an allowed-environments list at test initialisation, throwing a descriptive setup error rather than a runtime locator error when the URL is wrong or unreachable
-- Capture and log the full page title and URL in the error context whenever resolveLocator() throws, so failure messages immediately surface '404 – GitHub Pages' instead of only 'Unable to resolve locator', reducing diagnosis time
-- Add a smoke guard step as the very first test action: assert that page.title() does not match known error patterns (e.g., /404|not found|error/i) and that page.url() matches the expected origin, failing fast with an environment-level error before any functional assertion is attempted
-- Parameterise test runs with a required ENV variable (e.g., BASE_URL) and gate CI execution on a prior health-check job that curls the URL; block test execution entirely if the health-check fails, keeping test results clean and meaningful
-- Update the resolveLocator fallback strategy to include at least three progressively broader selectors tied to the actual application's HTML structure (confirmed via screenshot analysis or DOM snapshot), and remove ARIA role selectors that are absent on error pages from the primary candidate list
+- Remove the assertion that checks the cart navigation link text contains '$' — the nav cart link ('Cart1') shows item count badge, not price; price assertions must be scoped to the cart page body, not the nav element
+- Replace `getByRole('link', { name: /cart/i }).first()` with `page.getByTestId('nav-cart')` for the nav cart link since the element has `data-testid='nav-cart'`, making the locator stable and unambiguous
+- After navigating to the cart page, assert the total/subtotal using a dedicated locator scoped to the cart content area (e.g., `page.locator('[data-testid="cart-subtotal"]')` or `page.locator('text=Subtotal')`) rather than the nav link
+- Split the test into clear phases: (1) add item to cart, (2) click nav cart link and verify navigation to cart page, (3) assert item name, quantity, unit price, and subtotal independently with separate expect statements for better failure isolation
+- Add an explicit `await page.waitForURL(/cart/)` or `await expect(page).toHaveURL(/cart/)` assertion after clicking the cart nav link to confirm page navigation before asserting cart contents
+- Use `data-testid` attributes for all cart content assertions (e.g., `nav-cart`, cart item name, price, quantity, subtotal) rather than role/text selectors to reduce brittleness from UI text changes
+- Assert cart item count badge on nav separately using a numeric matcher (e.g., `expect(page.getByTestId('nav-cart')).toContainText('1')`) so badge count validation is explicit and purposeful, not confused with price validation
+- Add a precondition setup helper (beforeEach or fixture) that programmatically adds an item to the cart via API or direct UI flow before the main assertions, ensuring test isolation and consistent cart state
+
+### tc-001
+- Add explicit URL assertion after cart navigation: use `await expect(page).toHaveURL(/\/cart\//);` to resolve the UNKNOWN check on URL pattern and prevent false positives from in-place drawer rendering
+- Assert `data-testid='nav-cart'` attribute directly in the test: use `await expect(page.getByTestId('nav-cart')).toBeVisible();` so the data-testid criterion moves from UNKNOWN to a verified PASS/FAIL
+- Add a `waitForURL` or `waitForLoadState('networkidle')` call after clicking the cart link to ensure full page navigation completes before assertions run, reducing flakiness on slower CI environments
+- Expand the test to add two or more distinct products before navigating to cart, then assert each product name appears individually, improving coverage of the 'all items displayed' acceptance criterion beyond a single-item happy path
+- Assert that the subtotal value equals the mathematical sum of (unit price × quantity) for each cart item using a computed locator check, e.g. extracting inner text and comparing parsed floats, to validate accurate total calculation rather than just currency symbol presence
+- Add a quantity mutation step: increase qty of the existing item via the quantity input or stepper, then assert the subtotal updates accordingly, covering dynamic recalculation which is currently untested
+- Capture a full-page screenshot on test failure using `page.screenshot({ path: 'screenshots/tc-001-failure.png', fullPage: true })` inside an `afterEach` hook to aid debugging when confidence drops below threshold
+- Parameterize the test with at least one guest-user and one logged-in-user context using Playwright `test.describe` blocks or projects, since the preconditions list both but the current run only exercises one auth state
+- Assert cart item count badge or number in the header nav updates correctly after item addition, linking the nav indicator to the cart page state as an additional acceptance criterion coverage point
