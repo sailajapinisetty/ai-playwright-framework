@@ -6,10 +6,19 @@ import { buildReportData } from './buildReportData.js';
 
 const rootDir = process.cwd();
 const reportUiDir = path.resolve(rootDir, '../frontend/report-ui');
-const envFilePath = path.join(rootDir, '.env');
-const port = Number(process.env.REPORT_UI_PORT || 4173);
+const envFilePath = path.resolve(rootDir, '../.env');
+const port = Number(process.env.PORT || process.env.REPORT_UI_PORT || 4173);
 const uiHistoryPath = path.join(reportUiDir, 'data', 'ui-run-history.json');
 let isRunInProgress = false;
+const defaultCorsOrigins = [
+  'http://localhost:4173',
+  'http://127.0.0.1:4173',
+  'https://sailajapinisetty.github.io'
+];
+const corsOrigins = String(process.env.CORS_ALLOW_ORIGINS || defaultCorsOrigins.join(','))
+  .split(',')
+  .map((value) => value.trim())
+  .filter(Boolean);
 
 const mimeTypes = {
   '.html': 'text/html; charset=utf-8',
@@ -29,8 +38,25 @@ function contentType(filePath) {
   return mimeTypes[path.extname(filePath).toLowerCase()] || 'application/octet-stream';
 }
 
-function writeJson(res, statusCode, payload) {
+function buildCorsHeaders(req) {
+  const requestOrigin = String(req.headers.origin || '').trim();
+  const allowAll = corsOrigins.includes('*');
+  const allowedOrigin = allowAll
+    ? '*'
+    : (corsOrigins.includes(requestOrigin) ? requestOrigin : '');
+
+  return {
+    ...(allowedOrigin ? { 'Access-Control-Allow-Origin': allowedOrigin } : {}),
+    'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+    'Access-Control-Max-Age': '86400',
+    Vary: 'Origin'
+  };
+}
+
+function writeJson(req, res, statusCode, payload) {
   res.writeHead(statusCode, {
+    ...buildCorsHeaders(req),
     'Content-Type': 'application/json; charset=utf-8',
     'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
     Pragma: 'no-cache',
@@ -470,22 +496,32 @@ function resolveRequestPath(urlPath) {
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
+  const corsHeaders = buildCorsHeaders(req);
+
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204, {
+      ...corsHeaders,
+      'Content-Type': 'text/plain; charset=utf-8'
+    });
+    res.end();
+    return;
+  }
 
   if (req.method === 'GET' && url.pathname === '/api/history') {
     const history = await readRunHistory();
-    writeJson(res, 200, { items: history });
+    writeJson(req, res, 200, { items: history });
     return;
   }
 
   if (req.method === 'GET' && url.pathname === '/api/default-url') {
     const appUrl = await readDefaultUrlFromEnvFile();
-    writeJson(res, 200, { appUrl });
+    writeJson(req, res, 200, { appUrl });
     return;
   }
 
   if (req.method === 'GET' && url.pathname === '/api/manual-test-cases') {
     const manualData = await readManualTestCases();
-    writeJson(res, 200, manualData);
+    writeJson(req, res, 200, manualData);
     return;
   }
 
@@ -496,6 +532,7 @@ const server = http.createServer(async (req, res) => {
     if (format === 'excel') {
       const csv = buildManualCasesCsv(manualData);
       res.writeHead(200, {
+        ...corsHeaders,
         'Content-Type': 'text/csv; charset=utf-8',
         'Content-Disposition': 'attachment; filename="manual-test-cases.csv"',
         'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
@@ -509,6 +546,7 @@ const server = http.createServer(async (req, res) => {
     if (format === 'word') {
       const wordHtml = buildManualCasesWordHtml(manualData);
       res.writeHead(200, {
+        ...corsHeaders,
         'Content-Type': 'application/msword; charset=utf-8',
         'Content-Disposition': 'attachment; filename="manual-test-cases.doc"',
         'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
@@ -519,7 +557,7 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    writeJson(res, 400, { error: 'Unsupported format. Use format=word or format=excel.' });
+    writeJson(req, res, 400, { error: 'Unsupported format. Use format=word or format=excel.' });
     return;
   }
 
@@ -528,15 +566,15 @@ const server = http.createServer(async (req, res) => {
       const body = await readJsonBody(req);
       const appUrl = String(body.appUrl || '').trim();
       if (!appUrl) {
-        writeJson(res, 400, { error: 'appUrl is required.' });
+        writeJson(req, res, 400, { error: 'appUrl is required.' });
         return;
       }
 
       const savedUrl = await saveDefaultUrlToEnvFile(appUrl);
-      writeJson(res, 200, { appUrl: savedUrl });
+      writeJson(req, res, 200, { appUrl: savedUrl });
       return;
     } catch (error) {
-      writeJson(res, 500, { error: error.message });
+      writeJson(req, res, 500, { error: error.message });
       return;
     }
   }
@@ -554,7 +592,7 @@ const server = http.createServer(async (req, res) => {
           appUrl,
           userStory
         });
-        writeJson(res, 400, { error: 'appUrl is required.', run: failureEntry });
+        writeJson(req, res, 400, { error: 'appUrl is required.', run: failureEntry });
         return;
       }
 
@@ -565,12 +603,12 @@ const server = http.createServer(async (req, res) => {
           appUrl,
           userStory
         });
-        writeJson(res, 400, { error: urlValidation.message, run: failureEntry });
+        writeJson(req, res, 400, { error: urlValidation.message, run: failureEntry });
         return;
       }
 
       if (!userStory) {
-        writeJson(res, 400, { error: 'userStory is required.' });
+        writeJson(req, res, 400, { error: 'userStory is required.' });
         return;
       }
 
@@ -580,14 +618,14 @@ const server = http.createServer(async (req, res) => {
 
       const runResult = await runPipeline({ appUrl, userStory });
       if (!runResult.ok) {
-        writeJson(res, runResult.status, { error: runResult.error || 'Run failed', run: runResult.entry });
+        writeJson(req, res, runResult.status, { error: runResult.error || 'Run failed', run: runResult.entry });
         return;
       }
 
-      writeJson(res, 200, { message: 'Run completed', run: runResult.entry });
+      writeJson(req, res, 200, { message: 'Run completed', run: runResult.entry });
       return;
     } catch (error) {
-      writeJson(res, 500, { error: error.message });
+      writeJson(req, res, 500, { error: error.message });
       return;
     }
   }
@@ -596,6 +634,7 @@ const server = http.createServer(async (req, res) => {
   try {
     const data = await fs.readFile(requestPath);
     res.writeHead(200, {
+      ...corsHeaders,
       'Content-Type': contentType(requestPath),
       'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
       Pragma: 'no-cache',
@@ -603,7 +642,10 @@ const server = http.createServer(async (req, res) => {
     });
     res.end(data);
   } catch {
-    res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+    res.writeHead(404, {
+      ...corsHeaders,
+      'Content-Type': 'text/plain; charset=utf-8'
+    });
     res.end('Not found');
   }
 });
