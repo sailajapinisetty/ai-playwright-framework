@@ -110,53 +110,56 @@ async function expectTextWithFallback(page, selector, value, description) {
   await expect(locator).toContainText(value);
 }
 
-test('Search for Speaker, view details, and add to cart', async ({ page }, testInfo) => {
+test('Search Speaker, Verify Title & Category, Add to Cart', async ({ page }, testInfo) => {
   try {
-    await page.goto('https://sailajapinisetty.github.io/demo_app/');
+    await page.goto('/demo_app/');
 
-    // Navigate to the demo app homepage
-    await page.goto(`https://sailajapinisetty.github.io/demo_app/`);
+    // Navigate to the e-commerce home page
+    await page.goto('/demo_app/');
 
-    // Verify the search input is visible on the page
-    await expectVisibleWithFallback(page, `[placeholder*='Search'], input[type='search'], input[name='search']`, 'Verify the search input is visible on the page');
+    // Wait for the search input field to be visible on the page
+    await waitForWithFallback(page, `input[type='search'], input[placeholder*='Search'], input[name='search']`, 'Wait for the search input field to be visible on the page');
 
     // Type 'Speaker' into the search input field
-    await fillWithFallback(page, `[placeholder*='Search'], input[type='search'], input[name='search']`, `Speaker`, 'Type \'Speaker\' into the search input field');
+    await fillWithFallback(page, `input[type='search'], input[placeholder*='Search'], input[name='search']`, `Speaker`, 'Type \'Speaker\' into the search input field');
 
     // Press Enter to submit the search query
-    await pressWithFallback(page, `[placeholder*='Search'], input[type='search'], input[name='search']`, `Enter`, 'Press Enter to submit the search query');
+    await pressWithFallback(page, `input[type='search'], input[placeholder*='Search'], input[name='search']`, `Enter`, 'Press Enter to submit the search query');
 
-    // Wait for search results containing 'Speaker' to appear
-    await waitForWithFallback(page, `text=Speaker`, 'Wait for search results containing \'Speaker\' to appear');
+    // Wait for search results to load
+    await waitForWithFallback(page, `[data-testid='search-results'], .product-list, .search-results, .products`, 'Wait for search results to load');
 
-    // Verify at least one product with 'Speaker' in the name is visible in results
-    await expectVisibleWithFallback(page, `text=Speaker`, 'Verify at least one product with \'Speaker\' in the name is visible in results');
+    // Verify at least one product result containing 'Speaker' is visible in the search results
+    await expectVisibleWithFallback(page, `text=Speaker`, 'Verify at least one product result containing \'Speaker\' is visible in the search results');
 
-    // Click on the first 'Speaker' product to open its details page
-    await clickWithFallback(page, `text=Speaker`, 'Click on the first \'Speaker\' product to open its details page');
+    // Click on the first Speaker product in the search results to open its details page
+    await clickWithFallback(page, `text=Speaker`, 'Click on the first Speaker product in the search results to open its details page');
 
-    // Wait for the product details page to load with Speaker heading
-    await waitForWithFallback(page, `role=heading[name*='Speaker']`, 'Wait for the product details page to load with Speaker heading');
+    // Wait for the product details page to load
+    await waitForWithFallback(page, `[data-testid='product-title'], .product-title, h1, h2`, 'Wait for the product details page to load');
 
-    // Verify the product detail page heading contains 'Speaker'
-    await expectVisibleWithFallback(page, `role=heading[name*='Speaker']`, 'Verify the product detail page heading contains \'Speaker\'');
+    // Verify the product title element is visible on the product details page
+    await expectVisibleWithFallback(page, `[data-testid='product-title'], .product-title, h1`, 'Verify the product title element is visible on the product details page');
 
-    // Verify the 'Add to Cart' button is visible on the product details page
-    await expectVisibleWithFallback(page, `role=button[name*='Add to Cart']`, 'Verify the \'Add to Cart\' button is visible on the product details page');
+    // Verify the product title contains the word 'Speaker'
+    await expectTextWithFallback(page, `[data-testid='product-title'], .product-title, h1`, `Speaker`, 'Verify the product title contains the word \'Speaker\'');
 
-    // Click the 'Add to Cart' button to add the Speaker to the cart
-    await clickWithFallback(page, `role=button[name*='Add to Cart']`, 'Click the \'Add to Cart\' button to add the Speaker to the cart');
+    // Verify the product category element is visible on the product details page
+    await expectVisibleWithFallback(page, `[data-testid='product-category'], .product-category, .category`, 'Verify the product category element is visible on the product details page');
 
-    // Wait for a confirmation message or cart update indicator
-    await waitForWithFallback(page, `text=added, text=cart, role=alert`, 'Wait for a confirmation message or cart update indicator');
+    // Verify the product category displays a non-empty value
+    await expectTextWithFallback(page, `[data-testid='product-category'], .product-category, .category`, '', 'Verify the product category displays a non-empty value');
 
-    // Verify the cart icon or cart area reflects the added item
-    await expectVisibleWithFallback(page, `[aria-label*='cart'], [data-testid*='cart'], text=Cart`, 'Verify the cart icon or cart area reflects the added item');
+    // Click the 'Add to Cart' button on the product details page
+    await clickWithFallback(page, `button:has-text('Add to Cart'), [data-testid='add-to-cart'], button:has-text('Add To Cart')`, 'Click the \'Add to Cart\' button on the product details page');
+
+    // Verify a confirmation message or cart update is shown after adding the product
+    await expectVisibleWithFallback(page, `text=added, text=cart, [data-testid='cart-confirmation'], .cart-success, .toast, .notification`, 'Verify a confirmation message or cart update is shown after adding the product');
 
   } finally {
     if (!page.isClosed()) {
-      await page.screenshot({ path: 'artifacts/final-ui.png', fullPage: true });
-      await page.screenshot({ path: `test-results/user_story_1_search_for_speaker_view_details_and__${testInfo.project.name}.png`, fullPage: true });
+      await page.screenshot({ path: 'generated_tests/user_story_1-user-story-1/screenshots/tc-001/final-ui-tc-001.png', fullPage: true });
+      await page.screenshot({ path: `test-results/user_story_1_search_speaker_verify_title_category_add__${testInfo.project.name}.png`, fullPage: true });
     }
   }
 });

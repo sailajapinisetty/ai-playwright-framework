@@ -1,0 +1,29 @@
+{
+  "storySource": "CLI input",
+  "totalManualTests": 1,
+  "coverage": {
+    "totalAutomatable": 1,
+    "covered": 0,
+    "missing": 1,
+    "coveragePercent": 0,
+    "coveredCases": [],
+    "missingScenarioTitles": [
+      "Verify basic functionality responds correctly to valid user input"
+    ]
+  },
+  "selectedAutomatableTests": [
+    {
+      "id": "TC-001",
+      "title": "Verify basic functionality responds correctly to valid user input",
+      "reason": "This happy path scenario involves stable UI interactions and a verifiable outcome, making it suitable for Playwright automation with deterministic selectors and assertions"
+    }
+  ],
+  "selectedMissingTestsForGeneration": [
+    {
+      "id": "TC-001",
+      "title": "Verify basic functionality responds correctly to valid user input",
+      "reason": "This happy path scenario involves stable UI interactions and a verifiable outcome, making it suitable for Playwright automation with deterministic selectors and assertions"
+    }
+  ],
+  "skippedManualOnlyTests": []
+}

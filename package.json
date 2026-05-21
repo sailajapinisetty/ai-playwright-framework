@@ -4,10 +4,14 @@
   "description": "AI-assisted Playwright framework that generates test steps and validates UI with Claude",
   "type": "module",
   "scripts": {
-    "start": "node src/index.js",
+    "start": "node src/ui/serveReportUi.js",
+    "start:cli": "node src/index.js",
     "test:generated_tests": "playwright test generated_tests",
     "report:generated_tests": "playwright show-report playwright-report",
-    "playwright:install": "playwright install"
+    "playwright:install": "playwright install",
+    "ui:build": "node src/ui/buildReportData.js",
+    "ui:serve": "node src/ui/serveReportUi.js",
+    "ui": "npm run ui:build && npm run ui:serve"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.41.0",

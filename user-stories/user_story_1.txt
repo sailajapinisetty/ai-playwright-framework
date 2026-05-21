@@ -1,1 +1,3 @@
 As a shopper, I want to search for the product "Speaker", open product details, and add it to the cart
+check the title of teh product exists
+teh product category exists

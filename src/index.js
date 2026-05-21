@@ -1,10 +1,17 @@
 import fs from 'fs/promises';
 import path from 'path';
 import readline from 'readline';
-import { generateTestPlan } from './generator/stepGenerator.js';
+import { generateManualTestCatalog } from './generator/testCaseGenerator.js';
 import { buildPlaywrightScript } from './generator/scriptBuilder.js';
 import { runGeneratedTest } from './runner/runGeneratedTest.js';
-import { validateFinalUI } from './validator/uiValidator.js';
+import { plannerAgentCreatePlan } from './agents/plannerAgent.js';
+import { executorAgentRun } from './agents/executorAgent.js';
+import { validatorAgentValidate } from './agents/validatorAgent.js';
+import { reporterAgentWriteReport } from './agents/reporterAgent.js';
+import { improvementAgentSuggest } from './agents/improvementAgent.js';
+import { analyzeCoverageAndGaps, buildContinuousImprovementFeedback } from './agents/testIntelligenceAgent.js';
+import { buildReportData } from './ui/buildReportData.js';
+import { config } from './config.js';
 
 function askUserStory() {
   const rl = readline.createInterface({
@@ -47,20 +54,112 @@ function toShortDescription(value) {
     .join('_') || 'scenario';
 }
 
+function normalizeCaseId(value, fallbackValue) {
+  const normalized = String(value || fallbackValue)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+
+  return normalized || String(fallbackValue);
+}
+
+function renderManualCatalogMarkdown(sourceName, catalog, selectedAutomatableCases) {
+  const lines = [];
+  lines.push(`# Manual Test Cases - ${sourceName}`);
+  lines.push('');
+  lines.push(`Story title: ${catalog.storyTitle}`);
+  lines.push('');
+  lines.push('## Story Acceptance Criteria');
+  if (catalog.storyAcceptanceCriteria.length === 0) {
+    lines.push('- Not explicitly provided in story.');
+  } else {
+    for (const ac of catalog.storyAcceptanceCriteria) {
+      lines.push(`- ${ac}`);
+    }
+  }
+
+  lines.push('');
+  lines.push('## Manual Test Cases');
+
+  for (const testCase of catalog.testCases) {
+    lines.push('');
+    lines.push(`### ${testCase.id} - ${testCase.title}`);
+    lines.push(`- Type: ${testCase.type}`);
+    lines.push(`- Priority: ${testCase.priority}`);
+    lines.push(`- Automation candidate: ${testCase.automationCandidate ? 'Yes' : 'No'}`);
+    lines.push(`- Automation reason: ${testCase.automationReason || 'Not provided'}`);
+
+    lines.push('- Preconditions:');
+    if (testCase.preconditions.length === 0) {
+      lines.push('  - None');
+    } else {
+      for (const precondition of testCase.preconditions) {
+        lines.push(`  - ${precondition}`);
+      }
+    }
+
+    lines.push('- Steps:');
+    if (testCase.steps.length === 0) {
+      lines.push('  - Not provided');
+    } else {
+      for (let i = 0; i < testCase.steps.length; i += 1) {
+        lines.push(`  ${i + 1}. ${testCase.steps[i]}`);
+      }
+    }
+
+    lines.push(`- Expected result: ${testCase.expectedResult}`);
+
+    lines.push('- Acceptance criteria covered:');
+    if (testCase.acceptanceCriteria.length === 0) {
+      lines.push('  - Not provided');
+    } else {
+      for (const ac of testCase.acceptanceCriteria) {
+        lines.push(`  - ${ac}`);
+      }
+    }
+  }
+
+  lines.push('');
+  lines.push('## Selected For Automation');
+  if (selectedAutomatableCases.length === 0) {
+    lines.push('- No automatable test cases were selected.');
+  } else {
+    for (const testCase of selectedAutomatableCases) {
+      lines.push(`- ${testCase.id}: ${testCase.title}`);
+    }
+  }
+
+  lines.push('');
+  return lines.join('\n');
+}
+
 async function getExistingStoryTests(storyNumber) {
   const generatedDir = path.resolve(process.cwd(), 'generated_tests');
   const prefix = `user_story_${storyNumber}_`;
 
-  let entries = [];
-  try {
-    entries = await fs.readdir(generatedDir, { withFileTypes: true });
-  } catch {
-    return { slugs: new Set(), descriptions: [] };
+  async function collectSpecFileNames(dirPath) {
+    let entries = [];
+    try {
+      entries = await fs.readdir(dirPath, { withFileTypes: true });
+    } catch {
+      return [];
+    }
+
+    const names = [];
+    for (const entry of entries) {
+      const entryPath = path.join(dirPath, entry.name);
+      if (entry.isDirectory()) {
+        names.push(...(await collectSpecFileNames(entryPath)));
+      } else if (entry.isFile() && entry.name.endsWith('.spec.js')) {
+        names.push(entry.name);
+      }
+    }
+
+    return names;
   }
 
-  const names = entries
-    .filter((entry) => entry.isFile() && entry.name.startsWith(prefix) && entry.name.endsWith('.spec.js'))
-    .map((entry) => entry.name);
+  const names = (await collectSpecFileNames(generatedDir))
+    .filter((name) => name.startsWith(prefix));
 
   const slugs = new Set(names.map((name) => name.slice(prefix.length, -'.spec.js'.length)));
   const descriptions = [...slugs].map((slug) => slug.replace(/_/g, ' '));
@@ -112,79 +211,267 @@ async function main() {
     : await loadUserStoriesFromDirectory();
 
   let generatedCount = 0;
+  const generatedScriptPaths = [];
+  let anyCasePassed = false;
+  let hadFinalFailures = false;
 
   for (let i = 0; i < stories.length; i += 1) {
     const storyEntry = stories[i];
     const isSingle = stories.length === 1;
-    const planFileName = isSingle
-      ? 'generated-plan.json'
-      : `generated-plan-${storyEntry.id}.json`;
     const storyNumber = extractStoryNumber(storyEntry.source, i + 1);
+    const storyFolderName = `user_story_${storyNumber}-${storyEntry.id}`;
+    const storyOutputDir = path.join('generated_tests', storyFolderName);
+    const storyTestCasesDir = path.join(storyOutputDir, 'test-cases');
+    const storyScreenshotsDir = path.join(storyOutputDir, 'screenshots');
+    await fs.mkdir(storyOutputDir, { recursive: true });
+    await fs.mkdir(storyTestCasesDir, { recursive: true });
+    await fs.mkdir(storyScreenshotsDir, { recursive: true });
     const existingTests = await getExistingStoryTests(storyNumber);
+    const generatedDescriptions = [];
+    const storyCaseResults = [];
 
-    console.log(`\n1.${i + 1}) Sending user story to Claude for test step generation (${storyEntry.source})...`);
-    const plan = await generateTestPlan(storyEntry.userStory, {
-      existingTestDescriptions: existingTests.descriptions
+    console.log(`\n1.${i + 1}) Generating complete manual test cases with acceptance criteria (${storyEntry.source})...`);
+    const manualCatalog = await generateManualTestCatalog(storyEntry.userStory);
+
+    const automatableCases = manualCatalog.testCases
+      .filter((testCase) => testCase.automationCandidate)
+      .slice(0, config.maxAutomatedCases);
+    const intelligence = analyzeCoverageAndGaps({
+      automatableCases,
+      existingTestDescriptions: existingTests.descriptions,
+      generatedDescriptions
     });
-    if (plan.status === 'NO_NEW_TEST') {
-      console.log(`Skipping ${storyEntry.source}: ${plan.reason || 'No additional unique test.'}`);
+    const casesToAutomate = intelligence.missingCases;
+
+    const manualJsonFileName = isSingle
+      ? 'manual-test-cases.json'
+      : `manual-test-cases-${storyEntry.id}.json`;
+    const manualMdFileName = isSingle
+      ? 'manual-test-cases.md'
+      : `manual-test-cases-${storyEntry.id}.md`;
+    const automationSelectionFileName = isSingle
+      ? 'automation-selection.json'
+      : `automation-selection-${storyEntry.id}.json`;
+
+    await fs.writeFile(path.join(storyOutputDir, manualJsonFileName), JSON.stringify(manualCatalog, null, 2));
+    await fs.writeFile(
+      path.join(storyOutputDir, manualMdFileName),
+      renderManualCatalogMarkdown(storyEntry.source, manualCatalog, automatableCases)
+    );
+    await fs.writeFile(path.join(storyOutputDir, automationSelectionFileName), JSON.stringify({
+      storySource: storyEntry.source,
+      totalManualTests: manualCatalog.testCases.length,
+      coverage: {
+        totalAutomatable: intelligence.totalAutomatable,
+        covered: intelligence.covered,
+        missing: intelligence.missing,
+        coveragePercent: intelligence.coveragePercent,
+        coveredCases: intelligence.coveredCases,
+        missingScenarioTitles: intelligence.missingScenarioTitles
+      },
+      selectedAutomatableTests: automatableCases.map((testCase) => ({
+        id: testCase.id,
+        title: testCase.title,
+        reason: testCase.automationReason
+      })),
+      selectedMissingTestsForGeneration: casesToAutomate.map((testCase) => ({
+        id: testCase.id,
+        title: testCase.title,
+        reason: testCase.automationReason
+      })),
+      skippedManualOnlyTests: manualCatalog.testCases
+        .filter((testCase) => !testCase.automationCandidate)
+        .map((testCase) => ({
+          id: testCase.id,
+          title: testCase.title,
+          reason: testCase.automationReason
+        }))
+    }, null, 2));
+
+    console.log(`Saved manual tests: ${storyOutputDir}/${manualJsonFileName}`);
+    console.log(`Saved manual tests markdown: ${storyOutputDir}/${manualMdFileName}`);
+    console.log(`Saved automation selection: ${storyOutputDir}/${automationSelectionFileName}`);
+    console.log(`Coverage for ${storyEntry.source}: ${intelligence.coveragePercent}% (${intelligence.covered}/${intelligence.totalAutomatable}).`);
+
+    if (automatableCases.length === 0) {
+      console.log(`No automatable test cases selected for ${storyEntry.source}.`);
       continue;
     }
 
-    const shortDescription = toShortDescription(plan.title);
-    if (existingTests.slugs.has(shortDescription)) {
-      console.log(`Skipping duplicate for ${storyEntry.source}: user_story_${storyNumber}_${shortDescription}.spec.js already exists.`);
+    if (casesToAutomate.length === 0) {
+      console.log(`All automatable scenarios are already covered for ${storyEntry.source}. No gap to generate.`);
       continue;
     }
 
-    await fs.writeFile(path.join('artifacts', planFileName), JSON.stringify(plan, null, 2));
-    console.log(`Generated test plan saved to artifacts/${planFileName}`);
+    console.log(`\n2.${i + 1}) Generating Playwright scripts for ${casesToAutomate.length} missing test gap(s)...`);
+    for (let caseIndex = 0; caseIndex < casesToAutomate.length; caseIndex += 1) {
+      const selectedCase = casesToAutomate[caseIndex];
+      const caseId = normalizeCaseId(selectedCase.id, `tc-${caseIndex + 1}`);
+      const caseOutputDir = path.join(storyTestCasesDir, caseId);
+      const caseScreenshotsDir = path.join(storyScreenshotsDir, caseId);
+      await fs.mkdir(caseOutputDir, { recursive: true });
+      await fs.mkdir(caseScreenshotsDir, { recursive: true });
+      const maxAttempts = config.agentMode ? Math.max(1, config.agentMaxAttempts) : 1;
+      let previousFailureFeedback = null;
+      let casePassed = false;
 
-    console.log(`\n2.${i + 1}) Building Playwright script from generated steps...`);
-    const fileNameHint = `user_story_${storyNumber}_${shortDescription}`;
-    const resultNameBase = `user_story_${storyNumber}_${shortDescription}`;
-    const screenshotPath = isSingle
-      ? 'artifacts/final-ui.png'
-      : `artifacts/final-ui-${storyEntry.id}.png`;
-    const scriptPath = await buildPlaywrightScript(plan, {
-      fileNameHint,
-      resultNameBase,
-      screenshotPath
-    });
-    generatedCount += 1;
-    console.log(`Generated script: ${scriptPath}`);
+      for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+        if (config.agentMode) {
+          console.log(`\nAgent attempt ${attempt}/${maxAttempts} for ${selectedCase.id}...`);
+        }
+
+        const plan = await plannerAgentCreatePlan({
+          existingTestDescriptions: [...existingTests.descriptions, ...generatedDescriptions],
+          selectedManualCase: selectedCase,
+          attemptNumber: attempt,
+          agentFeedback: previousFailureFeedback,
+          qualityFeedback: buildContinuousImprovementFeedback(storyCaseResults),
+          missingScenarioTitles: intelligence.missingScenarioTitles,
+          userStory: storyEntry.userStory
+        });
+
+        if (plan.status === 'NO_NEW_TEST') {
+          console.log(`Skipping ${selectedCase.id}: ${plan.reason || 'No additional unique automated test.'}`);
+          break;
+        }
+
+        const shortDescription = toShortDescription(plan.title || selectedCase.title);
+        if (!config.agentMode && existingTests.slugs.has(shortDescription)) {
+          console.log(`Skipping duplicate for ${selectedCase.id}: user_story_${storyNumber}_${shortDescription}.spec.js already exists.`);
+          break;
+        }
+
+        const useSelfHealing = config.agentMode && config.selfHealingEnabled;
+        const attemptSuffix = config.agentMode
+          ? (useSelfHealing ? '' : `_attempt_${attempt}`)
+          : '';
+        const fileNameHint = `user_story_${storyNumber}_${shortDescription}${attemptSuffix}`;
+        const resultNameBase = `user_story_${storyNumber}_${shortDescription}${attemptSuffix}`;
+        const screenshotFileName = isSingle
+          ? `final-ui-${caseId}${attemptSuffix}.png`
+          : `final-ui-${storyEntry.id}-${caseId}${attemptSuffix}.png`;
+        const screenshotPath = path.join(caseScreenshotsDir, screenshotFileName);
+        const scriptPath = await buildPlaywrightScript(plan, {
+          fileNameHint,
+          resultNameBase,
+          screenshotPath,
+          outputDir: caseOutputDir
+        });
+
+        generatedCount += 1;
+        console.log(`Generated script: ${scriptPath}`);
+
+        if (!config.agentMode) {
+          generatedScriptPaths.push(path.relative(process.cwd(), scriptPath));
+          generatedDescriptions.push(plan.title || selectedCase.title);
+          existingTests.slugs.add(shortDescription);
+          casePassed = true;
+          break;
+        }
+
+        const relativeScriptPath = path.relative(process.cwd(), scriptPath);
+        const executionResult = await executorAgentRun({
+          scriptPath: relativeScriptPath,
+          storyId: storyEntry.id,
+          caseId,
+          attempt
+        });
+        const validationResult = await validatorAgentValidate({
+          userStory: storyEntry.userStory,
+          plan,
+          screenshotPath
+        });
+        const improvementResult = await improvementAgentSuggest({
+          userStory: storyEntry.userStory,
+          selectedManualCase: selectedCase,
+          executionResult,
+          validationResult
+        });
+
+        storyCaseResults.push({
+          caseId,
+          attempt,
+          scriptPath: relativeScriptPath,
+          executionStatus: executionResult.passed ? 'PASS' : 'FAIL',
+          executionCode: executionResult.code,
+          failureCause: executionResult.passed ? '' : executionResult.failureSummary,
+          debugCommand: `npx playwright test ${relativeScriptPath} --headed --project=chromium`,
+          outputTail: executionResult.outputTail || '',
+          validationStatus: String(validationResult.status || 'UNKNOWN').toUpperCase(),
+          validationSummary: validationResult.summary,
+          improvementPriority: improvementResult.priority,
+          improvements: improvementResult.improvements,
+          executedAt: executionResult.executedAt
+        });
+
+        if (executionResult.passed) {
+          console.log(`Agent execution PASS for ${selectedCase.id} on attempt ${attempt}.`);
+          generatedScriptPaths.push(relativeScriptPath);
+          generatedDescriptions.push(plan.title || selectedCase.title);
+          existingTests.slugs.add(shortDescription);
+          anyCasePassed = true;
+          casePassed = true;
+          break;
+        }
+
+        previousFailureFeedback = [
+          `Playwright execution failed with exit code ${executionResult.code} for generated script ${relativeScriptPath}.`,
+          `Failure summary: ${executionResult.failureSummary}`,
+          executionResult.outputTail ? `Recent output: ${executionResult.outputTail}` : '',
+          `UI validation status: ${validationResult.status}.`,
+          `UI validation summary: ${validationResult.summary}`
+        ].filter(Boolean).join(' ');
+
+        if (config.selfHealingEnabled) {
+          console.log(`Self-healing active: updating script and retrying ${selectedCase.id}.`);
+        }
+        console.log(`Agent execution FAIL for ${selectedCase.id} on attempt ${attempt}.`);
+      }
+
+      if (!casePassed && config.agentMode) {
+        hadFinalFailures = true;
+        console.log(`Agent could not produce a passing script for ${selectedCase.id} within ${maxAttempts} attempt(s).`);
+      }
+    }
+
+    if (config.agentMode && storyCaseResults.length > 0) {
+      const reportPaths = await reporterAgentWriteReport({
+        storySource: storyEntry.source,
+        storyOutputDir,
+        caseResults: storyCaseResults
+      });
+      console.log(`Saved multi-agent summary: ${reportPaths.summaryPath}`);
+      console.log(`Saved multi-agent dashboard: ${reportPaths.dashboardPath}`);
+    }
   }
 
   if (generatedCount === 0) {
     console.log('\nNo new unique tests were generated. Existing tests are already covering these stories.');
   }
 
-  console.log('\n3) Running Playwright test...');
-  const runResult = await runGeneratedTest();
-  console.log(`Playwright result: ${runResult.passed ? 'PASS' : 'FAIL'} (code ${runResult.code})`);
-
-  if (stories.length === 1 && runResult.passed) {
-    console.log('\n4) Sending final screenshot to Claude for UI validation...');
-    const validationPlan = JSON.parse(await fs.readFile('artifacts/generated-plan.json', 'utf8'));
-    const validation = await validateFinalUI({ userStory: stories[0].userStory, plan: validationPlan });
-    await fs.writeFile('artifacts/validation-result.json', validation);
-    console.log('Validation result saved to artifacts/validation-result.json');
-  } else if (stories.length === 1) {
-    console.log('\n4) Skipping Claude UI validation because Playwright test failed.');
-    const failedValidation = JSON.stringify({
-      status: 'FAIL',
-      confidence: 100,
-      summary: 'UI validation skipped because Playwright execution failed before final screenshot was captured.',
-      checks: []
-    }, null, 2);
-    await fs.writeFile('artifacts/validation-result.json', failedValidation);
-    console.log('Failure summary saved to artifacts/validation-result.json');
-  } else {
-    console.log('\n4) Skipping Claude UI validation for multi-story batch mode.');
-    console.log('Each generated test captured its own final screenshot in artifacts/final-ui-<story>.png');
+  if (generatedScriptPaths.length === 0) {
+    await buildReportData();
+    console.log('\nNo automatable tests were generated to execute.');
+    console.log('\nFlow complete: User Story -> Manual Test Cases -> Automation Selection -> Script Generation');
+    return;
   }
 
-  console.log('\nFlow complete: User Story -> Claude -> Steps -> Playwright -> Screenshot -> Claude -> Validation');
+  if (config.agentMode) {
+    await buildReportData();
+    const outcome = hadFinalFailures
+      ? 'PARTIAL_FAIL'
+      : (anyCasePassed ? 'PASS' : 'FAIL');
+    console.log(`\nAgent mode execution summary: ${outcome}`);
+    console.log('\nFlow complete: User Story -> Manual Test Cases -> Automation Selection -> Agent Loop (Generate -> Run -> Refine)');
+    return;
+  }
+
+  console.log(`\n3) Running Playwright tests for ${generatedScriptPaths.length} generated script(s)...`);
+  const runResult = await runGeneratedTest(generatedScriptPaths);
+  console.log(`Playwright result: ${runResult.passed ? 'PASS' : 'FAIL'} (code ${runResult.code})`);
+  await buildReportData();
+
+  console.log('\nFlow complete: User Story -> Manual Test Cases -> Automation Selection -> Playwright Scripts -> Test Execution');
 }
 
 main().catch((err) => {
