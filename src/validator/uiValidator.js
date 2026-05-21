@@ -2,8 +2,10 @@ import fs from 'fs/promises';
 import path from 'path';
 import { askClaudeWithImage } from '../ai/claudeClient.js';
 
-export async function validateFinalUI({ userStory, plan }) {
-  const screenshotPath = path.resolve(process.cwd(), 'artifacts/final-ui.png');
+export async function validateFinalUI({ userStory, plan, screenshotPath: requestedScreenshotPath }) {
+  const screenshotPath = requestedScreenshotPath
+    ? path.resolve(process.cwd(), requestedScreenshotPath)
+    : path.resolve(process.cwd(), 'artifacts/final-ui.png');
   let screenshotFile;
   try {
     screenshotFile = await fs.readFile(screenshotPath);

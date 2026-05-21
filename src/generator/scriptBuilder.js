@@ -1,5 +1,8 @@
 import fs from 'fs/promises';
 import path from 'path';
+import { config } from '../config.js';
+
+const appBaseUrl = new URL(config.appUrl);
 
 function esc(value = '') {
   return String(value)
@@ -14,6 +17,28 @@ function toJsString(value = '') {
     .replace(/'/g, "\\'")}'`;
 }
 
+function toPreferredGotoTarget(value) {
+  const text = String(value || '').trim();
+  if (!text) {
+    return '/';
+  }
+
+  if (text.startsWith('/')) {
+    return text;
+  }
+
+  try {
+    const parsed = new URL(text);
+    if (parsed.origin === appBaseUrl.origin) {
+      return `${parsed.pathname}${parsed.search}${parsed.hash}` || '/';
+    }
+  } catch {
+    // Keep the original input for non-URL strings.
+  }
+
+  return text;
+}
+
 function stepToCode(step) {
   const action = step.action;
   const selector = step.selector ? `\`${esc(step.selector)}\`` : null;
@@ -22,7 +47,7 @@ function stepToCode(step) {
 
   switch (action) {
     case 'goto':
-      return `await page.goto(${value || "'https://sailajapinisetty.github.io/demo_app/'"});`;
+      return `await page.goto(${toJsString(toPreferredGotoTarget(step.value || config.appUrl))});`;
     case 'click':
       return `await clickWithFallback(page, ${selector || "''"}, ${description});`;
     case 'fill':
@@ -41,7 +66,9 @@ function stepToCode(step) {
 }
 
 export async function buildPlaywrightScript(plan, options = {}) {
-  const generatedDir = path.resolve(process.cwd(), 'generated_tests');
+  const generatedDir = options.outputDir
+    ? path.resolve(process.cwd(), options.outputDir)
+    : path.resolve(process.cwd(), 'generated_tests');
   await fs.mkdir(generatedDir, { recursive: true });
 
   const nameSource = options.fileNameHint || plan.title;
@@ -170,7 +197,7 @@ export async function buildPlaywrightScript(plan, options = {}) {
   lines.push('');
   lines.push(`test('${esc(plan.title)}', async ({ page }, testInfo) => {`);
   lines.push('  try {');
-  lines.push(`    await page.goto('${esc(plan.url || 'https://sailajapinisetty.github.io/demo_app/')}');`);
+  lines.push(`    await page.goto('${esc(toPreferredGotoTarget(plan.url || config.appUrl))}');`);
   lines.push('');
 
   for (const step of plan.steps) {

@@ -1,0 +1,47 @@
+# Manual Test Cases - user_story_1.txt
+
+Story title: Search for Speaker, View Product Details, and Add to Cart
+
+## Story Acceptance Criteria
+- The shopper can search for the product 'Speaker' using the search functionality
+- The search results display the Speaker product
+- The shopper can open the product details page for the Speaker
+- The product title is visible on the product details page
+- The product category is visible on the product details page
+- The shopper can add the Speaker to the cart from the product details page
+
+## Manual Test Cases
+
+### TC-001 - Search for Speaker, Verify Title and Category on Product Details Page, and Add to Cart
+- Type: functional
+- Priority: high
+- Automation candidate: Yes
+- Automation reason: All steps involve stable, identifiable UI elements such as a search input, search button, product links, title text, category text, and an Add to Cart button. These interactions are straightforward to locate and assert in Playwright using selectors, and the expected outcomes are deterministic and visually verifiable without complex dynamic behavior.
+- Preconditions:
+  - The user is on the home page of the e-commerce application
+  - The user is not logged in or is logged in as a registered shopper
+  - The product 'Speaker' exists in the product catalog with an assigned category
+  - The shopping cart is empty
+- Steps:
+  1. 1. Navigate to the e-commerce website home page
+  2. 2. Locate the search bar at the top of the page
+  3. 3. Type 'Speaker' into the search input field
+  4. 4. Press Enter or click the Search button to submit the search query
+  5. 5. Verify that the search results page loads and displays at least one product related to 'Speaker'
+  6. 6. Click on the first Speaker product listed in the search results
+  7. 7. Verify that the product details page loads successfully
+  8. 8. Check that the product title is displayed on the product details page and contains the word 'Speaker'
+  9. 9. Check that the product category field or breadcrumb is visible on the product details page and displays a non-empty category value
+  10. 10. Click the 'Add to Cart' button on the product details page
+  11. 11. Verify that a confirmation message, modal, or cart icon update indicates the product was successfully added to the cart
+- Expected result: The product 'Speaker' can be found via search. The product details page displays a visible product title containing 'Speaker' and a visible non-empty product category. After clicking 'Add to Cart', the system confirms the item has been added and the cart reflects the new item.
+- Acceptance criteria covered:
+  - The shopper can search for the product 'Speaker' using the search functionality
+  - The search results display the Speaker product
+  - The shopper can open the product details page for the Speaker
+  - The product title is visible on the product details page
+  - The product category is visible on the product details page
+  - The shopper can add the Speaker to the cart from the product details page
+
+## Selected For Automation
+- TC-001: Search for Speaker, Verify Title and Category on Product Details Page, and Add to Cart

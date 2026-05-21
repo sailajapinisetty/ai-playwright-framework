@@ -1,0 +1,591 @@
+{
+  "generatedAt": "2026-05-21T19:10:46.145Z",
+  "storyCount": 2,
+  "totals": {
+    "stories": 2,
+    "tests": 2,
+    "manual": 2,
+    "automated": 2,
+    "automatable": 2,
+    "automatedRunPassed": 0,
+    "automatedRunFailed": 2,
+    "executionPassed": 0,
+    "executionFailed": 2,
+    "notRun": 9
+  },
+  "coverage": {
+    "covered": 0,
+    "automatable": 2,
+    "overallPercent": 0
+  },
+  "stories": [
+    {
+      "id": "user_story_1-cli-input",
+      "folderName": "user_story_1-cli-input",
+      "storySource": "CLI input",
+      "title": "Test",
+      "overallStatus": "PARTIAL_FAIL",
+      "generatedAt": "2026-05-21T19:00:50.616Z",
+      "totals": {
+        "tests": 1,
+        "manual": 1,
+        "automated": 1,
+        "automatable": 1,
+        "covered": 0,
+        "missing": 1,
+        "automatedRunPassed": 0,
+        "automatedRunFailed": 1,
+        "executionPassed": 0,
+        "executionFailed": 1,
+        "notRun": 1
+      },
+      "coverage": {
+        "percent": 0,
+        "coveredCases": [],
+        "missingScenarioTitles": [
+          "Verify basic functionality responds correctly to valid user input"
+        ]
+      },
+      "summary": "Total automated cases: 1 | Execution passed: 0 | Execution failed: 1",
+      "runHistory": [
+        {
+          "generatedAt": "2026-05-21T19:00:50.616Z",
+          "overallStatus": "PARTIAL_FAIL",
+          "summary": "Total automated cases: 1 | Execution passed: 0 | Execution failed: 1",
+          "totals": {
+            "total": 1,
+            "executionPassed": 0,
+            "executionFailed": 1,
+            "validationPassed": 0,
+            "validationFailed": 1
+          }
+        },
+        {
+          "generatedAt": "2026-05-21T18:43:48.941Z",
+          "overallStatus": "PARTIAL_FAIL",
+          "summary": "Total automated cases: 2 | Execution passed: 0 | Execution failed: 2",
+          "totals": {
+            "total": 2,
+            "executionPassed": 0,
+            "executionFailed": 2,
+            "validationPassed": 0,
+            "validationFailed": 2
+          }
+        },
+        {
+          "generatedAt": "2026-05-21T18:42:38.592Z",
+          "overallStatus": "PARTIAL_FAIL",
+          "summary": "Total automated cases: 2 | Execution passed: 0 | Execution failed: 2",
+          "totals": {
+            "total": 2,
+            "executionPassed": 0,
+            "executionFailed": 2,
+            "validationPassed": 0,
+            "validationFailed": 2
+          }
+        },
+        {
+          "generatedAt": "2026-05-21T18:20:07.447Z",
+          "overallStatus": "PARTIAL_FAIL",
+          "summary": "Total automated cases: 2 | Execution passed: 0 | Execution failed: 2",
+          "totals": {
+            "total": 2,
+            "executionPassed": 0,
+            "executionFailed": 2,
+            "validationPassed": 2,
+            "validationFailed": 0
+          }
+        }
+      ],
+      "cases": [
+        {
+          "caseId": "TC-001",
+          "title": "Verify basic functionality responds correctly to valid user input",
+          "type": "functional",
+          "priority": "high",
+          "expectedResult": "The system accepts the valid input and responds with the correct output or state change without errors",
+          "acceptanceCriteria": [
+            "The system should respond to user input as expected",
+            "The feature should be accessible and functional"
+          ],
+          "automationReason": "This happy path scenario involves stable UI interactions and a verifiable outcome, making it suitable for Playwright automation with deterministic selectors and assertions",
+          "executionStatus": "NOT_RUN",
+          "validationStatus": "NOT_RUN",
+          "lastAttempt": 0,
+          "executionCode": null,
+          "failureCause": "",
+          "debugCommand": "",
+          "outputTail": "",
+          "validationSummary": "",
+          "improvementPriority": "n/a",
+          "improvements": [],
+          "executedAt": "",
+          "runHistory": [],
+          "scriptFiles": [],
+          "screenshotFiles": [
+            "generated_tests/user_story_1-cli-input/screenshots/TC-001/final-ui-tc-001.png"
+          ]
+        },
+        {
+          "caseId": "tc-001",
+          "title": "tc-001",
+          "type": "automation",
+          "priority": "medium",
+          "expectedResult": "",
+          "acceptanceCriteria": [],
+          "automationReason": "",
+          "executionStatus": "FAIL",
+          "validationStatus": "FAIL",
+          "lastAttempt": 1,
+          "executionCode": 1,
+          "failureCause": "Error: Unable to resolve locator. selector=\"role=main\" description=\"Verify the main content area is visible\"",
+          "debugCommand": "npx playwright test generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_verify_basic_page_load_and_primary.spec.js --headed --project=chromium",
+          "outputTail": "Running 1 test using 1 worker\n\n\u001b[1A\u001b[2K[1/1] [chromium] › generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_verify_basic_page_load_and_primary.spec.js:113:1 › verify basic page load and primary interaction responds correctly\n\u001b[1A\u001b[2K  1) [chromium] › generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_verify_basic_page_load_and_primary.spec.js:113:1 › verify basic page load and primary interaction responds correctly \n\n    Error: Unable to resolve locator. selector=\"role=main\" description=\"Verify the main content area is visible\"\n\n      76 |   const resolved = await firstExisting(candidates);\n      77 |   if (!resolved) {\n    > 78 |     throw new Error(`Unable to resolve locator. selector=\"${selectorText}\" description=\"${descriptionText}\"`);\n         |           ^\n      79 |   }\n      80 |   return resolved;\n      81 | }\n        at resolveLocator (/Users/sailaja.pinisetty/ai-playwright-framework/generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_verify_basic_page_load_and_primary.spec.js:78:11)\n        at expectVisibleWithFallback (/Users/sailaja.pinisetty/ai-playwright-framework/generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_verify_basic_page_load_and_primary.spec.js:104:19)\n        at /Users/sailaja.pinisetty/ai-playwright-framework/generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_verify_basic_page_load_and_primary.spec.js:124:5\n\n    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────\n    .playwright-output/user_story_1-cli-input-tes-51f45-eraction-responds-correctly-chromium/test-failed-1.png\n    ────────────────────────────────────────────────────────────────────────────────────────────────\n\n    Error Context: .playwright-output/user_story_1-cli-input-tes-51f45-eraction-responds-correctly-chromium/error-context.md\n\n\n\u001b[1A\u001b[2K  1 failed\n    [chromium] › generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_verify_basic_page_load_and_primary.spec.js:113:1 › verify basic page load and primary interaction responds correctly",
+          "validationSummary": "The page shows a GitHub Pages 404 error, meaning the site does not exist. All criteria related to content, search functionality, and valid results cannot be met.",
+          "improvementPriority": "high",
+          "improvements": [
+            "Add a URL reachability pre-check at the start of the test: perform a page.goto() and assert response.status() === 200 before any UI interaction; if the check fails, skip the test with a clear message like 'Target URL returned 404 – environment not reachable' instead of propagating a misleading locator error",
+            "Introduce an environment validation fixture or global setup step that verifies the base URL is live and returns a non-error HTTP status before any test suite runs, preventing all downstream selector failures caused by a missing application",
+            "Replace the generic 'role=main' ARIA selector fallback chain with page-specific, DOM-verified selectors (e.g., data-testid, semantic landmarks confirmed in the actual deployed app); the current fallback list is resolving against a GitHub Pages 404 page that has no <main> element",
+            "Store the target base URL in a Playwright project configuration (playwright.config.js baseURL) and validate it against an allowed-environments list at test initialisation, throwing a descriptive setup error rather than a runtime locator error when the URL is wrong or unreachable",
+            "Capture and log the full page title and URL in the error context whenever resolveLocator() throws, so failure messages immediately surface '404 – GitHub Pages' instead of only 'Unable to resolve locator', reducing diagnosis time",
+            "Add a smoke guard step as the very first test action: assert that page.title() does not match known error patterns (e.g., /404|not found|error/i) and that page.url() matches the expected origin, failing fast with an environment-level error before any functional assertion is attempted",
+            "Parameterise test runs with a required ENV variable (e.g., BASE_URL) and gate CI execution on a prior health-check job that curls the URL; block test execution entirely if the health-check fails, keeping test results clean and meaningful",
+            "Update the resolveLocator fallback strategy to include at least three progressively broader selectors tied to the actual application's HTML structure (confirmed via screenshot analysis or DOM snapshot), and remove ARIA role selectors that are absent on error pages from the primary candidate list"
+          ],
+          "executedAt": "2026-05-21T19:00:24.824Z",
+          "runHistory": [
+            {
+              "generatedAt": "2026-05-21T19:00:50.616Z",
+              "overallStatus": "PARTIAL_FAIL",
+              "executionStatus": "FAIL",
+              "validationStatus": "FAIL",
+              "attempt": 1,
+              "executionCode": 1,
+              "failureCause": "Error: Unable to resolve locator. selector=\"role=main\" description=\"Verify the main content area is visible\"",
+              "debugCommand": "npx playwright test generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_verify_basic_page_load_and_primary.spec.js --headed --project=chromium",
+              "outputTail": "Running 1 test using 1 worker\n\n\u001b[1A\u001b[2K[1/1] [chromium] › generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_verify_basic_page_load_and_primary.spec.js:113:1 › verify basic page load and primary interaction responds correctly\n\u001b[1A\u001b[2K  1) [chromium] › generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_verify_basic_page_load_and_primary.spec.js:113:1 › verify basic page load and primary interaction responds correctly \n\n    Error: Unable to resolve locator. selector=\"role=main\" description=\"Verify the main content area is visible\"\n\n      76 |   const resolved = await firstExisting(candidates);\n      77 |   if (!resolved) {\n    > 78 |     throw new Error(`Unable to resolve locator. selector=\"${selectorText}\" description=\"${descriptionText}\"`);\n         |           ^\n      79 |   }\n      80 |   return resolved;\n      81 | }\n        at resolveLocator (/Users/sailaja.pinisetty/ai-playwright-framework/generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_verify_basic_page_load_and_primary.spec.js:78:11)\n        at expectVisibleWithFallback (/Users/sailaja.pinisetty/ai-playwright-framework/generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_verify_basic_page_load_and_primary.spec.js:104:19)\n        at /Users/sailaja.pinisetty/ai-playwright-framework/generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_verify_basic_page_load_and_primary.spec.js:124:5\n\n    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────\n    .playwright-output/user_story_1-cli-input-tes-51f45-eraction-responds-correctly-chromium/test-failed-1.png\n    ────────────────────────────────────────────────────────────────────────────────────────────────\n\n    Error Context: .playwright-output/user_story_1-cli-input-tes-51f45-eraction-responds-correctly-chromium/error-context.md\n\n\n\u001b[1A\u001b[2K  1 failed\n    [chromium] › generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_verify_basic_page_load_and_primary.spec.js:113:1 › verify basic page load and primary interaction responds correctly",
+              "summary": "The page shows a GitHub Pages 404 error, meaning the site does not exist. All criteria related to content, search functionality, and valid results cannot be met."
+            },
+            {
+              "generatedAt": "2026-05-21T18:43:48.941Z",
+              "overallStatus": "PARTIAL_FAIL",
+              "executionStatus": "FAIL",
+              "validationStatus": "FAIL",
+              "attempt": 2,
+              "executionCode": 1,
+              "failureCause": "Error: Unable to resolve locator. selector=\"css=button[type='submit']\" description=\"Wait for a submit-type button to be visible on the page\"",
+              "debugCommand": "npx playwright test generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_verify_login_button_is_clickable_and.spec.js --headed --project=chromium",
+              "outputTail": "Running 1 test using 1 worker\n\n\u001b[1A\u001b[2K[1/1] [chromium] › generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_verify_login_button_is_clickable_and.spec.js:113:1 › Verify login button is clickable and initiates login process\n\u001b[1A\u001b[2K  1) [chromium] › generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_verify_login_button_is_clickable_and.spec.js:113:1 › Verify login button is clickable and initiates login process \n\n    Error: Unable to resolve locator. selector=\"css=button[type='submit']\" description=\"Wait for a submit-type button to be visible on the page\"\n\n      76 |   const resolved = await firstExisting(candidates);\n      77 |   if (!resolved) {\n    > 78 |     throw new Error(`Unable to resolve locator. selector=\"${selectorText}\" description=\"${descriptionText}\"`);\n         |           ^\n      79 |   }\n      80 |   return resolved;\n      81 | }\n        at resolveLocator (/Users/sailaja.pinisetty/ai-playwright-framework/generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_verify_login_button_is_clickable_and.spec.js:78:11)\n        at waitForWithFallback (/Users/sailaja.pinisetty/ai-playwright-framework/generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_verify_login_button_is_clickable_and.spec.js:99:19)\n        at /Users/sailaja.pinisetty/ai-playwright-framework/generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_verify_login_button_is_clickable_and.spec.js:127:5\n\n    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────\n    .playwright-output/user_story_1-cli-input-tes-38bd6-and-initiates-login-process-chromium/test-failed-1.png\n    ────────────────────────────────────────────────────────────────────────────────────────────────\n\n    Error Context: .playwright-output/user_story_1-cli-input-tes-38bd6-and-initiates-login-process-chromium/error-context.md\n\n\n\u001b[1A\u001b[2K  1 failed\n    [chromium] › generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_verify_login_button_is_clickable_and.spec.js:113:1 › Verify login button is clickable and initiates login process",
+              "summary": "The application page returns a 404 error from GitHub Pages, meaning the site does not exist. No login button is present, and none of the login-related criteria can be satisfied."
+            },
+            {
+              "generatedAt": "2026-05-21T18:42:38.592Z",
+              "overallStatus": "PARTIAL_FAIL",
+              "executionStatus": "FAIL",
+              "validationStatus": "FAIL",
+              "attempt": 2,
+              "executionCode": 1,
+              "failureCause": "Error: Unable to resolve locator. selector=\"canvas\" description=\"Wait for network idle to ensure SPA has fully initialized before canvas interaction\"",
+              "debugCommand": "npx playwright test generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_user_can_draw_on_canvas_by.spec.js --headed --project=chromium",
+              "outputTail": "Running 1 test using 1 worker\n\n\u001b[1A\u001b[2K[1/1] [chromium] › generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_user_can_draw_on_canvas_by.spec.js:113:1 › User can draw on canvas by clicking and dragging\n\u001b[1A\u001b[2K  1) [chromium] › generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_user_can_draw_on_canvas_by.spec.js:113:1 › User can draw on canvas by clicking and dragging \n\n    Error: Unable to resolve locator. selector=\"canvas\" description=\"Wait for network idle to ensure SPA has fully initialized before canvas interaction\"\n\n      76 |   const resolved = await firstExisting(candidates);\n      77 |   if (!resolved) {\n    > 78 |     throw new Error(`Unable to resolve locator. selector=\"${selectorText}\" description=\"${descriptionText}\"`);\n         |           ^\n      79 |   }\n      80 |   return resolved;\n      81 | }\n        at resolveLocator (/Users/sailaja.pinisetty/ai-playwright-framework/generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_user_can_draw_on_canvas_by.spec.js:78:11)\n        at waitForWithFallback (/Users/sailaja.pinisetty/ai-playwright-framework/generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_user_can_draw_on_canvas_by.spec.js:99:19)\n        at /Users/sailaja.pinisetty/ai-playwright-framework/generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_user_can_draw_on_canvas_by.spec.js:127:5\n\n    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────\n    .playwright-output/user_story_1-cli-input-tes-00536-as-by-clicking-and-dragging-chromium/test-failed-1.png\n    ────────────────────────────────────────────────────────────────────────────────────────────────\n\n    Error Context: .playwright-output/user_story_1-cli-input-tes-00536-as-by-clicking-and-dragging-chromium/error-context.md\n\n\n\u001b[1A\u001b[2K  1 failed\n    [chromium] › generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_user_can_draw_on_canvas_by.spec.js:113:1 › User can draw on canvas by clicking and dragging",
+              "summary": "The screenshot shows a marketplace/e-commerce application, not a drawing application. There is no canvas element visible, and the app does not support drawing functionality as required by the user story."
+            },
+            {
+              "generatedAt": "2026-05-21T18:20:07.447Z",
+              "overallStatus": "PARTIAL_FAIL",
+              "executionStatus": "FAIL",
+              "validationStatus": "PASS",
+              "attempt": 2,
+              "executionCode": 1,
+              "failureCause": "Error: Unable to resolve locator. selector=\"[data-testid='product-card']\" description=\"Assert at least one product card is visible in the results\"",
+              "debugCommand": "npx playwright test generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_search_for_desk_lamp_returns_relevant.spec.js --headed --project=chromium",
+              "outputTail": "Running 1 test using 1 worker\n\n\u001b[1A\u001b[2K[1/1] [chromium] › generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_search_for_desk_lamp_returns_relevant.spec.js:113:1 › Search for Desk Lamp returns relevant results\n\u001b[1A\u001b[2K  1) [chromium] › generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_search_for_desk_lamp_returns_relevant.spec.js:113:1 › Search for Desk Lamp returns relevant results \n\n    Error: Unable to resolve locator. selector=\"[data-testid='product-card']\" description=\"Assert at least one product card is visible in the results\"\n\n      76 |   const resolved = await firstExisting(candidates);\n      77 |   if (!resolved) {\n    > 78 |     throw new Error(`Unable to resolve locator. selector=\"${selectorText}\" description=\"${descriptionText}\"`);\n         |           ^\n      79 |   }\n      80 |   return resolved;\n      81 | }\n        at resolveLocator (/Users/sailaja.pinisetty/ai-playwright-framework/generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_search_for_desk_lamp_returns_relevant.spec.js:78:11)\n        at expectVisibleWithFallback (/Users/sailaja.pinisetty/ai-playwright-framework/generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_search_for_desk_lamp_returns_relevant.spec.js:104:19)\n        at /Users/sailaja.pinisetty/ai-playwright-framework/generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_search_for_desk_lamp_returns_relevant.spec.js:142:5\n\n    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────\n    .playwright-output/user_story_1-cli-input-tes-fcc5c-mp-returns-relevant-results-chromium/test-failed-1.png\n    ────────────────────────────────────────────────────────────────────────────────────────────────\n\n    Error Context: .playwright-output/user_story_1-cli-input-tes-fcc5c-mp-returns-relevant-results-chromium/error-context.md\n\n\n\u001b[1A\u001b[2K  1 failed\n    [chromium] › generated_tests/user_story_1-cli-input/test-cases/tc-001/user_story_1_search_for_desk_lamp_returns_relevant.spec.js:113:1 › Search for Desk Lamp returns relevant results",
+              "summary": "All validation criteria are met. The search input contains 'Desk Lamp', results are visible, at least one product card ('Nova Desk Lamp') is displayed, and no empty-state message is shown."
+            }
+          ],
+          "scriptFiles": [],
+          "screenshotFiles": [
+            "generated_tests/user_story_1-cli-input/screenshots/tc-001/final-ui-tc-001.png"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "user_story_1-user-story-1",
+      "folderName": "user_story_1-user-story-1",
+      "storySource": "user_story_1.txt",
+      "title": "Search for Speaker, View Product Details, and Add to Cart",
+      "overallStatus": "PARTIAL_FAIL",
+      "generatedAt": "2026-05-21T19:08:53.803Z",
+      "totals": {
+        "tests": 1,
+        "manual": 1,
+        "automated": 1,
+        "automatable": 1,
+        "covered": 0,
+        "missing": 1,
+        "automatedRunPassed": 0,
+        "automatedRunFailed": 1,
+        "executionPassed": 0,
+        "executionFailed": 1,
+        "notRun": 8
+      },
+      "coverage": {
+        "percent": 0,
+        "coveredCases": [],
+        "missingScenarioTitles": [
+          "Search for Speaker, Verify Title and Category on Product Details Page, and Add to Cart"
+        ]
+      },
+      "summary": "Total automated cases: 2 | Execution passed: 0 | Execution failed: 2",
+      "runHistory": [
+        {
+          "generatedAt": "2026-05-21T19:08:53.803Z",
+          "overallStatus": "PARTIAL_FAIL",
+          "summary": "Total automated cases: 2 | Execution passed: 0 | Execution failed: 2",
+          "totals": {
+            "total": 2,
+            "executionPassed": 0,
+            "executionFailed": 2,
+            "validationPassed": 0,
+            "validationFailed": 2
+          }
+        },
+        {
+          "generatedAt": "2026-05-21T18:42:08.313Z",
+          "overallStatus": "PARTIAL_FAIL",
+          "summary": "Total automated cases: 2 | Execution passed: 0 | Execution failed: 2",
+          "totals": {
+            "total": 2,
+            "executionPassed": 0,
+            "executionFailed": 2,
+            "validationPassed": 1,
+            "validationFailed": 1
+          }
+        },
+        {
+          "generatedAt": "2026-05-21T18:18:27.743Z",
+          "overallStatus": "PARTIAL_FAIL",
+          "summary": "Total automated cases: 2 | Execution passed: 0 | Execution failed: 2",
+          "totals": {
+            "total": 2,
+            "executionPassed": 0,
+            "executionFailed": 2,
+            "validationPassed": 0,
+            "validationFailed": 2
+          }
+        },
+        {
+          "generatedAt": "2026-05-21T18:00:22.549Z",
+          "overallStatus": "PARTIAL_FAIL",
+          "summary": "Total automated cases: 2 | Execution passed: 0 | UI validation passed: 0 | Execution failed: 2 | UI validation failed: 2",
+          "totals": {
+            "total": 2,
+            "executionPassed": 0,
+            "executionFailed": 2,
+            "validationPassed": 0,
+            "validationFailed": 2
+          }
+        }
+      ],
+      "cases": [
+        {
+          "caseId": "TC-001",
+          "title": "Search for Speaker, Verify Title and Category on Product Details Page, and Add to Cart",
+          "type": "functional",
+          "priority": "high",
+          "expectedResult": "The product 'Speaker' can be found via search. The product details page displays a visible product title containing 'Speaker' and a visible non-empty product category. After clicking 'Add to Cart', the system confirms the item has been added and the cart reflects the new item.",
+          "acceptanceCriteria": [
+            "The shopper can search for the product 'Speaker' using the search functionality",
+            "The search results display the Speaker product",
+            "The shopper can open the product details page for the Speaker",
+            "The product title is visible on the product details page",
+            "The product category is visible on the product details page",
+            "The shopper can add the Speaker to the cart from the product details page"
+          ],
+          "automationReason": "All steps involve stable, identifiable UI elements such as a search input, search button, product links, title text, category text, and an Add to Cart button. These interactions are straightforward to locate and assert in Playwright using selectors, and the expected outcomes are deterministic and visually verifiable without complex dynamic behavior.",
+          "executionStatus": "NOT_RUN",
+          "validationStatus": "NOT_RUN",
+          "lastAttempt": 0,
+          "executionCode": null,
+          "failureCause": "",
+          "debugCommand": "",
+          "outputTail": "",
+          "validationSummary": "",
+          "improvementPriority": "n/a",
+          "improvements": [],
+          "executedAt": "",
+          "runHistory": [],
+          "scriptFiles": [
+            "generated_tests/user_story_1-user-story-1/test-cases/TC-001/user_story_1_search_speaker_verify_title_category_add.spec.js",
+            "generated_tests/user_story_1-user-story-1/test-cases/TC-001/user_story_1_search_speaker_verify_title_category_on.spec.js"
+          ],
+          "screenshotFiles": [
+            "generated_tests/user_story_1-user-story-1/screenshots/TC-001/final-ui-tc-001.png"
+          ]
+        },
+        {
+          "caseId": "tc-001",
+          "title": "tc-001",
+          "type": "automation",
+          "priority": "medium",
+          "expectedResult": "",
+          "acceptanceCriteria": [],
+          "automationReason": "",
+          "executionStatus": "FAIL",
+          "validationStatus": "FAIL",
+          "lastAttempt": 2,
+          "executionCode": 1,
+          "failureCause": "Error: Unable to resolve locator. selector=\".product-name, .product-details-title, [data-testid='product-name'], h2.product-title, .product-detail h2\" description=\"Verify the product title on the details page contains the word 'Speaker'\"",
+          "debugCommand": "npx playwright test generated_tests/user_story_1-user-story-1/test-cases/tc-001/user_story_1_search_speaker_verify_title_category_on.spec.js --headed --project=chromium",
+          "outputTail": "Running 1 test using 1 worker\n\n\u001b[1A\u001b[2K[1/1] [chromium] › generated_tests/user_story_1-user-story-1/test-cases/tc-001/user_story_1_search_speaker_verify_title_category_on.spec.js:113:1 › Search Speaker, Verify Title & Category on Details Page, Add to Cart\n\u001b[1A\u001b[2K  1) [chromium] › generated_tests/user_story_1-user-story-1/test-cases/tc-001/user_story_1_search_speaker_verify_title_category_on.spec.js:113:1 › Search Speaker, Verify Title & Category on Details Page, Add to Cart \n\n    Error: Unable to resolve locator. selector=\".product-name, .product-details-title, [data-testid='product-name'], h2.product-title, .product-detail h2\" description=\"Verify the product title on the details page contains the word 'Speaker'\"\n\n      76 |   const resolved = await firstExisting(candidates);\n      77 |   if (!resolved) {\n    > 78 |     throw new Error(`Unable to resolve locator. selector=\"${selectorText}\" description=\"${descriptionText}\"`);\n         |           ^\n      79 |   }\n      80 |   return resolved;\n      81 | }\n        at resolveLocator (/Users/sailaja.pinisetty/ai-playwright-framework/generated_tests/user_story_1-user-story-1/test-cases/tc-001/user_story_1_search_speaker_verify_title_category_on.spec.js:78:11)\n        at expectTextWithFallback (/Users/sailaja.pinisetty/ai-playwright-framework/generated_tests/user_story_1-user-story-1/test-cases/tc-001/user_story_1_search_speaker_verify_title_category_on.spec.js:109:19)\n        at /Users/sailaja.pinisetty/ai-playwright-framework/generated_tests/user_story_1-user-story-1/test-cases/tc-001/user_story_1_search_speaker_verify_title_category_on.spec.js:145:5\n\n    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────\n    .playwright-output/user_story_1-user-story-1--4ce0b-on-Details-Page-Add-to-Cart-chromium/test-failed-1.png\n    ────────────────────────────────────────────────────────────────────────────────────────────────\n\n    Error Context: .playwright-output/user_story_1-user-story-1--4ce0b-on-Details-Page-Add-to-Cart-chromium/error-context.md\n\n\n\u001b[1A\u001b[2K  1 failed\n    [chromium] › generated_tests/user_story_1-user-story-1/test-cases/tc-001/user_story_1_search_speaker_verify_title_category_on.spec.js:113:1 › Search Speaker, Verify Title & Category on Details Page, Add to Cart",
+          "validationSummary": "The product details page shows 'Pulse Mini Speaker' with category 'AUDIO' and an Add to Cart button. The title contains 'Speaker' and the category is visible. However, the screenshot only shows the product details page — the search results page with a product card is not visible, and no cart confirmation signal (toast, notification, or updated cart badge count change) is shown after adding to cart. The cart badge still shows 0.",
+          "improvementPriority": "high",
+          "improvements": [
+            "Replace the failed product title selector group '.product-name, .product-details-title, [data-testid='product-name'], h2.product-title, .product-detail h2' with a broader DOM inspection approach: after navigation to the product details page, use page.locator('h1, h2, h3').filter({ hasText: /speaker/i }).first() to dynamically match any heading containing 'Speaker', eliminating brittle class-name dependency",
+            "Add a page.waitForLoadState('networkidle') or page.waitForURL('**/product/**') call immediately after clicking the product link in search results, ensuring the product details page is fully loaded before attempting to resolve title/category locators",
+            "Implement a DOM snapshot fallback: if no candidate selector resolves within 3 seconds, call page.evaluate(() => document.body.innerHTML) and log the first 2000 characters to the error context file, enabling accurate selector discovery on failure without requiring a manual re-run",
+            "Fix the Add to Cart post-action assertion: after clicking 'Add to cart', poll for ANY of these signals with a 5-second timeout — (a) a toast/snackbar containing text like 'added', 'cart', or 'success' via page.locator('[class*=toast],[class*=snack],[class*=notification],[role=alert]'), (b) cart badge count changing from its initial value via expect(cartBadge).not.toHaveText('0'), or (c) a modal confirmation — and fail the test only if none of these appear",
+            "Capture a screenshot at each major step boundary (after search results load, after product details load, after Add to Cart click) using await page.screenshot({ path: `step-${stepNumber}.png` }) to give the validation agent full visual coverage of all acceptance criteria, resolving the UNKNOWN status on search results and navigation checks",
+            "Add an explicit assertion on the product category element using a resilient selector: page.locator('[class*=category],[class*=breadcrumb],[data-testid*=category]').or(page.locator('text=/AUDIO|Electronics|Speaker/i')).first(), then assert await expect(categoryLocator).toBeVisible() and await expect(categoryLocator).not.toHaveText('') to cover the non-empty category requirement",
+            "Before the search step, store the initial cart badge count with const initialCount = await page.locator('[class*=cart-count],[data-testid*=cart-badge],[class*=badge]').innerText().catch(() => '0'), then after Add to Cart assert the count has incremented, making the cart update verification deterministic and not reliant on transient toast visibility"
+          ],
+          "executedAt": "2026-05-21T19:08:29.277Z",
+          "runHistory": [
+            {
+              "generatedAt": "2026-05-21T19:08:53.803Z",
+              "overallStatus": "PARTIAL_FAIL",
+              "executionStatus": "FAIL",
+              "validationStatus": "FAIL",
+              "attempt": 2,
+              "executionCode": 1,
+              "failureCause": "Error: Unable to resolve locator. selector=\".product-name, .product-details-title, [data-testid='product-name'], h2.product-title, .product-detail h2\" description=\"Verify the product title on the details page contains the word 'Speaker'\"",
+              "debugCommand": "npx playwright test generated_tests/user_story_1-user-story-1/test-cases/tc-001/user_story_1_search_speaker_verify_title_category_on.spec.js --headed --project=chromium",
+              "outputTail": "Running 1 test using 1 worker\n\n\u001b[1A\u001b[2K[1/1] [chromium] › generated_tests/user_story_1-user-story-1/test-cases/tc-001/user_story_1_search_speaker_verify_title_category_on.spec.js:113:1 › Search Speaker, Verify Title & Category on Details Page, Add to Cart\n\u001b[1A\u001b[2K  1) [chromium] › generated_tests/user_story_1-user-story-1/test-cases/tc-001/user_story_1_search_speaker_verify_title_category_on.spec.js:113:1 › Search Speaker, Verify Title & Category on Details Page, Add to Cart \n\n    Error: Unable to resolve locator. selector=\".product-name, .product-details-title, [data-testid='product-name'], h2.product-title, .product-detail h2\" description=\"Verify the product title on the details page contains the word 'Speaker'\"\n\n      76 |   const resolved = await firstExisting(candidates);\n      77 |   if (!resolved) {\n    > 78 |     throw new Error(`Unable to resolve locator. selector=\"${selectorText}\" description=\"${descriptionText}\"`);\n         |           ^\n      79 |   }\n      80 |   return resolved;\n      81 | }\n        at resolveLocator (/Users/sailaja.pinisetty/ai-playwright-framework/generated_tests/user_story_1-user-story-1/test-cases/tc-001/user_story_1_search_speaker_verify_title_category_on.spec.js:78:11)\n        at expectTextWithFallback (/Users/sailaja.pinisetty/ai-playwright-framework/generated_tests/user_story_1-user-story-1/test-cases/tc-001/user_story_1_search_speaker_verify_title_category_on.spec.js:109:19)\n        at /Users/sailaja.pinisetty/ai-playwright-framework/generated_tests/user_story_1-user-story-1/test-cases/tc-001/user_story_1_search_speaker_verify_title_category_on.spec.js:145:5\n\n    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────\n    .playwright-output/user_story_1-user-story-1--4ce0b-on-Details-Page-Add-to-Cart-chromium/test-failed-1.png\n    ────────────────────────────────────────────────────────────────────────────────────────────────\n\n    Error Context: .playwright-output/user_story_1-user-story-1--4ce0b-on-Details-Page-Add-to-Cart-chromium/error-context.md\n\n\n\u001b[1A\u001b[2K  1 failed\n    [chromium] › generated_tests/user_story_1-user-story-1/test-cases/tc-001/user_story_1_search_speaker_verify_title_category_on.spec.js:113:1 › Search Speaker, Verify Title & Category on Details Page, Add to Cart",
+              "summary": "The product details page shows 'Pulse Mini Speaker' with category 'AUDIO' and an Add to Cart button. The title contains 'Speaker' and the category is visible. However, the screenshot only shows the product details page — the search results page with a product card is not visible, and no cart confirmation signal (toast, notification, or updated cart badge count change) is shown after adding to cart. The cart badge still shows 0."
+            },
+            {
+              "generatedAt": "2026-05-21T18:42:08.313Z",
+              "overallStatus": "PARTIAL_FAIL",
+              "executionStatus": "FAIL",
+              "validationStatus": "FAIL",
+              "attempt": 2,
+              "executionCode": 1,
+              "failureCause": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoContainText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed",
+              "debugCommand": "npx playwright test generated_tests/user_story_1-user-story-1/test-cases/tc-001/user_story_1_search_speaker_verify_title_category_add.spec.js --headed --project=chromium",
+              "outputTail": "Running 1 test using 1 worker\n\n\u001b[1A\u001b[2K[1/1] [chromium] › generated_tests/user_story_1-user-story-1/test-cases/tc-001/user_story_1_search_speaker_verify_title_category_add.spec.js:113:1 › Search Speaker verify title category add to cart full e2e\n\u001b[1A\u001b[2K  1) [chromium] › generated_tests/user_story_1-user-story-1/test-cases/tc-001/user_story_1_search_speaker_verify_title_category_add.spec.js:113:1 › Search Speaker verify title category add to cart full e2e \n\n    Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoContainText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\n    Locator: getByRole('link', { name: /cart/i }).first()\n    Expected substring: \u001b[32m\"Speaker\"\u001b[39m\n    Received string:    \u001b[31m\"Cart1\"\u001b[39m\n    Timeout: 5000ms\n\n    Call log:\n    \u001b[2m  - Expect \"toContainText\" with timeout 5000ms\u001b[22m\n    \u001b[2m  - waiting for getByRole('link', { name: /cart/i }).first()\u001b[22m\n    \u001b[2m    14 × locator resolved to <a href=\"#/cart\" data-discover=\"true\" data-testid=\"nav-cart\">…</a>\u001b[22m\n    \u001b[2m       - unexpected value \"Cart1\"\u001b[22m\n\n\n      108 | async function expectTextWithFallback(page, selector, value, description) {\n      109 |   const locator = await resolveLocator(page, selector, description);\n    > 110 |   await expect(locator).toContainText(value);\n          |                         ^\n      111 | }\n      112 |\n      113 | test('Search Speaker verify title category add to cart full e2e', async ({ page }, testInfo) => {\n        at expectTextWithFallback (/Users/sailaja.pinisetty/ai-playwright-framework/generated_tests/user_story_1-user-story-1/test-cases/tc-001/user_story_1_search_speaker_verify_title_category_add.spec.js:110:25)\n        at /Users/sailaja.pinisetty/ai-playwright-framework/generated_tests/user_story_1-user-story-1/test-cases/tc-001/user_story_1_search_speaker_verify_title_category_add.spec.js:169:5\n\n    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────\n    .playwright-output/user_story_1-user-story-1--93aae-tegory-add-to-cart-full-e2e-chromium/test-failed-1.png\n    ────────────────────────────────────────────────────────────────────────────────────────────────\n\n    Error Context: .playwright-output/user_story_1-user-story-1--93aae-tegory-add-to-cart-full-e2e-chromium/error-context.md\n\n\n\u001b[1A\u001b[2K  1 failed\n    [chromium] › generated_tests/user_story_1-user-story-1/test-cases/tc-001/user_story_1_search_speaker_verify_title_category_add.spec.js:113:1 › Search Speaker verify title category add to cart full e2e",
+              "summary": "The cart page shows 'Pulse Mini Speaker' confirming the product was added successfully. However, the single screenshot only shows the cart page — earlier steps (search results, product details page with title and category, Add to Cart confirmation feedback) are not visible in this screenshot and cannot be verified."
+            },
+            {
+              "generatedAt": "2026-05-21T18:18:27.743Z",
+              "overallStatus": "PARTIAL_FAIL",
+              "executionStatus": "FAIL",
+              "validationStatus": "FAIL",
+              "attempt": 2,
+              "executionCode": 1,
+              "failureCause": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoContainText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed",
+              "debugCommand": "npx playwright test generated_tests/user_story_1-user-story-1/test-cases/tc-001/user_story_1_search_speaker_verify_title_and_category.spec.js --headed --project=chromium",
+              "outputTail": "Running 1 test using 1 worker\n\n\u001b[1A\u001b[2K[1/1] [chromium] › generated_tests/user_story_1-user-story-1/test-cases/tc-001/user_story_1_search_speaker_verify_title_and_category.spec.js:113:1 › Search Speaker, Verify Title and Category, Add to Cart (Fixed Category Selector)\n\u001b[1A\u001b[2K  1) [chromium] › generated_tests/user_story_1-user-story-1/test-cases/tc-001/user_story_1_search_speaker_verify_title_and_category.spec.js:113:1 › Search Speaker, Verify Title and Category, Add to Cart (Fixed Category Selector) \n\n    Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoContainText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\n    Locator: locator('h1, h2, .product-title, [class*=\\'title\\']').first()\n    Expected substring: \u001b[32m\"S\u001b[7mpeaker\u001b[27m\"\u001b[39m\n    Received string:    \u001b[31m\"S\u001b[7mhop your daily essentials with style.\u001b[27m\"\u001b[39m\n    Timeout: 5000ms\n\n    Call log:\n    \u001b[2m  - Expect \"toContainText\" with timeout 5000ms\u001b[22m\n    \u001b[2m  - waiting for locator('h1, h2, .product-title, [class*=\\'title\\']').first()\u001b[22m\n    \u001b[2m    14 × locator resolved to <h1>Shop your daily essentials with style.</h1>\u001b[22m\n    \u001b[2m       - unexpected value \"Shop your daily essentials with style.\"\u001b[22m\n\n\n      108 | async function expectTextWithFallback(page, selector, value, description) {\n      109 |   const locator = await resolveLocator(page, selector, description);\n    > 110 |   await expect(locator).toContainText(value);\n          |                         ^\n      111 | }\n      112 |\n      113 | test('Search Speaker, Verify Title and Category, Add to Cart (Fixed Category Selector)', async ({ page }, testInfo) => {\n        at expectTextWithFallback (/Users/sailaja.pinisetty/ai-playwright-framework/generated_tests/user_story_1-user-story-1/test-cases/tc-001/user_story_1_search_speaker_verify_title_and_category.spec.js:110:25)\n        at /Users/sailaja.pinisetty/ai-playwright-framework/generated_tests/user_story_1-user-story-1/test-cases/tc-001/user_story_1_search_speaker_verify_title_and_category.spec.js:142:5\n\n    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────\n    .playwright-output/user_story_1-user-story-1--8760f-rt-Fixed-Category-Selector--chromium/test-failed-1.png\n    ────────────────────────────────────────────────────────────────────────────────────────────────\n\n    Error Context: .playwright-output/user_story_1-user-story-1--8760f-rt-Fixed-Category-Selector--chromium/error-context.md\n\n\n\u001b[1A\u001b[2K  1 failed\n    [chromium] › generated_tests/user_story_1-user-story-1/test-cases/tc-001/user_story_1_search_speaker_verify_title_and_category.spec.js:113:1 › Search Speaker, Verify Title and Category, Add to Cart (Fixed Category Selector)",
+              "summary": "Search results show a Speaker product with correct title and AUDIO category, but 'Add to Cart' has not been clicked yet, so no cart update or confirmation is visible. Cart still shows 0."
+            },
+            {
+              "generatedAt": "2026-05-21T18:00:22.549Z",
+              "overallStatus": "PARTIAL_FAIL",
+              "executionStatus": "FAIL",
+              "validationStatus": "FAIL",
+              "attempt": 2,
+              "executionCode": 1,
+              "failureCause": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoContainText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed",
+              "debugCommand": "npx playwright test generated_tests/user_story_1-user-story-1/test-cases/tc-001/user_story_1_search_speaker_verify_title_and_category.spec.js --headed --project=chromium",
+              "outputTail": "Running 1 test using 1 worker\n\n\u001b[1A\u001b[2K[1/1] [chromium] › generated_tests/user_story_1-user-story-1/test-cases/tc-001/user_story_1_search_speaker_verify_title_and_category.spec.js:113:1 › Search Speaker, Verify Title and Category on Details Page, Add to Cart\n\u001b[1A\u001b[2K  1) [chromium] › generated_tests/user_story_1-user-story-1/test-cases/tc-001/user_story_1_search_speaker_verify_title_and_category.spec.js:113:1 › Search Speaker, Verify Title and Category on Details Page, Add to Cart \n\n    Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoContainText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\n    Locator: getByRole('link', { name: /details|view details/i }).first()\n    Expected substring: \u001b[32m\"Speaker\"\u001b[39m\n    Received string:    \u001b[31m\"Details\"\u001b[39m\n    Timeout: 5000ms\n\n    Call log:\n    \u001b[2m  - Expect \"toContainText\" with timeout 5000ms\u001b[22m\n    \u001b[2m  - waiting for getByRole('link', { name: /details|view details/i }).first()\u001b[22m\n    \u001b[2m    14 × locator resolved to <a data-discover=\"true\" href=\"#/product/pulse-speaker\" data-testid=\"view-product-pulse-speaker\">Details</a>\u001b[22m\n    \u001b[2m       - unexpected value \"Details\"\u001b[22m\n\n\n      108 | async function expectTextWithFallback(page, selector, value, description) {\n      109 |   const locator = await resolveLocator(page, selector, description);\n    > 110 |   await expect(locator).toContainText(value);\n          |                         ^\n      111 | }\n      112 |\n      113 | test('Search Speaker, Verify Title and Category on Details Page, Add to Cart', async ({ page }, testInfo) => {\n        at expectTextWithFallback (/Users/sailaja.pinisetty/ai-playwright-framework/generated_tests/user_story_1-user-story-1/test-cases/tc-001/user_story_1_search_speaker_verify_title_and_category.spec.js:110:25)\n        at /Users/sailaja.pinisetty/ai-playwright-framework/generated_tests/user_story_1-user-story-1/test-cases/tc-001/user_story_1_search_speaker_verify_title_and_category.spec.js:142:5\n\n    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────\n    .playwright-output/user_story_1-user-story-1--595e2-on-Details-Page-Add-to-Cart-chromium/test-failed-1.png\n    ────────────────────────────────────────────────────────────────────────────────────────────────\n\n    Error Context: .playwright-output/user_story_1-user-story-1--595e2-on-Details-Page-Add-to-Cart-chromium/error-context.md\n\n\n\u001b[1A\u001b[2K  1 failed\n    [chromium] › generated_tests/user_story_1-user-story-1/test-cases/tc-001/user_story_1_search_speaker_verify_title_and_category.spec.js:113:1 › Search Speaker, Verify Title and Category on Details Page, Add to Cart",
+              "summary": "Search results show a Speaker product with title and category visible on the card. However, the Details button has not been clicked to navigate to a product details view, so the product title and category on the details page cannot be confirmed. Additionally, no cart confirmation (badge update or toast) is visible, as Add to Cart has not been triggered."
+            }
+          ],
+          "scriptFiles": [
+            "generated_tests/user_story_1-user-story-1/test-cases/tc-001/user_story_1_search_speaker_verify_title_category_add.spec.js",
+            "generated_tests/user_story_1-user-story-1/test-cases/tc-001/user_story_1_search_speaker_verify_title_category_on.spec.js"
+          ],
+          "screenshotFiles": [
+            "generated_tests/user_story_1-user-story-1/screenshots/tc-001/final-ui-tc-001.png"
+          ]
+        },
+        {
+          "caseId": "tc-002",
+          "title": "tc-002",
+          "type": "automation",
+          "priority": "medium",
+          "expectedResult": "",
+          "acceptanceCriteria": [],
+          "automationReason": "",
+          "executionStatus": "NOT_RUN",
+          "validationStatus": "NOT_RUN",
+          "lastAttempt": 0,
+          "executionCode": null,
+          "failureCause": "",
+          "debugCommand": "",
+          "outputTail": "",
+          "validationSummary": "",
+          "improvementPriority": "n/a",
+          "improvements": [],
+          "executedAt": "",
+          "runHistory": [],
+          "scriptFiles": [],
+          "screenshotFiles": [
+            "generated_tests/user_story_1-user-story-1/screenshots/tc-002/final-ui-tc-002.png"
+          ]
+        },
+        {
+          "caseId": "tc-003",
+          "title": "tc-003",
+          "type": "automation",
+          "priority": "medium",
+          "expectedResult": "",
+          "acceptanceCriteria": [],
+          "automationReason": "",
+          "executionStatus": "NOT_RUN",
+          "validationStatus": "NOT_RUN",
+          "lastAttempt": 0,
+          "executionCode": null,
+          "failureCause": "",
+          "debugCommand": "",
+          "outputTail": "",
+          "validationSummary": "",
+          "improvementPriority": "n/a",
+          "improvements": [],
+          "executedAt": "",
+          "runHistory": [],
+          "scriptFiles": [],
+          "screenshotFiles": [
+            "generated_tests/user_story_1-user-story-1/screenshots/tc-003/final-ui-tc-003.png"
+          ]
+        },
+        {
+          "caseId": "tc-004",
+          "title": "tc-004",
+          "type": "automation",
+          "priority": "medium",
+          "expectedResult": "",
+          "acceptanceCriteria": [],
+          "automationReason": "",
+          "executionStatus": "NOT_RUN",
+          "validationStatus": "NOT_RUN",
+          "lastAttempt": 0,
+          "executionCode": null,
+          "failureCause": "",
+          "debugCommand": "",
+          "outputTail": "",
+          "validationSummary": "",
+          "improvementPriority": "n/a",
+          "improvements": [],
+          "executedAt": "",
+          "runHistory": [],
+          "scriptFiles": [],
+          "screenshotFiles": [
+            "generated_tests/user_story_1-user-story-1/screenshots/tc-004/final-ui-tc-004.png"
+          ]
+        },
+        {
+          "caseId": "tc-005",
+          "title": "tc-005",
+          "type": "automation",
+          "priority": "medium",
+          "expectedResult": "",
+          "acceptanceCriteria": [],
+          "automationReason": "",
+          "executionStatus": "NOT_RUN",
+          "validationStatus": "NOT_RUN",
+          "lastAttempt": 0,
+          "executionCode": null,
+          "failureCause": "",
+          "debugCommand": "",
+          "outputTail": "",
+          "validationSummary": "",
+          "improvementPriority": "n/a",
+          "improvements": [],
+          "executedAt": "",
+          "runHistory": [],
+          "scriptFiles": [],
+          "screenshotFiles": [
+            "generated_tests/user_story_1-user-story-1/screenshots/tc-005/final-ui-tc-005.png"
+          ]
+        },
+        {
+          "caseId": "tc-006",
+          "title": "tc-006",
+          "type": "automation",
+          "priority": "medium",
+          "expectedResult": "",
+          "acceptanceCriteria": [],
+          "automationReason": "",
+          "executionStatus": "NOT_RUN",
+          "validationStatus": "NOT_RUN",
+          "lastAttempt": 0,
+          "executionCode": null,
+          "failureCause": "",
+          "debugCommand": "",
+          "outputTail": "",
+          "validationSummary": "",
+          "improvementPriority": "n/a",
+          "improvements": [],
+          "executedAt": "",
+          "runHistory": [],
+          "scriptFiles": [],
+          "screenshotFiles": [
+            "generated_tests/user_story_1-user-story-1/screenshots/tc-006/final-ui-tc-006.png"
+          ]
+        },
+        {
+          "caseId": "tc-007",
+          "title": "tc-007",
+          "type": "automation",
+          "priority": "medium",
+          "expectedResult": "",
+          "acceptanceCriteria": [],
+          "automationReason": "",
+          "executionStatus": "NOT_RUN",
+          "validationStatus": "NOT_RUN",
+          "lastAttempt": 0,
+          "executionCode": null,
+          "failureCause": "",
+          "debugCommand": "",
+          "outputTail": "",
+          "validationSummary": "",
+          "improvementPriority": "n/a",
+          "improvements": [],
+          "executedAt": "",
+          "runHistory": [],
+          "scriptFiles": [],
+          "screenshotFiles": [
+            "generated_tests/user_story_1-user-story-1/screenshots/tc-007/final-ui-tc-007.png"
+          ]
+        },
+        {
+          "caseId": "tc-008",
+          "title": "tc-008",
+          "type": "automation",
+          "priority": "medium",
+          "expectedResult": "",
+          "acceptanceCriteria": [],
+          "automationReason": "",
+          "executionStatus": "NOT_RUN",
+          "validationStatus": "NOT_RUN",
+          "lastAttempt": 0,
+          "executionCode": null,
+          "failureCause": "",
+          "debugCommand": "",
+          "outputTail": "",
+          "validationSummary": "",
+          "improvementPriority": "n/a",
+          "improvements": [],
+          "executedAt": "",
+          "runHistory": [],
+          "scriptFiles": [],
+          "screenshotFiles": [
+            "generated_tests/user_story_1-user-story-1/screenshots/tc-008/final-ui-tc-008.png"
+          ]
+        }
+      ]
+    }
+  ]
+}
