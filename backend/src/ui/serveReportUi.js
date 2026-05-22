@@ -440,6 +440,97 @@ async function trackProjectStoryFolder(projectId, storyFolder) {
   }
 }
 
+async function saveProjectStory({ projectId = '', content = '', source = 'UI input' } = {}) {
+  const safeProjectId = String(projectId || '').trim();
+  const safeContent = String(content || '').trim();
+  const safeSource = String(source || 'UI input').trim();
+
+  if (!safeProjectId) {
+    throw new Error('projectId is required.');
+  }
+  if (!safeContent) {
+    throw new Error('content is required.');
+  }
+
+  const registry = await readProjectRegistry();
+  const project = registry.projects.find((entry) => entry.id === safeProjectId);
+  if (!project) {
+    throw new Error('Project not found.');
+  }
+
+  const projectCode = normalizeProjectCode(project.name || project.id || 'PRJ');
+  const storyNumber = await getNextStorySequenceNumber();
+  const storyFolder = buildStoryName(projectCode, storyNumber);
+  const projectStoryDir = path.join(projectDataRootDir, safeProjectId, 'stories', storyFolder);
+  await fs.mkdir(projectStoryDir, { recursive: true });
+  await fs.writeFile(path.join(projectStoryDir, 'user-story.txt'), `${safeContent}\n`);
+  await fs.writeFile(path.join(projectStoryDir, 'story-meta.json'), JSON.stringify({
+    savedAt: new Date().toISOString(),
+    source: safeSource,
+    storyFolder
+  }, null, 2));
+
+  await trackProjectStoryFolder(safeProjectId, storyFolder);
+
+  return {
+    projectId: safeProjectId,
+    projectName: String(project.name || ''),
+    storyFolder,
+    storyNumber,
+    source: safeSource
+  };
+}
+
+async function mapGeneratedStoriesToProject(projectId) {
+  const safeProjectId = String(projectId || '').trim();
+  if (!safeProjectId) {
+    throw new Error('projectId is required.');
+  }
+
+  const registry = await readProjectRegistry();
+  const generatedTestsDir = path.join(rootDir, 'generated_tests');
+  const discoveredStoryFolders = await listDirectories(generatedTestsDir);
+  const now = new Date().toISOString();
+  let mappedCount = 0;
+  let projectFound = false;
+
+  registry.projects = registry.projects.map((project) => {
+    if (project.id !== safeProjectId) {
+      return project;
+    }
+
+    projectFound = true;
+    const existing = new Set(Array.isArray(project.storyFolders) ? project.storyFolders : []);
+    for (const folder of discoveredStoryFolders) {
+      if (!existing.has(folder)) {
+        existing.add(folder);
+        mappedCount += 1;
+      }
+    }
+
+    return {
+      ...project,
+      storyFolders: [...existing].sort(),
+      updatedAt: now
+    };
+  });
+
+  if (!projectFound) {
+    throw new Error('Project not found.');
+  }
+
+  await writeProjectRegistry(registry);
+  const project = registry.projects.find((entry) => entry.id === safeProjectId) || null;
+
+  return {
+    projectId: safeProjectId,
+    projectName: String(project?.name || ''),
+    discoveredStories: discoveredStoryFolders.length,
+    mappedCount,
+    totalMappedStories: Array.isArray(project?.storyFolders) ? project.storyFolders.length : 0
+  };
+}
+
 async function persistProjectRunArtifacts({ runEntry, includeStoryFolder = '' }) {
   const projectId = String(runEntry?.projectId || '').trim();
   const runId = String(runEntry?.runId || '').trim();
@@ -506,7 +597,9 @@ async function readManualTestCases({ projectId = '' } = {}) {
     const registry = await readProjectRegistry();
     const project = registry.projects.find((entry) => entry.id === requestedProjectId);
     const allowedStoryFolders = new Set(Array.isArray(project?.storyFolders) ? project.storyFolders : []);
-    storyFolders = storyFolders.filter((folder) => allowedStoryFolders.has(folder));
+    if (allowedStoryFolders.size > 0) {
+      storyFolders = storyFolders.filter((folder) => allowedStoryFolders.has(folder));
+    }
   }
   const items = [];
 
@@ -585,9 +678,9 @@ async function readStoryTextForFolder({ projectId = '', storyFolder = '' } = {})
     }
   }
 
-  const storyKeyMatch = safeStoryFolder.match(/^(user_story_\d+)/i);
+  const storyKeyMatch = safeStoryFolder.match(/^(user_story_\d+)|([a-z0-9_]+_story_\d+)$/i);
   if (storyKeyMatch) {
-    const storyKey = String(storyKeyMatch[1] || '').trim().toLowerCase();
+    const storyKey = String(storyKeyMatch[1] || storyKeyMatch[2] || '').trim().toLowerCase();
     const legacyStoriesDir = path.join(rootDir, 'user-stories');
     const legacyFiles = await listFilesRecursive(legacyStoriesDir, '.txt');
     const matchedLegacy = legacyFiles.find((filePath) => {
@@ -622,29 +715,50 @@ async function readStoryTextForFolder({ projectId = '', storyFolder = '' } = {})
 
 async function readProjectStories({ projectId = '' } = {}) {
   const safeProjectId = String(projectId || '').trim();
-  if (!safeProjectId) {
-    return {
-      generatedAt: new Date().toISOString(),
-      projectId: '',
-      projectName: '',
-      storyCount: 0,
-      items: []
-    };
-  }
-
+  const generatedTestsDir = path.join(rootDir, 'generated_tests');
   const registry = await readProjectRegistry();
-  const project = registry.projects.find((entry) => entry.id === safeProjectId);
-  const storyFolders = Array.isArray(project?.storyFolders)
+  const project = safeProjectId
+    ? registry.projects.find((entry) => entry.id === safeProjectId)
+    : null;
+
+  let storyFolders = Array.isArray(project?.storyFolders)
     ? project.storyFolders.map((entry) => String(entry || '').trim()).filter(Boolean)
     : [];
 
+  if (storyFolders.length === 0) {
+    storyFolders = await listDirectories(generatedTestsDir);
+  }
+
   const items = [];
   for (const storyFolder of storyFolders) {
-    const storyText = await readStoryTextForFolder({ projectId: safeProjectId, storyFolder });
+    const storyText = safeProjectId
+      ? await readStoryTextForFolder({ projectId: safeProjectId, storyFolder })
+      : { content: '', source: '' };
+
+    let storyContent = String(storyText?.content || '').trim();
+    let storySource = String(storyText?.source || '').trim();
+
+    if (!storyContent) {
+      const manualCatalogPath = path.join(generatedTestsDir, storyFolder, 'manual-test-cases.json');
+      const manualCatalog = await readJsonFileIfExists(manualCatalogPath, {});
+      const storyTitle = String(manualCatalog?.storyTitle || '').trim();
+      const criteria = Array.isArray(manualCatalog?.storyAcceptanceCriteria)
+        ? manualCatalog.storyAcceptanceCriteria.map((entry) => String(entry || '').trim()).filter(Boolean)
+        : [];
+
+      const criteriaText = criteria.length > 0
+        ? `\n\nAcceptance Criteria:\n${criteria.map((entry) => `- ${entry}`).join('\n')}`
+        : '';
+      storyContent = `${storyTitle ? `Story title: ${storyTitle}` : ''}${criteriaText}`.trim();
+      if (storyContent && !storySource) {
+        storySource = `generated_tests/${storyFolder}/manual-test-cases.json`;
+      }
+    }
+
     items.push({
       storyFolder,
-      content: String(storyText?.content || '').trim(),
-      source: String(storyText?.source || '').trim()
+      content: storyContent,
+      source: storySource
     });
   }
 
@@ -935,18 +1049,30 @@ function toSafeId(value) {
     .replace(/^-|-$/g, '') || 'story';
 }
 
+function normalizeProjectCode(value) {
+  const normalized = String(value || '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+  return normalized || 'PRJ';
+}
+
+function buildStoryName(projectCode, storyNumber) {
+  return `${normalizeProjectCode(projectCode)}_Story_${Number(storyNumber)}`;
+}
+
 async function getNextStorySequenceNumber() {
   const generatedTestsDir = path.join(rootDir, 'generated_tests');
   const folders = await listDirectories(generatedTestsDir);
   let maxNumber = 0;
 
   for (const folder of folders) {
-    const match = String(folder).match(/^user_story_(\d+)-/i);
+    const match = String(folder).match(/(?:^user_story_(\d+)-|_Story_(\d+)$)/i);
     if (!match) {
       continue;
     }
 
-    const value = Number.parseInt(match[1], 10);
+    const value = Number.parseInt(match[1] || match[2], 10);
     if (Number.isFinite(value) && value > maxNumber) {
       maxNumber = value;
     }
@@ -962,11 +1088,12 @@ async function runPipeline({ appUrl, userStory }) {
 
   isRunInProgress = true;
   const startedAt = new Date().toISOString();
+  const projectInfo = await getSelectedProjectInfo();
+  const projectCode = normalizeProjectCode(projectInfo?.projectName || projectInfo?.projectId || 'PRJ');
   const storyNumber = await getNextStorySequenceNumber();
   const storySource = `Story ${storyNumber} (UI input)`;
-  const storyId = toSafeId(`story-${storyNumber}`);
-  const storyFolder = `user_story_${storyNumber}-${storyId}`;
-  const projectInfo = await getSelectedProjectInfo();
+  const storyFolder = buildStoryName(projectCode, storyNumber);
+  const storyId = toSafeId(storyFolder);
 
   return new Promise((resolve) => {
     let output = '';
@@ -985,7 +1112,8 @@ async function runPipeline({ appUrl, userStory }) {
       APP_URL: appUrl,
       CLI_STORY_ID: storyId,
       CLI_STORY_SOURCE: storySource,
-      CLI_STORY_NUMBER: String(storyNumber)
+      CLI_STORY_NUMBER: String(storyNumber),
+      CLI_PROJECT_CODE: projectCode
     };
 
     const proc = spawn('node', ['src/index.js'], {
@@ -1307,6 +1435,26 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
+  if (req.method === 'POST' && url.pathname === '/api/projects/map-stories') {
+    try {
+      const body = await readJsonBody(req);
+      const projectId = String(body.projectId || '').trim();
+      if (!projectId) {
+        writeJson(req, res, 400, { error: 'projectId is required.' });
+        return;
+      }
+
+      const result = await mapGeneratedStoriesToProject(projectId);
+      writeJson(req, res, 200, result);
+      return;
+    } catch (error) {
+      const message = String(error?.message || 'Unable to map stories to project.');
+      const statusCode = message === 'Project not found.' ? 404 : 500;
+      writeJson(req, res, statusCode, { error: message });
+      return;
+    }
+  }
+
   if (req.method === 'POST' && url.pathname === '/api/projects/urls') {
     try {
       const body = await readJsonBody(req);
@@ -1407,6 +1555,33 @@ const server = http.createServer(async (req, res) => {
     const storyData = await readProjectStories({ projectId });
     writeJson(req, res, 200, storyData);
     return;
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/project-stories') {
+    try {
+      const body = await readJsonBody(req);
+      const projectId = String(body.projectId || '').trim();
+      const content = String(body.content || '').trim();
+      const source = String(body.source || 'UI input').trim();
+
+      if (!projectId) {
+        writeJson(req, res, 400, { error: 'projectId is required.' });
+        return;
+      }
+      if (!content) {
+        writeJson(req, res, 400, { error: 'content is required.' });
+        return;
+      }
+
+      const saved = await saveProjectStory({ projectId, content, source });
+      writeJson(req, res, 200, saved);
+      return;
+    } catch (error) {
+      const message = String(error?.message || 'Unable to save project story.');
+      const statusCode = message === 'Project not found.' ? 404 : 500;
+      writeJson(req, res, statusCode, { error: message });
+      return;
+    }
   }
 
   if (req.method === 'GET' && url.pathname === '/api/manual-test-cases/download') {

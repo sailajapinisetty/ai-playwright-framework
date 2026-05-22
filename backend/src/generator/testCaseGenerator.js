@@ -53,7 +53,7 @@ function normalizeCase(testCase, index) {
   }
 
   return {
-    id: String(testCase?.id || `TC-${String(index + 1).padStart(3, '0')}`),
+    id: String(testCase?.id || `PROJECTCODE_Story_1_TestCase_${index + 1}`),
     title,
     type: String(testCase?.type || 'functional').trim() || 'functional',
     priority: String(testCase?.priority || 'medium').trim() || 'medium',
@@ -79,7 +79,7 @@ function fallbackManualCatalog(userStory) {
     ],
     testCases: [
       {
-        id: 'TC-001',
+        id: 'PROJECTCODE_Story_1_TestCase_1',
         title: summary ? `Validate core flow: ${summary.slice(0, 60)}` : 'Validate core flow from provided user story',
         type: 'functional',
         priority: 'high',
@@ -117,7 +117,7 @@ export async function generateManualTestCatalog(userStory) {
     '  "storyAcceptanceCriteria": ["AC extracted from user story"],',
     '  "testCases": [',
     '    {',
-    '      "id": "TC-001",',
+    '      "id": "PROJECTCODE_Story_1_TestCase_1",',
     '      "title": "clear test case title",',
     '      "type": "functional|negative|edge|accessibility|usability|error-handling",',
     '      "priority": "high|medium|low",',

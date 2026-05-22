@@ -54,13 +54,20 @@ function toShortDescription(value) {
     .join('_') || 'scenario';
 }
 
-function normalizeCaseId(value, fallbackValue) {
-  const normalized = String(value || fallbackValue)
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '');
+function normalizeProjectCode(value) {
+  const normalized = String(value || '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+  return normalized || 'PRJ';
+}
 
-  return normalized || String(fallbackValue);
+function buildStoryName(projectCode, storyNumber) {
+  return `${normalizeProjectCode(projectCode)}_Story_${Number(storyNumber)}`;
+}
+
+function buildCaseId(projectCode, storyNumber, caseNumber) {
+  return `${buildStoryName(projectCode, storyNumber)}_TestCase_${Number(caseNumber)}`;
 }
 
 function renderManualCatalogMarkdown(sourceName, catalog, selectedAutomatableCases) {
@@ -133,9 +140,10 @@ function renderManualCatalogMarkdown(sourceName, catalog, selectedAutomatableCas
   return lines.join('\n');
 }
 
-async function getExistingStoryTests(storyNumber) {
+async function getExistingStoryTests(projectCode, storyNumber) {
   const generatedDir = path.resolve(process.cwd(), 'generated_tests');
-  const prefix = `user_story_${storyNumber}_`;
+  const storyNamePrefix = `${normalizeProjectCode(projectCode)}_story_${storyNumber}_`;
+  const legacyPrefix = `user_story_${storyNumber}_`;
 
   async function collectSpecFileNames(dirPath) {
     let entries = [];
@@ -159,9 +167,12 @@ async function getExistingStoryTests(storyNumber) {
   }
 
   const names = (await collectSpecFileNames(generatedDir))
-    .filter((name) => name.startsWith(prefix));
+    .filter((name) => name.startsWith(storyNamePrefix) || name.startsWith(legacyPrefix));
 
-  const slugs = new Set(names.map((name) => name.slice(prefix.length, -'.spec.js'.length)));
+  const slugs = new Set(names.map((name) => {
+    const prefix = name.startsWith(storyNamePrefix) ? storyNamePrefix : legacyPrefix;
+    return name.slice(prefix.length, -'.spec.js'.length);
+  }));
   const descriptions = [...slugs].map((slug) => slug.replace(/_/g, ' '));
   return { slugs, descriptions };
 }
@@ -209,11 +220,12 @@ async function main() {
   const cliStoryId = toSafeId(process.env.CLI_STORY_ID || 'cli-input');
   const cliStorySource = String(process.env.CLI_STORY_SOURCE || 'CLI input').trim() || 'CLI input';
   const parsedCliStoryNumber = Number.parseInt(String(process.env.CLI_STORY_NUMBER || ''), 10);
+  const cliProjectCode = normalizeProjectCode(process.env.CLI_PROJECT_CODE || 'PRJ');
   const cliStoryNumber = Number.isFinite(parsedCliStoryNumber) && parsedCliStoryNumber > 0
     ? parsedCliStoryNumber
     : null;
   const stories = inputStory
-    ? [{ id: cliStoryId, source: cliStorySource, userStory: inputStory, storyNumberOverride: cliStoryNumber }]
+    ? [{ id: cliStoryId, source: cliStorySource, userStory: inputStory, storyNumberOverride: cliStoryNumber, projectCode: cliProjectCode }]
     : await loadUserStoriesFromDirectory();
 
   let generatedCount = 0;
@@ -227,19 +239,28 @@ async function main() {
     const storyNumber = Number.isFinite(storyEntry.storyNumberOverride)
       ? Number(storyEntry.storyNumberOverride)
       : extractStoryNumber(storyEntry.source, i + 1);
-    const storyFolderName = `user_story_${storyNumber}-${storyEntry.id}`;
+    const projectCode = normalizeProjectCode(storyEntry.projectCode || cliProjectCode);
+    const storyName = buildStoryName(projectCode, storyNumber);
+    const storyFolderName = storyName;
     const storyOutputDir = path.join('generated_tests', storyFolderName);
     const storyTestCasesDir = path.join(storyOutputDir, 'test-cases');
     const storyScreenshotsDir = path.join(storyOutputDir, 'screenshots');
     await fs.mkdir(storyOutputDir, { recursive: true });
     await fs.mkdir(storyTestCasesDir, { recursive: true });
     await fs.mkdir(storyScreenshotsDir, { recursive: true });
-    const existingTests = await getExistingStoryTests(storyNumber);
+    const existingTests = await getExistingStoryTests(projectCode, storyNumber);
     const generatedDescriptions = [];
     const storyCaseResults = [];
 
     console.log(`\n1.${i + 1}) Generating complete manual test cases with acceptance criteria (${storyEntry.source})...`);
     const manualCatalog = await generateManualTestCatalog(storyEntry.userStory);
+    const normalizedCatalogCases = Array.isArray(manualCatalog.testCases)
+      ? manualCatalog.testCases.map((testCase, caseIndex) => ({
+        ...testCase,
+        id: buildCaseId(projectCode, storyNumber, caseIndex + 1)
+      }))
+      : [];
+    manualCatalog.testCases = normalizedCatalogCases;
 
     const automatableCases = manualCatalog.testCases
       .filter((testCase) => testCase.automationCandidate)
@@ -314,7 +335,7 @@ async function main() {
     console.log(`\n2.${i + 1}) Generating Playwright scripts for ${casesToAutomate.length} missing test gap(s)...`);
     for (let caseIndex = 0; caseIndex < casesToAutomate.length; caseIndex += 1) {
       const selectedCase = casesToAutomate[caseIndex];
-      const caseId = normalizeCaseId(selectedCase.id, `tc-${caseIndex + 1}`);
+      const caseId = buildCaseId(projectCode, storyNumber, caseIndex + 1);
       const caseOutputDir = path.join(storyTestCasesDir, caseId);
       const caseScreenshotsDir = path.join(storyScreenshotsDir, caseId);
       await fs.mkdir(caseOutputDir, { recursive: true });
@@ -345,7 +366,7 @@ async function main() {
 
         const shortDescription = toShortDescription(plan.title || selectedCase.title);
         if (!config.agentMode && existingTests.slugs.has(shortDescription)) {
-          console.log(`Skipping duplicate for ${selectedCase.id}: user_story_${storyNumber}_${shortDescription}.spec.js already exists.`);
+          console.log(`Skipping duplicate for ${selectedCase.id}: ${projectCode.toLowerCase()}_story_${storyNumber}_${shortDescription}.spec.js already exists.`);
           break;
         }
 
@@ -353,8 +374,8 @@ async function main() {
         const attemptSuffix = config.agentMode
           ? (useSelfHealing ? '' : `_attempt_${attempt}`)
           : '';
-        const fileNameHint = `user_story_${storyNumber}_${shortDescription}${attemptSuffix}`;
-        const resultNameBase = `user_story_${storyNumber}_${shortDescription}${attemptSuffix}`;
+        const fileNameHint = `${projectCode.toLowerCase()}_story_${storyNumber}_${shortDescription}${attemptSuffix}`;
+        const resultNameBase = `${projectCode.toLowerCase()}_story_${storyNumber}_${shortDescription}${attemptSuffix}`;
         const screenshotFileName = isSingle
           ? `final-ui-${caseId}${attemptSuffix}.png`
           : `final-ui-${storyEntry.id}-${caseId}${attemptSuffix}.png`;
