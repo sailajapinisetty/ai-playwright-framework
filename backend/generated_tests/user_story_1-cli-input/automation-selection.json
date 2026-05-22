@@ -8,21 +8,21 @@
     "coveragePercent": 0,
     "coveredCases": [],
     "missingScenarioTitles": [
-      "View cart with items successfully added"
+      "Search for Arc Mechanical Keyboard and Add to Cart Successfully"
     ]
   },
   "selectedAutomatableTests": [
     {
       "id": "TC-001",
-      "title": "View cart with items successfully added",
-      "reason": "This is a stable happy-path UI flow with clearly verifiable DOM elements such as item names, prices, quantities, and totals that Playwright can reliably locate, assert, and validate across browsers."
+      "title": "Search for Arc Mechanical Keyboard and Add to Cart Successfully",
+      "reason": "This is a stable, repeatable happy-path flow with predictable UI elements such as search input, search button, product listing, Add to Cart button, and cart summary. All interactions and assertions can be reliably scripted in Playwright using selectors, text matching, and URL navigation checks. It is a high-priority regression candidate."
     }
   ],
   "selectedMissingTestsForGeneration": [
     {
       "id": "TC-001",
-      "title": "View cart with items successfully added",
-      "reason": "This is a stable happy-path UI flow with clearly verifiable DOM elements such as item names, prices, quantities, and totals that Playwright can reliably locate, assert, and validate across browsers."
+      "title": "Search for Arc Mechanical Keyboard and Add to Cart Successfully",
+      "reason": "This is a stable, repeatable happy-path flow with predictable UI elements such as search input, search button, product listing, Add to Cart button, and cart summary. All interactions and assertions can be reliably scripted in Playwright using selectors, text matching, and URL navigation checks. It is a high-priority regression candidate."
     }
   ],
   "skippedManualOnlyTests": []
