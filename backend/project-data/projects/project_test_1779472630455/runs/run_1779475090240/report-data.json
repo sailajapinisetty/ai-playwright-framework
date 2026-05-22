@@ -1,0 +1,151 @@
+{
+  "generatedAt": "2026-05-22T18:40:02.255Z",
+  "storyCount": 1,
+  "totals": {
+    "stories": 1,
+    "tests": 1,
+    "manual": 1,
+    "automated": 1,
+    "automatable": 1,
+    "automatedRunPassed": 0,
+    "automatedRunFailed": 1,
+    "executionPassed": 0,
+    "executionFailed": 1,
+    "notRun": 1
+  },
+  "coverage": {
+    "covered": 0,
+    "automatable": 1,
+    "overallPercent": 0
+  },
+  "stories": [
+    {
+      "id": "user_story_3-story-3",
+      "folderName": "user_story_3-story-3",
+      "storySource": "Story 3 (UI input)",
+      "title": "Buy a Phone",
+      "overallStatus": "PARTIAL_FAIL",
+      "generatedAt": "2026-05-22T18:40:02.211Z",
+      "totals": {
+        "tests": 1,
+        "manual": 1,
+        "automated": 1,
+        "automatable": 1,
+        "covered": 0,
+        "missing": 1,
+        "automatedRunPassed": 0,
+        "automatedRunFailed": 1,
+        "executionPassed": 0,
+        "executionFailed": 1,
+        "notRun": 1
+      },
+      "coverage": {
+        "percent": 0,
+        "coveredCases": [],
+        "missingScenarioTitles": [
+          "Successfully purchase a phone from end to end"
+        ]
+      },
+      "summary": "Total automated cases: 2 | Execution passed: 0 | Execution failed: 2",
+      "runHistory": [
+        {
+          "generatedAt": "2026-05-22T18:40:02.211Z",
+          "overallStatus": "PARTIAL_FAIL",
+          "summary": "Total automated cases: 2 | Execution passed: 0 | Execution failed: 2",
+          "totals": {
+            "total": 2,
+            "executionPassed": 0,
+            "executionFailed": 2,
+            "validationPassed": 0,
+            "validationFailed": 2
+          }
+        }
+      ],
+      "cases": [
+        {
+          "caseId": "TC-001",
+          "title": "Successfully purchase a phone from end to end",
+          "type": "functional",
+          "priority": "high",
+          "expectedResult": "The phone is successfully purchased, an order confirmation page displays a unique order number, and a confirmation email is sent to the user's registered email address.",
+          "acceptanceCriteria": [
+            "User can browse available phones in the store",
+            "User can select a phone to purchase",
+            "User can add the selected phone to a cart",
+            "User can complete the purchase of the phone",
+            "User receives confirmation after successful purchase"
+          ],
+          "automationReason": "This is a stable end-to-end happy path flow with deterministic UI interactions including navigation, button clicks, form inputs, and verifiable confirmation messages that are well-suited for Playwright automation.",
+          "executionStatus": "NOT_RUN",
+          "validationStatus": "NOT_RUN",
+          "lastAttempt": 0,
+          "executionCode": null,
+          "failureCause": "",
+          "debugCommand": "",
+          "outputTail": "",
+          "validationSummary": "",
+          "improvementPriority": "n/a",
+          "improvements": [],
+          "executedAt": "",
+          "runHistory": [],
+          "scriptFiles": [
+            "generated_tests/user_story_3-story-3/test-cases/TC-001/user_story_3_successfully_purchase_a_phone_end_to.spec.js"
+          ],
+          "screenshotFiles": [
+            "generated_tests/user_story_3-story-3/screenshots/TC-001/final-ui-tc-001.png"
+          ]
+        },
+        {
+          "caseId": "tc-001",
+          "title": "tc-001",
+          "type": "automation",
+          "priority": "medium",
+          "expectedResult": "",
+          "acceptanceCriteria": [],
+          "automationReason": "",
+          "executionStatus": "FAIL",
+          "validationStatus": "FAIL",
+          "lastAttempt": 2,
+          "executionCode": 1,
+          "failureCause": "Error: Unable to resolve locator. selector=\"input[name='address'], input[placeholder*='address'], input[id*='address']\" description=\"Fill in the shipping address\"",
+          "debugCommand": "npx playwright test generated_tests/user_story_3-story-3/test-cases/tc-001/user_story_3_successfully_purchase_a_phone_end_to.spec.js --headed --project=chromium",
+          "outputTail": "Running 1 test using 1 worker\n\n\u001b[1A\u001b[2K[1/1] [chromium] › generated_tests/user_story_3-story-3/test-cases/tc-001/user_story_3_successfully_purchase_a_phone_end_to.spec.js:113:1 › Successfully purchase a phone end to end\n\u001b[1A\u001b[2K  1) [chromium] › generated_tests/user_story_3-story-3/test-cases/tc-001/user_story_3_successfully_purchase_a_phone_end_to.spec.js:113:1 › Successfully purchase a phone end to end \n\n    Error: Unable to resolve locator. selector=\"input[name='address'], input[placeholder*='address'], input[id*='address']\" description=\"Fill in the shipping address\"\n\n      76 |   const resolved = await firstExisting(candidates);\n      77 |   if (!resolved) {\n    > 78 |     throw new Error(`Unable to resolve locator. selector=\"${selectorText}\" description=\"${descriptionText}\"`);\n         |           ^\n      79 |   }\n      80 |   return resolved;\n      81 | }\n        at resolveLocator (/Users/sailaja.pinisetty/ai-playwright-framework/backend/generated_tests/user_story_3-story-3/test-cases/tc-001/user_story_3_successfully_purchase_a_phone_end_to.spec.js:78:11)\n        at fillWithFallback (/Users/sailaja.pinisetty/ai-playwright-framework/backend/generated_tests/user_story_3-story-3/test-cases/tc-001/user_story_3_successfully_purchase_a_phone_end_to.spec.js:89:19)\n        at /Users/sailaja.pinisetty/ai-playwright-framework/backend/generated_tests/user_story_3-story-3/test-cases/tc-001/user_story_3_successfully_purchase_a_phone_end_to.spec.js:166:5\n\n    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────\n    .playwright-output/user_story_3-story-3-test--cb266-purchase-a-phone-end-to-end-chromium/test-failed-1.png\n    ────────────────────────────────────────────────────────────────────────────────────────────────\n\n    Error Context: .playwright-output/user_story_3-story-3-test--cb266-purchase-a-phone-end-to-end-chromium/error-context.md\n\n    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────\n    .playwright-output/user_story_3-story-3-test--cb266-purchase-a-phone-end-to-end-chromium/trace.zip\n    Usage:\n\n        npx playwright show-trace .playwright-output/user_story_3-story-3-test--cb266-purchase-a-phone-end-to-end-chromium/trace.zip\n\n    ────────────────────────────────────────────────────────────────────────────────────────────────\n\n\n\u001b[1A\u001b[2K  1 failed\n    [chromium] › generated_tests/user_story_3-story-3/test-cases/tc-001/user_story_3_successfully_purchase_a_phone_end_to.spec.js:113:1 › Successfully purchase a phone end to end",
+          "validationSummary": "The screenshot shows the checkout page with a form and 'Place order' button visible, and a cart notification confirming a product was added. However, several criteria cannot be verified from this single screenshot: homepage with product listings, product detail/add-to-cart visibility, cart page details, and order confirmation after purchase. Additionally, the product added is 'Aurora Wireless Headphones' which is not a phone, partially misaligning with the user story. No payment details field is visible in the checkout form.",
+          "improvementPriority": "high",
+          "improvements": [
+            "Expand the shipping address field selector candidates to include additional patterns observed in real checkout forms: add 'input[name*=\"street\"]', 'input[name*=\"shipping\"]', 'input[autocomplete=\"street-address\"]', 'input[autocomplete=\"address-line1\"]', 'textarea[name*=\"address\"]', and '[data-testid*=\"address\"]' to the fallback selector array for the shipping address resolver",
+            "Before attempting to fill the address field, take a DOM snapshot or use 'page.$$eval(\"input\", els => els.map(e => ({name:e.name,id:e.id,placeholder:e.placeholder})))' to log all visible input attributes at checkout, enabling precise selector discovery and preventing locator resolution failures",
+            "Add a dedicated page-object or helper for the checkout form that dynamically discovers form fields by label text using 'page.getByLabel()' or 'page.locator(\"label\").filter({hasText:/address/i}).locator(\".. input\")' as primary strategy, falling back to attribute-based selectors only when label matching fails",
+            "Fix product category navigation to target a phone product specifically: add an assertion after product selection that the product name or category contains keywords like 'phone', 'smartphone', or 'mobile' to prevent purchasing unrelated items (e.g., 'Aurora Wireless Headphones') and align with the user story intent",
+            "Add explicit wait and screenshot steps at each major flow transition (homepage → category → product detail → cart → checkout → confirmation) using 'await page.waitForLoadState(\"networkidle\")' and 'await page.screenshot()' calls to provide visual evidence for each acceptance criterion instead of a single terminal screenshot",
+            "Implement a checkout form field discovery step that checks for payment section visibility: assert that at least one payment-related field ('input[name*=\"card\"]', 'input[name*=\"payment\"]', '[data-testid*=\"payment\"]', or an iframe containing payment fields like Stripe) exists before attempting payment entry, and add a conditional handler for embedded payment iframes",
+            "Add a robust 'Phones' category selector with multiple fallbacks: '[data-category=\"phones\"]', 'a:has-text(\"Phones\")', 'nav >> text=Phones', '[href*=\"phone\"]', '[href*=\"mobile\"]' and assert that the resulting product grid contains items before clicking, to prevent silent navigation failures that lead to wrong product selection",
+            "After clicking 'Place Order', add an explicit wait for the confirmation page using 'page.waitForURL(/confirmation|order-success|thank-you/i)' or 'page.waitForSelector(\"text=/order number|order confirmed|thank you/i\")' with a 15-second timeout, and capture the order number value to assert it is non-empty, covering the currently UNKNOWN order confirmation criterion",
+            "Separate the 16-step test into smaller scoped fixtures or test hooks: use 'test.beforeEach' to handle login and cart clearing, so that locator failures during checkout are isolated from setup issues and retry logic applies only to the failing step rather than the entire flow"
+          ],
+          "executedAt": "2026-05-22T18:39:31.811Z",
+          "runHistory": [
+            {
+              "generatedAt": "2026-05-22T18:40:02.211Z",
+              "overallStatus": "PARTIAL_FAIL",
+              "executionStatus": "FAIL",
+              "validationStatus": "FAIL",
+              "attempt": 2,
+              "executionCode": 1,
+              "failureCause": "Error: Unable to resolve locator. selector=\"input[name='address'], input[placeholder*='address'], input[id*='address']\" description=\"Fill in the shipping address\"",
+              "debugCommand": "npx playwright test generated_tests/user_story_3-story-3/test-cases/tc-001/user_story_3_successfully_purchase_a_phone_end_to.spec.js --headed --project=chromium",
+              "outputTail": "Running 1 test using 1 worker\n\n\u001b[1A\u001b[2K[1/1] [chromium] › generated_tests/user_story_3-story-3/test-cases/tc-001/user_story_3_successfully_purchase_a_phone_end_to.spec.js:113:1 › Successfully purchase a phone end to end\n\u001b[1A\u001b[2K  1) [chromium] › generated_tests/user_story_3-story-3/test-cases/tc-001/user_story_3_successfully_purchase_a_phone_end_to.spec.js:113:1 › Successfully purchase a phone end to end \n\n    Error: Unable to resolve locator. selector=\"input[name='address'], input[placeholder*='address'], input[id*='address']\" description=\"Fill in the shipping address\"\n\n      76 |   const resolved = await firstExisting(candidates);\n      77 |   if (!resolved) {\n    > 78 |     throw new Error(`Unable to resolve locator. selector=\"${selectorText}\" description=\"${descriptionText}\"`);\n         |           ^\n      79 |   }\n      80 |   return resolved;\n      81 | }\n        at resolveLocator (/Users/sailaja.pinisetty/ai-playwright-framework/backend/generated_tests/user_story_3-story-3/test-cases/tc-001/user_story_3_successfully_purchase_a_phone_end_to.spec.js:78:11)\n        at fillWithFallback (/Users/sailaja.pinisetty/ai-playwright-framework/backend/generated_tests/user_story_3-story-3/test-cases/tc-001/user_story_3_successfully_purchase_a_phone_end_to.spec.js:89:19)\n        at /Users/sailaja.pinisetty/ai-playwright-framework/backend/generated_tests/user_story_3-story-3/test-cases/tc-001/user_story_3_successfully_purchase_a_phone_end_to.spec.js:166:5\n\n    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────\n    .playwright-output/user_story_3-story-3-test--cb266-purchase-a-phone-end-to-end-chromium/test-failed-1.png\n    ────────────────────────────────────────────────────────────────────────────────────────────────\n\n    Error Context: .playwright-output/user_story_3-story-3-test--cb266-purchase-a-phone-end-to-end-chromium/error-context.md\n\n    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────\n    .playwright-output/user_story_3-story-3-test--cb266-purchase-a-phone-end-to-end-chromium/trace.zip\n    Usage:\n\n        npx playwright show-trace .playwright-output/user_story_3-story-3-test--cb266-purchase-a-phone-end-to-end-chromium/trace.zip\n\n    ────────────────────────────────────────────────────────────────────────────────────────────────\n\n\n\u001b[1A\u001b[2K  1 failed\n    [chromium] › generated_tests/user_story_3-story-3/test-cases/tc-001/user_story_3_successfully_purchase_a_phone_end_to.spec.js:113:1 › Successfully purchase a phone end to end",
+              "summary": "The screenshot shows the checkout page with a form and 'Place order' button visible, and a cart notification confirming a product was added. However, several criteria cannot be verified from this single screenshot: homepage with product listings, product detail/add-to-cart visibility, cart page details, and order confirmation after purchase. Additionally, the product added is 'Aurora Wireless Headphones' which is not a phone, partially misaligning with the user story. No payment details field is visible in the checkout form."
+            }
+          ],
+          "scriptFiles": [
+            "generated_tests/user_story_3-story-3/test-cases/tc-001/user_story_3_successfully_purchase_a_phone_end_to.spec.js"
+          ],
+          "screenshotFiles": [
+            "generated_tests/user_story_3-story-3/screenshots/tc-001/final-ui-tc-001.png"
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "storySource": "Story 2 (UI input)",
+  "totalManualTests": 1,
+  "coverage": {
+    "totalAutomatable": 1,
+    "covered": 0,
+    "missing": 1,
+    "coveragePercent": 0,
+    "coveredCases": [],
+    "missingScenarioTitles": [
+      "Search for a speaker by name and view their full details"
+    ]
+  },
+  "selectedAutomatableTests": [
+    {
+      "id": "TC-001",
+      "title": "Search for a speaker by name and view their full details",
+      "reason": "This happy path flow involves stable UI interactions (text input, button click, list selection, page navigation) that are reliably automatable with Playwright using locators for the search field, results list, and detail page elements."
+    }
+  ],
+  "selectedMissingTestsForGeneration": [
+    {
+      "id": "TC-001",
+      "title": "Search for a speaker by name and view their full details",
+      "reason": "This happy path flow involves stable UI interactions (text input, button click, list selection, page navigation) that are reliably automatable with Playwright using locators for the search field, results list, and detail page elements."
+    }
+  ],
+  "skippedManualOnlyTests": []
+}

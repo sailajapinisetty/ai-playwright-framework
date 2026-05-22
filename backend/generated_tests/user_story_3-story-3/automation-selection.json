@@ -1,0 +1,29 @@
+{
+  "storySource": "Story 3 (UI input)",
+  "totalManualTests": 1,
+  "coverage": {
+    "totalAutomatable": 1,
+    "covered": 0,
+    "missing": 1,
+    "coveragePercent": 0,
+    "coveredCases": [],
+    "missingScenarioTitles": [
+      "Successfully purchase a phone from end to end"
+    ]
+  },
+  "selectedAutomatableTests": [
+    {
+      "id": "TC-001",
+      "title": "Successfully purchase a phone from end to end",
+      "reason": "This is a stable end-to-end happy path flow with deterministic UI interactions including navigation, button clicks, form inputs, and verifiable confirmation messages that are well-suited for Playwright automation."
+    }
+  ],
+  "selectedMissingTestsForGeneration": [
+    {
+      "id": "TC-001",
+      "title": "Successfully purchase a phone from end to end",
+      "reason": "This is a stable end-to-end happy path flow with deterministic UI interactions including navigation, button clicks, form inputs, and verifiable confirmation messages that are well-suited for Playwright automation."
+    }
+  ],
+  "skippedManualOnlyTests": []
+}

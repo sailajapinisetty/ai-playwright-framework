@@ -1,6 +1,8 @@
 import dotenv from 'dotenv';
+import path from 'path';
 
 dotenv.config();
+dotenv.config({ path: path.resolve(process.cwd(), '../.env') });
 
 const DEFAULT_APP_URL = 'https://sailajapinisetty.github.io/demo_app/';
 
@@ -55,6 +57,7 @@ function parseBoolean(envName, fallbackValue) {
 
 export const config = {
   anthropicApiKey: process.env.ANTHROPIC_API_KEY,
+  aiEnabled: Boolean(process.env.ANTHROPIC_API_KEY),
   claudeModel: process.env.CLAUDE_MODEL || 'claude-3-5-sonnet-latest',
   appUrl: parseHttpUrl('APP_URL', DEFAULT_APP_URL),
   defaultTimeoutMs: parsePositiveInt('DEFAULT_TIMEOUT_MS', 60_000),
@@ -66,7 +69,3 @@ export const config = {
   agentMaxAttempts: parsePositiveInt('AGENT_MAX_ATTEMPTS', 3),
   selfHealingEnabled: parseBoolean('SELF_HEALING_ENABLED', true)
 };
-
-if (!config.anthropicApiKey) {
-  throw new Error('ANTHROPIC_API_KEY is missing. Add it to your .env file.');
-}
