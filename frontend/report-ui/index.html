@@ -12,7 +12,7 @@
         <div>
           <p class="eyebrow">AI Playwright Framework</p>
           <h1>Test Intelligence</h1>
-          <p class="sidebar-copy">Add Stories , Run tests , open reports, and keep historical run records.</p>
+          <p class="sidebar-copy">Turn user stories into automated tests, actionable reports, and trusted run history.</p>
         </div>
         <div class="sidebar-stats" id="global-stats"></div>
         <div class="sidebar-footer">Data source: generated test artifacts</div>
@@ -20,35 +20,35 @@
       <main class="main">
         <section class="hero" id="main-page">
           <div>
-            <p class="eyebrow">Test Runner</p>
-            <h2>Configure and execute complete test run</h2>
-            <p id="run-status">Set URL and user story, then click Run Tests.</p>
+            <p class="eyebrow">Execution Workspace</p>
+            <h2>Create stories, run suites, and review outcomes</h2>
+            <p id="run-status">Set the application URL, add a user story, and start execution.</p>
           </div>
           <div class="project-controls">
             <label class="field">
               <span>Project</span>
               <select id="project-select">
-                <option value="">No project selected</option>
+                <option value="">Select a project</option>
               </select>
             </label>
             <label class="field">
-              <span>New Project Name</span>
+              <span>Create Project</span>
               <div class="inline-row">
                 <input id="new-project-name" type="text" placeholder="My Project" />
                 <button id="create-project-btn" class="secondary-btn" type="button">Create</button>
               </div>
             </label>
             <label class="field">
-              <span>Project URLs</span>
+              <span>Saved Project URLs</span>
               <select id="project-url-select">
-                <option value="">No saved URLs</option>
+                <option value="">No URLs saved</option>
               </select>
             </label>
             <label class="field">
-              <span>URL Label</span>
+              <span>Save Current URL</span>
               <div class="inline-row">
                 <input id="project-url-label" type="text" placeholder="QA / Prod / Staging" />
-                <button id="save-project-url-btn" class="secondary-btn" type="button">Save Current URL</button>
+                <button id="save-project-url-btn" class="secondary-btn" type="button">Save URL</button>
               </div>
             </label>
           </div>
@@ -58,12 +58,12 @@
               <input id="app-url" type="url" placeholder="https://example.com" />
               <label class="field-check">
                 <input id="save-default-url" type="checkbox" />
-                <span>Save as default URL</span>
+                <span>Set as default URL</span>
               </label>
             </label>
             <div id="story-input-group" class="story-input-group field-wide hidden">
               <div class="story-input-header field-wide">
-                <span>Story Input</span>
+                <span>User Story Input</span>
                 <button id="close-story-inputs-btn" class="secondary-btn" type="button">Close</button>
               </div>
               <label class="field">
@@ -77,28 +77,28 @@
             </div>
           </div>
           <div class="actions">
-            <button id="add-story-btn" class="secondary-btn" type="button">Add Story</button>
-             <button id="run-tests-btn" class="primary-btn hidden" type="button">Run Story Tests</button>
-             <button id="run-regression-btn" class="primary-btn" type="button">Run Regression</button>
-             <button id="show-report-btn" class="secondary-btn hidden" type="button" disabled>Show Report</button>
-            <button id="test-cases-btn" class="secondary-btn" type="button" disabled>Test Cases</button>
-            <button id="show-stories-btn" class="secondary-btn" type="button" disabled>Stories</button>
+            <button id="add-story-btn" class="primary-btn" type="button">Add User Story</button>
+            <button id="run-tests-btn" class="primary-btn hidden" type="button">Run Story Testing</button>
+            <button id="run-regression-btn" class="primary-btn" type="button">Run Regression Suite</button>
+             <button id="show-report-btn" class="secondary-btn hidden" type="button" disabled>Open Report</button>
+            <button id="test-cases-btn" class="secondary-btn" type="button" disabled>Test Case Library</button>
+            <button id="show-stories-btn" class="secondary-btn" type="button" disabled>Project Stories</button>
           </div>
         </section>
 
         <section class="section-card hidden" id="regression-selection-panel">
           <div class="panel-header-row">
-            <p class="eyebrow">Regression Selection</p>
+            <p class="eyebrow">Regression Suite Selection</p>
             <button id="regression-selection-close-btn" class="secondary-btn story-panel-toggle-btn" type="button">v</button>
           </div>
           <label class="field">
             <span>Regression Suite Name</span>
             <input id="regression-suite-name" type="text" placeholder="Smoke Suite - Checkout" />
           </label>
-          <p id="regression-selection-meta">Select regression test cases to run.</p>
+          <p id="regression-selection-meta">Select the test cases to include in this regression suite.</p>
           <div id="regression-selection-view"><p>No regression test cases available.</p></div>
           <div class="actions">
-            <button id="run-selected-regression-btn" class="primary-btn" type="button">Run Selected Tests</button>
+            <button id="run-selected-regression-btn" class="primary-btn" type="button">Run Selected Suite Cases</button>
             <button id="cancel-regression-selection-btn" class="secondary-btn" type="button">Cancel</button>
           </div>
         </section>
@@ -116,7 +116,7 @@
 
         <section class="section-card hidden" id="manual-cases-panel">
           <div class="panel-header-row">
-            <p class="eyebrow">Manual Test Cases</p>
+            <p class="eyebrow">Test Cases</p>
             <div class="panel-header-actions">
               <div class="actions actions-tight">
                 <button id="download-word-btn" class="secondary-btn" type="button">Download Word</button>
@@ -141,12 +141,12 @@
 
         <section class="section-card" id="history-panel">
           <div class="panel-header-row">
-            <p class="eyebrow">Report History</p>
-            <button id="history-panel-toggle-btn" class="secondary-btn story-panel-toggle-btn" type="button">v</button>
+            <p class="eyebrow">Execution History</p>
+            <button id="history-panel-toggle-btn" class="secondary-btn story-panel-toggle-btn hidden" type="button">v</button>
           </div>
-          <div id="history-panel-content" class="hidden">
+          <div id="history-panel-content">
             <div class="history-controls">
-              <input id="history-filter-input" type="search" placeholder="Filter by run id, status, story, or type" />
+              <input id="history-filter-input" type="search" placeholder="Filter by run ID, status, story, suite, or type" />
               <button id="history-filter-clear-btn" class="secondary-btn" type="button">Clear</button>
             </div>
             <p id="history-meta">Showing latest 5 runs.</p>

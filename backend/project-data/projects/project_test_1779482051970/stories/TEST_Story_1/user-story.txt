@@ -1,0 +1,2 @@
+as a user i wanted to see cart 
+AC1: products

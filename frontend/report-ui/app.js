@@ -540,6 +540,36 @@ async function saveProjectUrl(projectId, label, url, isDefault = false) {
   return payload;
 }
 
+async function mapProjectStories(projectId) {
+  const response = await fetch(apiUrl('/api/projects/map-stories'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ projectId })
+  });
+
+  const payload = await response.json();
+  if (!response.ok) {
+    throw new Error(payload.error || 'Unable to map stories to project.');
+  }
+
+  return payload;
+}
+
+async function saveProjectStory(projectId, content, source = 'UI input') {
+  const response = await fetch(apiUrl('/api/project-stories'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ projectId, content, source })
+  });
+
+  const payload = await response.json();
+  if (!response.ok) {
+    throw new Error(payload.error || 'Unable to save story.');
+  }
+
+  return payload;
+}
+
 async function loadManualTestCases(projectId = '') {
   const cacheBust = Date.now();
   const safeProjectId = String(projectId || '').trim();
@@ -556,18 +586,10 @@ async function loadManualTestCases(projectId = '') {
 
 async function loadProjectStories(projectId = '') {
   const safeProjectId = String(projectId || '').trim();
-  if (!safeProjectId) {
-    return {
-      generatedAt: new Date().toISOString(),
-      projectId: '',
-      projectName: '',
-      storyCount: 0,
-      items: []
-    };
-  }
-
   const cacheBust = Date.now();
-  const query = `/api/project-stories?projectId=${encodeURIComponent(safeProjectId)}&t=${cacheBust}`;
+  const query = safeProjectId
+    ? `/api/project-stories?projectId=${encodeURIComponent(safeProjectId)}&t=${cacheBust}`
+    : `/api/project-stories?t=${cacheBust}`;
   const response = await fetch(apiUrl(query), { cache: 'no-store' });
   if (!response.ok) {
     throw new Error('Unable to load project stories.');
@@ -807,7 +829,7 @@ async function initRunnerPage() {
       return;
     }
 
-    addStoryBtn.textContent = storyInputsRevealed ? 'Save Story' : 'Add Story';
+    addStoryBtn.textContent = storyInputsRevealed ? 'Save Story' : 'Add User Story';
   }
 
   function getStoryContentFromPayload(storyFolder) {
@@ -899,8 +921,42 @@ async function initRunnerPage() {
     const selectedProject = getSelectedProject();
 
     if (!selectedProject) {
-      projectStoriesMeta.textContent = 'Select a project to view stories.';
-      projectStoriesView.innerHTML = '<p>No stories found.</p>';
+      projectStoriesMeta.textContent = 'Loading stories...';
+      projectStoriesView.innerHTML = '<p>Loading...</p>';
+      try {
+        const payload = await loadProjectStories('');
+        latestProjectStoriesPayload = payload;
+        const items = Array.isArray(payload?.items) ? payload.items : [];
+        if (items.length === 0) {
+          projectStoriesMeta.textContent = 'No stories found yet.';
+          projectStoriesView.innerHTML = '<p>No stories found.</p>';
+          return;
+        }
+
+        projectStoriesMeta.textContent = `All stories: ${items.length} stor${items.length === 1 ? 'y' : 'ies'} found.`;
+        projectStoriesView.innerHTML = items.map((item) => {
+          const text = String(item?.content || '').trim() || 'Story content is not available for this story.';
+          const source = String(item?.source || '').trim();
+          const storyFolder = String(item?.storyFolder || '').trim();
+          const latestStoryRunId = findLatestRunIdForStory(storyFolder);
+          return `
+            <article class="story-content-card">
+              <p class="eyebrow">${escapeHtml(storyFolder || 'story')}</p>
+              <p class="story-id-line">Story ID: ${escapeHtml(storyFolder || 'N/A')}</p>
+              ${source ? `<p class="story-source">Source: ${escapeHtml(source)}</p>` : ''}
+              <pre class="story-content-text">${escapeHtml(text)}</pre>
+              <div class="actions story-actions">
+                <button type="button" class="secondary-btn story-run-tests-btn" data-story-folder="${escapeHtml(storyFolder)}">Run Story Testing</button>
+                <button type="button" class="secondary-btn story-test-cases-btn" data-story-folder="${escapeHtml(storyFolder)}">Test Cases</button>
+                <button type="button" class="secondary-btn story-show-report-btn" data-run-id="${escapeHtml(latestStoryRunId)}" ${latestStoryRunId ? '' : 'disabled'}>Show Report</button>
+              </div>
+            </article>
+          `;
+        }).join('');
+      } catch (error) {
+        projectStoriesMeta.textContent = 'Unable to load stories.';
+        projectStoriesView.innerHTML = `<p>${escapeHtml(error.message)}</p>`;
+      }
       return;
     }
 
@@ -930,8 +986,8 @@ async function initRunnerPage() {
             ${source ? `<p class="story-source">Source: ${escapeHtml(source)}</p>` : ''}
             <pre class="story-content-text">${escapeHtml(text)}</pre>
             <div class="actions story-actions">
-              <button type="button" class="secondary-btn story-run-tests-btn" data-story-folder="${escapeHtml(storyFolder)}">Run Story Tests</button>
-              <button type="button" class="secondary-btn story-test-cases-btn" data-story-folder="${escapeHtml(storyFolder)}">Test Cases</button>
+              <button type="button" class="secondary-btn story-run-tests-btn" data-story-folder="${escapeHtml(storyFolder)}">Run Story Testing</button>
+              <button type="button" class="secondary-btn story-test-cases-btn" data-story-folder="${escapeHtml(storyFolder)}" ${latestStoryRunId ? '' : 'disabled'}>Test Cases</button>
               <button type="button" class="secondary-btn story-show-report-btn" data-run-id="${escapeHtml(latestStoryRunId)}" ${latestStoryRunId ? '' : 'disabled'}>Show Report</button>
             </div>
           </article>
@@ -971,8 +1027,7 @@ async function initRunnerPage() {
     }
 
     if (showStoriesBtn) {
-      const storyCount = Array.isArray(selectedProject?.storyFolders) ? selectedProject.storyFolders.length : 0;
-      showStoriesBtn.disabled = !selectedProject || storyCount === 0;
+      showStoriesBtn.disabled = false;
     }
 
     if (projectStoriesPanel && !projectStoriesPanel.classList.contains('hidden')) {
@@ -982,6 +1037,15 @@ async function initRunnerPage() {
 
   async function refreshProjectsState() {
     projectsState = await loadProjects();
+    const selectedProjectId = String(projectsState?.selectedProjectId || '').trim();
+    if (selectedProjectId) {
+      try {
+        await mapProjectStories(selectedProjectId);
+        projectsState = await loadProjects();
+      } catch {
+        // Keep UI usable even if auto-mapping fails; fallback story loading still works.
+      }
+    }
     renderProjectControls();
   }
 
@@ -1326,7 +1390,7 @@ async function initRunnerPage() {
     runStatus.textContent = 'Story inputs hidden. Click Add Story to show them again.';
   });
 
-  addStoryBtn?.addEventListener('click', () => {
+  addStoryBtn?.addEventListener('click', async () => {
     if (!storyInputsRevealed) {
       showStoryInputs();
       runStatus.textContent = 'Story inputs shown. Upload or paste user story text.';
@@ -1341,9 +1405,29 @@ async function initRunnerPage() {
       return;
     }
 
-    storySaved = true;
-    hideStoryInputs();
-    runStatus.textContent = 'Story saved. Click Run Story Tests to execute.';
+    const selectedProject = getSelectedProject();
+    if (!selectedProject) {
+      runStatus.textContent = 'Please select a project first, then save your story.';
+      return;
+    }
+
+    addStoryBtn.disabled = true;
+    runStatus.textContent = `Saving story to ${selectedProject.name}...`;
+    try {
+      const saved = await saveProjectStory(selectedProject.id, userStory, 'UI input');
+      storySaved = true;
+      hideStoryInputs();
+      runStatus.textContent = `Story saved to ${selectedProject.name} (${saved.storyFolder}). Click Run Story Tests to execute.`;
+      await refreshProjectsState();
+      if (projectStoriesPanel && !projectStoriesPanel.classList.contains('hidden')) {
+        await renderProjectStories();
+      }
+    } catch (error) {
+      storySaved = false;
+      runStatus.textContent = `Unable to save project story: ${error.message}`;
+    } finally {
+      addStoryBtn.disabled = false;
+    }
   });
 
   runBtn.addEventListener('click', async () => {
