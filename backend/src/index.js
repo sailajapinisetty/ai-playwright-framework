@@ -206,8 +206,14 @@ async function main() {
   await ensureArtifacts();
 
   const inputStory = await askUserStory();
+  const cliStoryId = toSafeId(process.env.CLI_STORY_ID || 'cli-input');
+  const cliStorySource = String(process.env.CLI_STORY_SOURCE || 'CLI input').trim() || 'CLI input';
+  const parsedCliStoryNumber = Number.parseInt(String(process.env.CLI_STORY_NUMBER || ''), 10);
+  const cliStoryNumber = Number.isFinite(parsedCliStoryNumber) && parsedCliStoryNumber > 0
+    ? parsedCliStoryNumber
+    : null;
   const stories = inputStory
-    ? [{ id: 'cli-input', source: 'CLI input', userStory: inputStory }]
+    ? [{ id: cliStoryId, source: cliStorySource, userStory: inputStory, storyNumberOverride: cliStoryNumber }]
     : await loadUserStoriesFromDirectory();
 
   let generatedCount = 0;
@@ -218,7 +224,9 @@ async function main() {
   for (let i = 0; i < stories.length; i += 1) {
     const storyEntry = stories[i];
     const isSingle = stories.length === 1;
-    const storyNumber = extractStoryNumber(storyEntry.source, i + 1);
+    const storyNumber = Number.isFinite(storyEntry.storyNumberOverride)
+      ? Number(storyEntry.storyNumberOverride)
+      : extractStoryNumber(storyEntry.source, i + 1);
     const storyFolderName = `user_story_${storyNumber}-${storyEntry.id}`;
     const storyOutputDir = path.join('generated_tests', storyFolderName);
     const storyTestCasesDir = path.join(storyOutputDir, 'test-cases');

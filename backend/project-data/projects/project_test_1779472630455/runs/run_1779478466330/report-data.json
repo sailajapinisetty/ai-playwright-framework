@@ -1,0 +1,530 @@
+{
+  "generatedAt": "2026-05-22T19:34:31.630Z",
+  "storyCount": 4,
+  "totals": {
+    "stories": 4,
+    "tests": 4,
+    "manual": 4,
+    "automated": 4,
+    "automatable": 4,
+    "automatedRunPassed": 1,
+    "automatedRunFailed": 3,
+    "executionPassed": 1,
+    "executionFailed": 3,
+    "notRun": 4
+  },
+  "coverage": {
+    "covered": 0,
+    "automatable": 4,
+    "overallPercent": 0
+  },
+  "stories": [
+    {
+      "id": "user_story_2-story-2",
+      "folderName": "user_story_2-story-2",
+      "storySource": "Story 2 (UI input)",
+      "title": "Search for a Speaker and View Details",
+      "overallStatus": "PARTIAL_FAIL",
+      "generatedAt": "2026-05-22T18:00:48.601Z",
+      "totals": {
+        "tests": 1,
+        "manual": 1,
+        "automated": 1,
+        "automatable": 1,
+        "covered": 0,
+        "missing": 1,
+        "automatedRunPassed": 0,
+        "automatedRunFailed": 1,
+        "executionPassed": 0,
+        "executionFailed": 1,
+        "notRun": 1
+      },
+      "coverage": {
+        "percent": 0,
+        "coveredCases": [],
+        "missingScenarioTitles": [
+          "Search for a speaker by name and view their full details"
+        ]
+      },
+      "summary": "Total automated cases: 2 | Execution passed: 0 | Execution failed: 2",
+      "runHistory": [
+        {
+          "generatedAt": "2026-05-22T18:00:48.601Z",
+          "overallStatus": "PARTIAL_FAIL",
+          "summary": "Total automated cases: 2 | Execution passed: 0 | Execution failed: 2",
+          "totals": {
+            "total": 2,
+            "executionPassed": 0,
+            "executionFailed": 2,
+            "validationPassed": 0,
+            "validationFailed": 2
+          }
+        }
+      ],
+      "cases": [
+        {
+          "caseId": "TC-001",
+          "title": "Search for a speaker by name and view their full details",
+          "type": "functional",
+          "priority": "high",
+          "expectedResult": "The search returns at least one result matching 'Jane Doe'. Upon clicking the result, the speaker detail page displays the speaker's full name, biography, areas of expertise or topics, and any available contact or profile information without errors.",
+          "acceptanceCriteria": [
+            "User can enter a speaker name or keyword in the search field",
+            "System returns a list of matching speakers based on the search query",
+            "User can select a speaker from the search results",
+            "User can view detailed information about the selected speaker (e.g., name, bio, topics, contact)"
+          ],
+          "automationReason": "This happy path flow involves stable UI interactions (text input, button click, list selection, page navigation) that are reliably automatable with Playwright using locators for the search field, results list, and detail page elements.",
+          "executionStatus": "NOT_RUN",
+          "validationStatus": "NOT_RUN",
+          "lastAttempt": 0,
+          "executionCode": null,
+          "failureCause": "",
+          "debugCommand": "",
+          "outputTail": "",
+          "validationSummary": "",
+          "improvementPriority": "n/a",
+          "improvements": [],
+          "executedAt": "",
+          "runHistory": [],
+          "scriptFiles": [
+            "generated_tests/user_story_2-story-2/test-cases/TC-001/user_story_2_search_for_a_speaker_by_name.spec.js"
+          ],
+          "screenshotFiles": [
+            "generated_tests/user_story_2-story-2/screenshots/TC-001/final-ui-tc-001.png"
+          ]
+        },
+        {
+          "caseId": "tc-001",
+          "title": "tc-001",
+          "type": "automation",
+          "priority": "medium",
+          "expectedResult": "",
+          "acceptanceCriteria": [],
+          "automationReason": "",
+          "executionStatus": "FAIL",
+          "validationStatus": "FAIL",
+          "lastAttempt": 2,
+          "executionCode": 1,
+          "failureCause": "Error: Unable to resolve locator. selector=\"input[type='search'], input[placeholder*='search' i], input[placeholder*='speaker' i], input[name*='search' i]\" description=\"Wait for the search input field to appear on the speakers page\"",
+          "debugCommand": "npx playwright test generated_tests/user_story_2-story-2/test-cases/tc-001/user_story_2_search_for_a_speaker_by_name.spec.js --headed --project=chromium",
+          "outputTail": "Running 1 test using 1 worker\n\n\u001b[1A\u001b[2K[1/1] [chromium] › generated_tests/user_story_2-story-2/test-cases/tc-001/user_story_2_search_for_a_speaker_by_name.spec.js:113:1 › Search for a speaker by name and view their full details\n\u001b[1A\u001b[2K  1) [chromium] › generated_tests/user_story_2-story-2/test-cases/tc-001/user_story_2_search_for_a_speaker_by_name.spec.js:113:1 › Search for a speaker by name and view their full details \n\n    Error: Unable to resolve locator. selector=\"input[type='search'], input[placeholder*='search' i], input[placeholder*='speaker' i], input[name*='search' i]\" description=\"Wait for the search input field to appear on the speakers page\"\n\n      76 |   const resolved = await firstExisting(candidates);\n      77 |   if (!resolved) {\n    > 78 |     throw new Error(`Unable to resolve locator. selector=\"${selectorText}\" description=\"${descriptionText}\"`);\n         |           ^\n      79 |   }\n      80 |   return resolved;\n      81 | }\n        at resolveLocator (/Users/sailaja.pinisetty/ai-playwright-framework/backend/generated_tests/user_story_2-story-2/test-cases/tc-001/user_story_2_search_for_a_speaker_by_name.spec.js:78:11)\n        at waitForWithFallback (/Users/sailaja.pinisetty/ai-playwright-framework/backend/generated_tests/user_story_2-story-2/test-cases/tc-001/user_story_2_search_for_a_speaker_by_name.spec.js:99:19)\n        at /Users/sailaja.pinisetty/ai-playwright-framework/backend/generated_tests/user_story_2-story-2/test-cases/tc-001/user_story_2_search_for_a_speaker_by_name.spec.js:130:5\n\n    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────\n    .playwright-output/user_story_2-story-2-test--b67f7-and-view-their-full-details-chromium/test-failed-1.png\n    ────────────────────────────────────────────────────────────────────────────────────────────────\n\n    Error Context: .playwright-output/user_story_2-story-2-test--b67f7-and-view-their-full-details-chromium/error-context.md\n\n    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────\n    .playwright-output/user_story_2-story-2-test--b67f7-and-view-their-full-details-chromium/trace.zip\n    Usage:\n\n        npx playwright show-trace .playwright-output/user_story_2-story-2-test--b67f7-and-view-their-full-details-chromium/trace.zip\n\n    ────────────────────────────────────────────────────────────────────────────────────────────────\n\n\n\u001b[1A\u001b[2K  1 failed\n    [chromium] › generated_tests/user_story_2-story-2/test-cases/tc-001/user_story_2_search_for_a_speaker_by_name.spec.js:113:1 › Search for a speaker by name and view their full details",
+          "validationSummary": "The screenshot shows a marketplace product page for an audio speaker device, not a speakers (presenters/people) section. None of the validation criteria related to searching for a person named 'Jane Doe', viewing speaker profiles, biographies, or expertise topics are met.",
+          "improvementPriority": "high",
+          "improvements": [
+            "The application under test appears to be an e-commerce/marketplace site selling physical speaker devices, NOT a speakers directory with presenter profiles. Verify the correct base URL is configured in playwright.config.js before re-running — the test is landing on a product page instead of a people/speakers directory.",
+            "Add a navigation guard at the test start: after page.goto(), assert that the URL or page title contains expected keywords (e.g., 'speakers', 'directory', 'presenters') and fail fast with a descriptive error if the wrong environment is loaded, rather than propagating a misleading locator failure.",
+            "Broaden the search input selector candidates to include additional common patterns: 'input[type=\"text\"]', '[role=\"searchbox\"]', '[aria-label*=\"search\" i]', '[data-testid*=\"search\" i]', '[class*=\"search\" i] input', and 'input[id*=\"search\" i]' to handle apps that do not use semantic search input types.",
+            "Implement a pre-flight page inspection step: after navigation, use page.locator('input').all() to dump all visible input elements and their attributes into the test trace/log, so selector debugging is faster when the wrong page is loaded or the DOM structure is unexpected.",
+            "Add an explicit step to navigate to the Speakers section via the navigation menu (e.g., page.getByRole('link', { name: /speakers/i }).click()) before attempting to locate the search field, since the current nav only shows 'Home' and 'Cart' — the test must first reach the correct subsection.",
+            "Parameterize the speaker name ('Jane Doe') as a test fixture or environment variable and add a precondition check that seeds or confirms a speaker with that name exists in the system before the test runs, preventing false failures due to missing test data.",
+            "Capture a full-page screenshot immediately after page.goto() (before any interactions) and attach it to the test report as a named artifact 'initial-page-state.png' to make environment mismatch errors immediately visible in CI reports.",
+            "Add explicit waitForURL or waitForSelector assertions after each navigation step with a timeout of at least 10000ms and a descriptive timeout message, replacing the generic resolveLocator failure with actionable context about which page state was expected vs. received."
+          ],
+          "executedAt": "2026-05-22T18:00:25.217Z",
+          "runHistory": [
+            {
+              "generatedAt": "2026-05-22T18:00:48.601Z",
+              "overallStatus": "PARTIAL_FAIL",
+              "executionStatus": "FAIL",
+              "validationStatus": "FAIL",
+              "attempt": 2,
+              "executionCode": 1,
+              "failureCause": "Error: Unable to resolve locator. selector=\"input[type='search'], input[placeholder*='search' i], input[placeholder*='speaker' i], input[name*='search' i]\" description=\"Wait for the search input field to appear on the speakers page\"",
+              "debugCommand": "npx playwright test generated_tests/user_story_2-story-2/test-cases/tc-001/user_story_2_search_for_a_speaker_by_name.spec.js --headed --project=chromium",
+              "outputTail": "Running 1 test using 1 worker\n\n\u001b[1A\u001b[2K[1/1] [chromium] › generated_tests/user_story_2-story-2/test-cases/tc-001/user_story_2_search_for_a_speaker_by_name.spec.js:113:1 › Search for a speaker by name and view their full details\n\u001b[1A\u001b[2K  1) [chromium] › generated_tests/user_story_2-story-2/test-cases/tc-001/user_story_2_search_for_a_speaker_by_name.spec.js:113:1 › Search for a speaker by name and view their full details \n\n    Error: Unable to resolve locator. selector=\"input[type='search'], input[placeholder*='search' i], input[placeholder*='speaker' i], input[name*='search' i]\" description=\"Wait for the search input field to appear on the speakers page\"\n\n      76 |   const resolved = await firstExisting(candidates);\n      77 |   if (!resolved) {\n    > 78 |     throw new Error(`Unable to resolve locator. selector=\"${selectorText}\" description=\"${descriptionText}\"`);\n         |           ^\n      79 |   }\n      80 |   return resolved;\n      81 | }\n        at resolveLocator (/Users/sailaja.pinisetty/ai-playwright-framework/backend/generated_tests/user_story_2-story-2/test-cases/tc-001/user_story_2_search_for_a_speaker_by_name.spec.js:78:11)\n        at waitForWithFallback (/Users/sailaja.pinisetty/ai-playwright-framework/backend/generated_tests/user_story_2-story-2/test-cases/tc-001/user_story_2_search_for_a_speaker_by_name.spec.js:99:19)\n        at /Users/sailaja.pinisetty/ai-playwright-framework/backend/generated_tests/user_story_2-story-2/test-cases/tc-001/user_story_2_search_for_a_speaker_by_name.spec.js:130:5\n\n    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────\n    .playwright-output/user_story_2-story-2-test--b67f7-and-view-their-full-details-chromium/test-failed-1.png\n    ────────────────────────────────────────────────────────────────────────────────────────────────\n\n    Error Context: .playwright-output/user_story_2-story-2-test--b67f7-and-view-their-full-details-chromium/error-context.md\n\n    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────\n    .playwright-output/user_story_2-story-2-test--b67f7-and-view-their-full-details-chromium/trace.zip\n    Usage:\n\n        npx playwright show-trace .playwright-output/user_story_2-story-2-test--b67f7-and-view-their-full-details-chromium/trace.zip\n\n    ────────────────────────────────────────────────────────────────────────────────────────────────\n\n\n\u001b[1A\u001b[2K  1 failed\n    [chromium] › generated_tests/user_story_2-story-2/test-cases/tc-001/user_story_2_search_for_a_speaker_by_name.spec.js:113:1 › Search for a speaker by name and view their full details",
+              "summary": "The screenshot shows a marketplace product page for an audio speaker device, not a speakers (presenters/people) section. None of the validation criteria related to searching for a person named 'Jane Doe', viewing speaker profiles, biographies, or expertise topics are met."
+            }
+          ],
+          "scriptFiles": [
+            "generated_tests/user_story_2-story-2/test-cases/tc-001/user_story_2_search_for_a_speaker_by_name.spec.js"
+          ],
+          "screenshotFiles": [
+            "generated_tests/user_story_2-story-2/screenshots/tc-001/final-ui-tc-001.png"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "user_story_3-story-3",
+      "folderName": "user_story_3-story-3",
+      "storySource": "Story 3 (UI input)",
+      "title": "Buy a Phone",
+      "overallStatus": "PARTIAL_FAIL",
+      "generatedAt": "2026-05-22T18:40:02.211Z",
+      "totals": {
+        "tests": 1,
+        "manual": 1,
+        "automated": 1,
+        "automatable": 1,
+        "covered": 0,
+        "missing": 1,
+        "automatedRunPassed": 0,
+        "automatedRunFailed": 1,
+        "executionPassed": 0,
+        "executionFailed": 1,
+        "notRun": 1
+      },
+      "coverage": {
+        "percent": 0,
+        "coveredCases": [],
+        "missingScenarioTitles": [
+          "Successfully purchase a phone from end to end"
+        ]
+      },
+      "summary": "Total automated cases: 2 | Execution passed: 0 | Execution failed: 2",
+      "runHistory": [
+        {
+          "generatedAt": "2026-05-22T18:40:02.211Z",
+          "overallStatus": "PARTIAL_FAIL",
+          "summary": "Total automated cases: 2 | Execution passed: 0 | Execution failed: 2",
+          "totals": {
+            "total": 2,
+            "executionPassed": 0,
+            "executionFailed": 2,
+            "validationPassed": 0,
+            "validationFailed": 2
+          }
+        }
+      ],
+      "cases": [
+        {
+          "caseId": "TC-001",
+          "title": "Successfully purchase a phone from end to end",
+          "type": "functional",
+          "priority": "high",
+          "expectedResult": "The phone is successfully purchased, an order confirmation page displays a unique order number, and a confirmation email is sent to the user's registered email address.",
+          "acceptanceCriteria": [
+            "User can browse available phones in the store",
+            "User can select a phone to purchase",
+            "User can add the selected phone to a cart",
+            "User can complete the purchase of the phone",
+            "User receives confirmation after successful purchase"
+          ],
+          "automationReason": "This is a stable end-to-end happy path flow with deterministic UI interactions including navigation, button clicks, form inputs, and verifiable confirmation messages that are well-suited for Playwright automation.",
+          "executionStatus": "NOT_RUN",
+          "validationStatus": "NOT_RUN",
+          "lastAttempt": 0,
+          "executionCode": null,
+          "failureCause": "",
+          "debugCommand": "",
+          "outputTail": "",
+          "validationSummary": "",
+          "improvementPriority": "n/a",
+          "improvements": [],
+          "executedAt": "",
+          "runHistory": [],
+          "scriptFiles": [
+            "generated_tests/user_story_3-story-3/test-cases/TC-001/user_story_3_successfully_purchase_a_phone_end_to.spec.js"
+          ],
+          "screenshotFiles": [
+            "generated_tests/user_story_3-story-3/screenshots/TC-001/final-ui-tc-001.png"
+          ]
+        },
+        {
+          "caseId": "tc-001",
+          "title": "tc-001",
+          "type": "automation",
+          "priority": "medium",
+          "expectedResult": "",
+          "acceptanceCriteria": [],
+          "automationReason": "",
+          "executionStatus": "FAIL",
+          "validationStatus": "FAIL",
+          "lastAttempt": 2,
+          "executionCode": 1,
+          "failureCause": "Error: Unable to resolve locator. selector=\"input[name='address'], input[placeholder*='address'], input[id*='address']\" description=\"Fill in the shipping address\"",
+          "debugCommand": "npx playwright test generated_tests/user_story_3-story-3/test-cases/tc-001/user_story_3_successfully_purchase_a_phone_end_to.spec.js --headed --project=chromium",
+          "outputTail": "Running 1 test using 1 worker\n\n\u001b[1A\u001b[2K[1/1] [chromium] › generated_tests/user_story_3-story-3/test-cases/tc-001/user_story_3_successfully_purchase_a_phone_end_to.spec.js:113:1 › Successfully purchase a phone end to end\n\u001b[1A\u001b[2K  1) [chromium] › generated_tests/user_story_3-story-3/test-cases/tc-001/user_story_3_successfully_purchase_a_phone_end_to.spec.js:113:1 › Successfully purchase a phone end to end \n\n    Error: Unable to resolve locator. selector=\"input[name='address'], input[placeholder*='address'], input[id*='address']\" description=\"Fill in the shipping address\"\n\n      76 |   const resolved = await firstExisting(candidates);\n      77 |   if (!resolved) {\n    > 78 |     throw new Error(`Unable to resolve locator. selector=\"${selectorText}\" description=\"${descriptionText}\"`);\n         |           ^\n      79 |   }\n      80 |   return resolved;\n      81 | }\n        at resolveLocator (/Users/sailaja.pinisetty/ai-playwright-framework/backend/generated_tests/user_story_3-story-3/test-cases/tc-001/user_story_3_successfully_purchase_a_phone_end_to.spec.js:78:11)\n        at fillWithFallback (/Users/sailaja.pinisetty/ai-playwright-framework/backend/generated_tests/user_story_3-story-3/test-cases/tc-001/user_story_3_successfully_purchase_a_phone_end_to.spec.js:89:19)\n        at /Users/sailaja.pinisetty/ai-playwright-framework/backend/generated_tests/user_story_3-story-3/test-cases/tc-001/user_story_3_successfully_purchase_a_phone_end_to.spec.js:166:5\n\n    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────\n    .playwright-output/user_story_3-story-3-test--cb266-purchase-a-phone-end-to-end-chromium/test-failed-1.png\n    ────────────────────────────────────────────────────────────────────────────────────────────────\n\n    Error Context: .playwright-output/user_story_3-story-3-test--cb266-purchase-a-phone-end-to-end-chromium/error-context.md\n\n    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────\n    .playwright-output/user_story_3-story-3-test--cb266-purchase-a-phone-end-to-end-chromium/trace.zip\n    Usage:\n\n        npx playwright show-trace .playwright-output/user_story_3-story-3-test--cb266-purchase-a-phone-end-to-end-chromium/trace.zip\n\n    ────────────────────────────────────────────────────────────────────────────────────────────────\n\n\n\u001b[1A\u001b[2K  1 failed\n    [chromium] › generated_tests/user_story_3-story-3/test-cases/tc-001/user_story_3_successfully_purchase_a_phone_end_to.spec.js:113:1 › Successfully purchase a phone end to end",
+          "validationSummary": "The screenshot shows the checkout page with a form and 'Place order' button visible, and a cart notification confirming a product was added. However, several criteria cannot be verified from this single screenshot: homepage with product listings, product detail/add-to-cart visibility, cart page details, and order confirmation after purchase. Additionally, the product added is 'Aurora Wireless Headphones' which is not a phone, partially misaligning with the user story. No payment details field is visible in the checkout form.",
+          "improvementPriority": "high",
+          "improvements": [
+            "Expand the shipping address field selector candidates to include additional patterns observed in real checkout forms: add 'input[name*=\"street\"]', 'input[name*=\"shipping\"]', 'input[autocomplete=\"street-address\"]', 'input[autocomplete=\"address-line1\"]', 'textarea[name*=\"address\"]', and '[data-testid*=\"address\"]' to the fallback selector array for the shipping address resolver",
+            "Before attempting to fill the address field, take a DOM snapshot or use 'page.$$eval(\"input\", els => els.map(e => ({name:e.name,id:e.id,placeholder:e.placeholder})))' to log all visible input attributes at checkout, enabling precise selector discovery and preventing locator resolution failures",
+            "Add a dedicated page-object or helper for the checkout form that dynamically discovers form fields by label text using 'page.getByLabel()' or 'page.locator(\"label\").filter({hasText:/address/i}).locator(\".. input\")' as primary strategy, falling back to attribute-based selectors only when label matching fails",
+            "Fix product category navigation to target a phone product specifically: add an assertion after product selection that the product name or category contains keywords like 'phone', 'smartphone', or 'mobile' to prevent purchasing unrelated items (e.g., 'Aurora Wireless Headphones') and align with the user story intent",
+            "Add explicit wait and screenshot steps at each major flow transition (homepage → category → product detail → cart → checkout → confirmation) using 'await page.waitForLoadState(\"networkidle\")' and 'await page.screenshot()' calls to provide visual evidence for each acceptance criterion instead of a single terminal screenshot",
+            "Implement a checkout form field discovery step that checks for payment section visibility: assert that at least one payment-related field ('input[name*=\"card\"]', 'input[name*=\"payment\"]', '[data-testid*=\"payment\"]', or an iframe containing payment fields like Stripe) exists before attempting payment entry, and add a conditional handler for embedded payment iframes",
+            "Add a robust 'Phones' category selector with multiple fallbacks: '[data-category=\"phones\"]', 'a:has-text(\"Phones\")', 'nav >> text=Phones', '[href*=\"phone\"]', '[href*=\"mobile\"]' and assert that the resulting product grid contains items before clicking, to prevent silent navigation failures that lead to wrong product selection",
+            "After clicking 'Place Order', add an explicit wait for the confirmation page using 'page.waitForURL(/confirmation|order-success|thank-you/i)' or 'page.waitForSelector(\"text=/order number|order confirmed|thank you/i\")' with a 15-second timeout, and capture the order number value to assert it is non-empty, covering the currently UNKNOWN order confirmation criterion",
+            "Separate the 16-step test into smaller scoped fixtures or test hooks: use 'test.beforeEach' to handle login and cart clearing, so that locator failures during checkout are isolated from setup issues and retry logic applies only to the failing step rather than the entire flow"
+          ],
+          "executedAt": "2026-05-22T18:39:31.811Z",
+          "runHistory": [
+            {
+              "generatedAt": "2026-05-22T18:40:02.211Z",
+              "overallStatus": "PARTIAL_FAIL",
+              "executionStatus": "FAIL",
+              "validationStatus": "FAIL",
+              "attempt": 2,
+              "executionCode": 1,
+              "failureCause": "Error: Unable to resolve locator. selector=\"input[name='address'], input[placeholder*='address'], input[id*='address']\" description=\"Fill in the shipping address\"",
+              "debugCommand": "npx playwright test generated_tests/user_story_3-story-3/test-cases/tc-001/user_story_3_successfully_purchase_a_phone_end_to.spec.js --headed --project=chromium",
+              "outputTail": "Running 1 test using 1 worker\n\n\u001b[1A\u001b[2K[1/1] [chromium] › generated_tests/user_story_3-story-3/test-cases/tc-001/user_story_3_successfully_purchase_a_phone_end_to.spec.js:113:1 › Successfully purchase a phone end to end\n\u001b[1A\u001b[2K  1) [chromium] › generated_tests/user_story_3-story-3/test-cases/tc-001/user_story_3_successfully_purchase_a_phone_end_to.spec.js:113:1 › Successfully purchase a phone end to end \n\n    Error: Unable to resolve locator. selector=\"input[name='address'], input[placeholder*='address'], input[id*='address']\" description=\"Fill in the shipping address\"\n\n      76 |   const resolved = await firstExisting(candidates);\n      77 |   if (!resolved) {\n    > 78 |     throw new Error(`Unable to resolve locator. selector=\"${selectorText}\" description=\"${descriptionText}\"`);\n         |           ^\n      79 |   }\n      80 |   return resolved;\n      81 | }\n        at resolveLocator (/Users/sailaja.pinisetty/ai-playwright-framework/backend/generated_tests/user_story_3-story-3/test-cases/tc-001/user_story_3_successfully_purchase_a_phone_end_to.spec.js:78:11)\n        at fillWithFallback (/Users/sailaja.pinisetty/ai-playwright-framework/backend/generated_tests/user_story_3-story-3/test-cases/tc-001/user_story_3_successfully_purchase_a_phone_end_to.spec.js:89:19)\n        at /Users/sailaja.pinisetty/ai-playwright-framework/backend/generated_tests/user_story_3-story-3/test-cases/tc-001/user_story_3_successfully_purchase_a_phone_end_to.spec.js:166:5\n\n    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────\n    .playwright-output/user_story_3-story-3-test--cb266-purchase-a-phone-end-to-end-chromium/test-failed-1.png\n    ────────────────────────────────────────────────────────────────────────────────────────────────\n\n    Error Context: .playwright-output/user_story_3-story-3-test--cb266-purchase-a-phone-end-to-end-chromium/error-context.md\n\n    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────\n    .playwright-output/user_story_3-story-3-test--cb266-purchase-a-phone-end-to-end-chromium/trace.zip\n    Usage:\n\n        npx playwright show-trace .playwright-output/user_story_3-story-3-test--cb266-purchase-a-phone-end-to-end-chromium/trace.zip\n\n    ────────────────────────────────────────────────────────────────────────────────────────────────\n\n\n\u001b[1A\u001b[2K  1 failed\n    [chromium] › generated_tests/user_story_3-story-3/test-cases/tc-001/user_story_3_successfully_purchase_a_phone_end_to.spec.js:113:1 › Successfully purchase a phone end to end",
+              "summary": "The screenshot shows the checkout page with a form and 'Place order' button visible, and a cart notification confirming a product was added. However, several criteria cannot be verified from this single screenshot: homepage with product listings, product detail/add-to-cart visibility, cart page details, and order confirmation after purchase. Additionally, the product added is 'Aurora Wireless Headphones' which is not a phone, partially misaligning with the user story. No payment details field is visible in the checkout form."
+            }
+          ],
+          "scriptFiles": [
+            "generated_tests/user_story_3-story-3/test-cases/tc-001/user_story_3_successfully_purchase_a_phone_end_to.spec.js"
+          ],
+          "screenshotFiles": [
+            "generated_tests/user_story_3-story-3/screenshots/tc-001/final-ui-tc-001.png"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "user_story_4-story-4",
+      "folderName": "user_story_4-story-4",
+      "storySource": "Story 4 (UI input)",
+      "title": "Test",
+      "overallStatus": "PASS",
+      "generatedAt": "2026-05-22T18:42:55.053Z",
+      "totals": {
+        "tests": 1,
+        "manual": 1,
+        "automated": 1,
+        "automatable": 1,
+        "covered": 0,
+        "missing": 1,
+        "automatedRunPassed": 1,
+        "automatedRunFailed": 0,
+        "executionPassed": 1,
+        "executionFailed": 0,
+        "notRun": 1
+      },
+      "coverage": {
+        "percent": 0,
+        "coveredCases": [],
+        "missingScenarioTitles": [
+          "Verify basic system response to test action"
+        ]
+      },
+      "summary": "Total automated cases: 1 | Execution passed: 1 | Execution failed: 0",
+      "runHistory": [
+        {
+          "generatedAt": "2026-05-22T18:42:55.053Z",
+          "overallStatus": "PASS",
+          "summary": "Total automated cases: 1 | Execution passed: 1 | Execution failed: 0",
+          "totals": {
+            "total": 1,
+            "executionPassed": 1,
+            "executionFailed": 0,
+            "validationPassed": 1,
+            "validationFailed": 0
+          }
+        }
+      ],
+      "cases": [
+        {
+          "caseId": "TC-001",
+          "title": "Verify basic system response to test action",
+          "type": "functional",
+          "priority": "medium",
+          "expectedResult": "The system responds as expected without errors, displaying the correct output or state change corresponding to the performed test action",
+          "acceptanceCriteria": [
+            "The system should respond as expected when the test action is performed"
+          ],
+          "automationReason": "A stable and deterministic UI interaction with a verifiable outcome is suitable for Playwright automation once the actual feature is defined",
+          "executionStatus": "NOT_RUN",
+          "validationStatus": "NOT_RUN",
+          "lastAttempt": 0,
+          "executionCode": null,
+          "failureCause": "",
+          "debugCommand": "",
+          "outputTail": "",
+          "validationSummary": "",
+          "improvementPriority": "n/a",
+          "improvements": [],
+          "executedAt": "",
+          "runHistory": [],
+          "scriptFiles": [
+            "generated_tests/user_story_4-story-4/test-cases/TC-001/user_story_4_verify_basic_system_response_to_test.spec.js"
+          ],
+          "screenshotFiles": [
+            "generated_tests/user_story_4-story-4/screenshots/TC-001/final-ui-tc-001.png"
+          ]
+        },
+        {
+          "caseId": "tc-001",
+          "title": "tc-001",
+          "type": "automation",
+          "priority": "medium",
+          "expectedResult": "",
+          "acceptanceCriteria": [],
+          "automationReason": "",
+          "executionStatus": "PASS",
+          "validationStatus": "PASS",
+          "lastAttempt": 1,
+          "executionCode": 0,
+          "failureCause": "",
+          "debugCommand": "npx playwright test generated_tests/user_story_4-story-4/test-cases/tc-001/user_story_4_verify_basic_system_response_to_test.spec.js --headed --project=chromium",
+          "outputTail": "Running 1 test using 1 worker\n\n\u001b[1A\u001b[2K[1/1] [chromium] › generated_tests/user_story_4-story-4/test-cases/tc-001/user_story_4_verify_basic_system_response_to_test.spec.js:113:1 › Verify basic system response to test action\n\u001b[1A\u001b[2K  1 passed (3.2s)",
+          "validationSummary": "The application loads successfully with all key UI elements visible, no errors present, and content rendered correctly.",
+          "improvementPriority": "medium",
+          "improvements": [
+            "Replace the generic placeholder test action with explicit marketplace-specific interactions: add a product to cart, verify cart count increments, and assert the cart page reflects the correct item and price",
+            "Add a dedicated test for the search/filter bar: type a product keyword, assert filtered results contain only matching items, and verify result count updates dynamically",
+            "Assert navigation link functionality by clicking 'Home' and 'Cart' links and verifying the correct URL route and page heading render after each navigation",
+            "Validate product card data integrity by asserting each visible card has a non-empty title, a valid numeric price, a non-broken image (check src attribute and natural width > 0), and a clickable action button",
+            "Investigate and fix the Arc Mechanical Keyboard image alt text warning flagged in validation: add an explicit assertion that all product images have loaded successfully using page.evaluate to check naturalWidth > 0 for all img elements",
+            "Add a hero section content assertion: verify the headline text matches expected copy and any CTA button in the hero section is clickable and navigates to the correct destination",
+            "Parameterize the test to cover multiple viewport sizes (mobile 375px, tablet 768px, desktop 1280px) to ensure responsive layout stability of the navigation bar, product grid, and search bar",
+            "Introduce a network intercept using page.route to mock the product API response and assert the UI renders exactly the mocked product count, preventing flakiness from live data changes",
+            "Add explicit waitForSelector calls for the product grid and navigation bar before assertions to prevent race conditions on slower environments, replacing any implicit timing dependencies",
+            "Increase test specificity by tagging the test with a baseURL fixture and asserting the exact page title using expect(page).toHaveTitle() to lock down the application identity on load"
+          ],
+          "executedAt": "2026-05-22T18:42:35.580Z",
+          "runHistory": [
+            {
+              "generatedAt": "2026-05-22T18:42:55.053Z",
+              "overallStatus": "PASS",
+              "executionStatus": "PASS",
+              "validationStatus": "PASS",
+              "attempt": 1,
+              "executionCode": 0,
+              "failureCause": "",
+              "debugCommand": "npx playwright test generated_tests/user_story_4-story-4/test-cases/tc-001/user_story_4_verify_basic_system_response_to_test.spec.js --headed --project=chromium",
+              "outputTail": "Running 1 test using 1 worker\n\n\u001b[1A\u001b[2K[1/1] [chromium] › generated_tests/user_story_4-story-4/test-cases/tc-001/user_story_4_verify_basic_system_response_to_test.spec.js:113:1 › Verify basic system response to test action\n\u001b[1A\u001b[2K  1 passed (3.2s)",
+              "summary": "The application loads successfully with all key UI elements visible, no errors present, and content rendered correctly."
+            }
+          ],
+          "scriptFiles": [
+            "generated_tests/user_story_4-story-4/test-cases/tc-001/user_story_4_verify_basic_system_response_to_test.spec.js"
+          ],
+          "screenshotFiles": [
+            "generated_tests/user_story_4-story-4/screenshots/tc-001/final-ui-tc-001.png"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "user_story_5-story-5",
+      "folderName": "user_story_5-story-5",
+      "storySource": "Story 5 (UI input)",
+      "title": "Search for a Speaker and View Details",
+      "overallStatus": "PARTIAL_FAIL",
+      "generatedAt": "2026-05-22T18:47:25.328Z",
+      "totals": {
+        "tests": 1,
+        "manual": 1,
+        "automated": 1,
+        "automatable": 1,
+        "covered": 0,
+        "missing": 1,
+        "automatedRunPassed": 0,
+        "automatedRunFailed": 1,
+        "executionPassed": 0,
+        "executionFailed": 1,
+        "notRun": 1
+      },
+      "coverage": {
+        "percent": 0,
+        "coveredCases": [],
+        "missingScenarioTitles": [
+          "Search for an existing speaker by name and view their full profile details"
+        ]
+      },
+      "summary": "Total automated cases: 2 | Execution passed: 0 | Execution failed: 2",
+      "runHistory": [
+        {
+          "generatedAt": "2026-05-22T18:47:25.328Z",
+          "overallStatus": "PARTIAL_FAIL",
+          "summary": "Total automated cases: 2 | Execution passed: 0 | Execution failed: 2",
+          "totals": {
+            "total": 2,
+            "executionPassed": 0,
+            "executionFailed": 2,
+            "validationPassed": 0,
+            "validationFailed": 2
+          }
+        }
+      ],
+      "cases": [
+        {
+          "caseId": "TC-001",
+          "title": "Search for an existing speaker by name and view their full profile details",
+          "type": "functional",
+          "priority": "high",
+          "expectedResult": "After typing 'Jane Doe' in the search field, at least one matching result is displayed. Upon clicking the result, the speaker detail page loads and correctly displays the speaker's name, biography, topics, and contact information corresponding to 'Jane Doe'.",
+          "acceptanceCriteria": [
+            "User can search for a speaker by name using a search input field",
+            "Search results display matching speakers based on the entered query",
+            "User can click on a speaker from the search results to view their detailed profile",
+            "Speaker detail page displays relevant information such as name, bio, topics, and contact details"
+          ],
+          "automationReason": "This happy-path flow involves stable UI interactions (typing into an input, verifying list results, clicking a result, and asserting text on a detail page) that are straightforward to implement and reliably verify using Playwright selectors and assertions.",
+          "executionStatus": "NOT_RUN",
+          "validationStatus": "NOT_RUN",
+          "lastAttempt": 0,
+          "executionCode": null,
+          "failureCause": "",
+          "debugCommand": "",
+          "outputTail": "",
+          "validationSummary": "",
+          "improvementPriority": "n/a",
+          "improvements": [],
+          "executedAt": "",
+          "runHistory": [],
+          "scriptFiles": [
+            "generated_tests/user_story_5-story-5/test-cases/TC-001/user_story_5_search_for_speaker_jane_doe_and.spec.js"
+          ],
+          "screenshotFiles": [
+            "generated_tests/user_story_5-story-5/screenshots/TC-001/final-ui-tc-001.png"
+          ]
+        },
+        {
+          "caseId": "tc-001",
+          "title": "tc-001",
+          "type": "automation",
+          "priority": "medium",
+          "expectedResult": "",
+          "acceptanceCriteria": [],
+          "automationReason": "",
+          "executionStatus": "FAIL",
+          "validationStatus": "FAIL",
+          "lastAttempt": 2,
+          "executionCode": 1,
+          "failureCause": "Error: Unable to resolve locator. selector=\"input[type='search'], input[placeholder*='search' i], input[placeholder*='speaker' i], input[type='text']\" description=\"Wait for the search input field to be present on the speakers page\"",
+          "debugCommand": "npx playwright test generated_tests/user_story_5-story-5/test-cases/tc-001/user_story_5_search_for_speaker_jane_doe_and.spec.js --headed --project=chromium",
+          "outputTail": "Running 1 test using 1 worker\n\n\u001b[1A\u001b[2K[1/1] [chromium] › generated_tests/user_story_5-story-5/test-cases/tc-001/user_story_5_search_for_speaker_jane_doe_and.spec.js:113:1 › Search for Speaker Jane Doe and View Profile Details\n\u001b[1A\u001b[2K  1) [chromium] › generated_tests/user_story_5-story-5/test-cases/tc-001/user_story_5_search_for_speaker_jane_doe_and.spec.js:113:1 › Search for Speaker Jane Doe and View Profile Details \n\n    Error: Unable to resolve locator. selector=\"input[type='search'], input[placeholder*='search' i], input[placeholder*='speaker' i], input[type='text']\" description=\"Wait for the search input field to be present on the speakers page\"\n\n      76 |   const resolved = await firstExisting(candidates);\n      77 |   if (!resolved) {\n    > 78 |     throw new Error(`Unable to resolve locator. selector=\"${selectorText}\" description=\"${descriptionText}\"`);\n         |           ^\n      79 |   }\n      80 |   return resolved;\n      81 | }\n        at resolveLocator (/Users/sailaja.pinisetty/ai-playwright-framework/backend/generated_tests/user_story_5-story-5/test-cases/tc-001/user_story_5_search_for_speaker_jane_doe_and.spec.js:78:11)\n        at waitForWithFallback (/Users/sailaja.pinisetty/ai-playwright-framework/backend/generated_tests/user_story_5-story-5/test-cases/tc-001/user_story_5_search_for_speaker_jane_doe_and.spec.js:99:19)\n        at /Users/sailaja.pinisetty/ai-playwright-framework/backend/generated_tests/user_story_5-story-5/test-cases/tc-001/user_story_5_search_for_speaker_jane_doe_and.spec.js:130:5\n\n    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────\n    .playwright-output/user_story_5-story-5-test--9b49b-oe-and-View-Profile-Details-chromium/test-failed-1.png\n    ────────────────────────────────────────────────────────────────────────────────────────────────\n\n    Error Context: .playwright-output/user_story_5-story-5-test--9b49b-oe-and-View-Profile-Details-chromium/error-context.md\n\n    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────\n    .playwright-output/user_story_5-story-5-test--9b49b-oe-and-View-Profile-Details-chromium/trace.zip\n    Usage:\n\n        npx playwright show-trace .playwright-output/user_story_5-story-5-test--9b49b-oe-and-View-Profile-Details-chromium/trace.zip\n\n    ────────────────────────────────────────────────────────────────────────────────────────────────\n\n\n\u001b[1A\u001b[2K  1 failed\n    [chromium] › generated_tests/user_story_5-story-5/test-cases/tc-001/user_story_5_search_for_speaker_jane_doe_and.spec.js:113:1 › Search for Speaker Jane Doe and View Profile Details",
+          "validationSummary": "The screenshot shows a marketplace product page for an audio speaker (Pulse Mini Speaker), not a speakers/presenters search application. None of the validation criteria related to searching for a conference/event speaker and viewing their profile details are met.",
+          "improvementPriority": "high",
+          "improvements": [
+            "Verify and correct the base URL: the test is navigating to a marketplace/e-commerce product page (showing 'Pulse Mini Speaker' audio product) instead of a conference/event speakers search application — update the BASE_URL environment variable or page.goto() target to point to the correct speakers directory application before re-running",
+            "Add an explicit URL assertion immediately after page.goto() to confirm the correct application has loaded (e.g., expect(page).toHaveURL(/speakers|presenters|directory/i)) and fail fast with a clear diagnostic message if the wrong environment is reached",
+            "Expand the search input selector candidates to include role-based and data-attribute selectors: add 'role=searchbox', '[aria-label*=\"search\" i]', '[data-testid*=\"search\" i]', '[name*=\"search\" i]', 'input[class*=\"search\" i]' to the firstExisting() fallback chain to reduce locator resolution failures on varied implementations",
+            "Capture and log the full page URL, page title, and a DOM snapshot (page.content() excerpt) in the error handler when resolveLocator() throws, so failure diagnostics immediately reveal wrong-page navigation rather than just a missing selector",
+            "Implement a precondition guard step that asserts page title or a landmark heading contains speaker/presenter-related text (e.g., expect(page.locator('h1, h2')).toContainText(/speaker|presenter|directory/i)) before attempting any search interactions, failing the test immediately with a descriptive message if the wrong page is loaded",
+            "Introduce a test data seeding or fixture verification step that confirms at least one speaker record named 'Jane Doe' exists via API call (GET /api/speakers?name=Jane+Doe) before the UI flow begins, preventing false failures caused by missing data",
+            "Add a screenshot and page.url() log at the very start of the test (after navigation) as a debug artifact so that wrong-environment failures are immediately diagnosable without needing to inspect trace files",
+            "Parameterize the speaker name 'Jane Doe' and expected detail page fields (bio, topics, contact) via a test fixture or environment config to make the test reusable across different data sets and environments",
+            "After clicking the search result, assert the URL pattern changes to a speaker detail route (e.g., /speakers/:id or /profile/) using expect(page).toHaveURL(/\\/speaker|\\/profile|\\/detail/i) before asserting page content, ensuring navigation succeeded",
+            "Add granular assertions for each acceptance criterion as separate named expect() calls with descriptive messages: (1) name heading visible, (2) bio paragraph non-empty, (3) topics/tags list has at least one item, (4) contact link or social link present — so failures pinpoint exactly which detail element is missing"
+          ],
+          "executedAt": "2026-05-22T18:46:58.592Z",
+          "runHistory": [
+            {
+              "generatedAt": "2026-05-22T18:47:25.328Z",
+              "overallStatus": "PARTIAL_FAIL",
+              "executionStatus": "FAIL",
+              "validationStatus": "FAIL",
+              "attempt": 2,
+              "executionCode": 1,
+              "failureCause": "Error: Unable to resolve locator. selector=\"input[type='search'], input[placeholder*='search' i], input[placeholder*='speaker' i], input[type='text']\" description=\"Wait for the search input field to be present on the speakers page\"",
+              "debugCommand": "npx playwright test generated_tests/user_story_5-story-5/test-cases/tc-001/user_story_5_search_for_speaker_jane_doe_and.spec.js --headed --project=chromium",
+              "outputTail": "Running 1 test using 1 worker\n\n\u001b[1A\u001b[2K[1/1] [chromium] › generated_tests/user_story_5-story-5/test-cases/tc-001/user_story_5_search_for_speaker_jane_doe_and.spec.js:113:1 › Search for Speaker Jane Doe and View Profile Details\n\u001b[1A\u001b[2K  1) [chromium] › generated_tests/user_story_5-story-5/test-cases/tc-001/user_story_5_search_for_speaker_jane_doe_and.spec.js:113:1 › Search for Speaker Jane Doe and View Profile Details \n\n    Error: Unable to resolve locator. selector=\"input[type='search'], input[placeholder*='search' i], input[placeholder*='speaker' i], input[type='text']\" description=\"Wait for the search input field to be present on the speakers page\"\n\n      76 |   const resolved = await firstExisting(candidates);\n      77 |   if (!resolved) {\n    > 78 |     throw new Error(`Unable to resolve locator. selector=\"${selectorText}\" description=\"${descriptionText}\"`);\n         |           ^\n      79 |   }\n      80 |   return resolved;\n      81 | }\n        at resolveLocator (/Users/sailaja.pinisetty/ai-playwright-framework/backend/generated_tests/user_story_5-story-5/test-cases/tc-001/user_story_5_search_for_speaker_jane_doe_and.spec.js:78:11)\n        at waitForWithFallback (/Users/sailaja.pinisetty/ai-playwright-framework/backend/generated_tests/user_story_5-story-5/test-cases/tc-001/user_story_5_search_for_speaker_jane_doe_and.spec.js:99:19)\n        at /Users/sailaja.pinisetty/ai-playwright-framework/backend/generated_tests/user_story_5-story-5/test-cases/tc-001/user_story_5_search_for_speaker_jane_doe_and.spec.js:130:5\n\n    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────\n    .playwright-output/user_story_5-story-5-test--9b49b-oe-and-View-Profile-Details-chromium/test-failed-1.png\n    ────────────────────────────────────────────────────────────────────────────────────────────────\n\n    Error Context: .playwright-output/user_story_5-story-5-test--9b49b-oe-and-View-Profile-Details-chromium/error-context.md\n\n    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────\n    .playwright-output/user_story_5-story-5-test--9b49b-oe-and-View-Profile-Details-chromium/trace.zip\n    Usage:\n\n        npx playwright show-trace .playwright-output/user_story_5-story-5-test--9b49b-oe-and-View-Profile-Details-chromium/trace.zip\n\n    ────────────────────────────────────────────────────────────────────────────────────────────────\n\n\n\u001b[1A\u001b[2K  1 failed\n    [chromium] › generated_tests/user_story_5-story-5/test-cases/tc-001/user_story_5_search_for_speaker_jane_doe_and.spec.js:113:1 › Search for Speaker Jane Doe and View Profile Details",
+              "summary": "The screenshot shows a marketplace product page for an audio speaker (Pulse Mini Speaker), not a speakers/presenters search application. None of the validation criteria related to searching for a conference/event speaker and viewing their profile details are met."
+            }
+          ],
+          "scriptFiles": [
+            "generated_tests/user_story_5-story-5/test-cases/tc-001/user_story_5_search_for_speaker_jane_doe_and.spec.js"
+          ],
+          "screenshotFiles": [
+            "generated_tests/user_story_5-story-5/screenshots/tc-001/final-ui-tc-001.png"
+          ]
+        }
+      ]
+    }
+  ]
+}

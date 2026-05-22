@@ -1,0 +1,16 @@
+{
+  "runId": "run_1779477660214",
+  "startedAt": "2026-05-22T19:21:00.212Z",
+  "finishedAt": "2026-05-22T19:21:04.892Z",
+  "runType": "REGRESSION",
+  "projectId": "project_test_1779472630455",
+  "projectName": "test",
+  "status": "FAIL",
+  "exitCode": 1,
+  "outputTail": "Running 2 tests using 2 workers\n\n\u001b[1A\u001b[2K[1/2] [chromium] › generated_tests/user_story_4-story-4/test-cases/tc-001/user_story_4_verify_basic_system_response_to_test.spec.js:113:1 › Verify basic system response to test action\n\u001b[1A\u001b[2K[2/2] [chromium] › generated_tests/user_story_5-story-5/test-cases/tc-001/user_story_5_search_for_speaker_jane_doe_and.spec.js:113:1 › Search for Speaker Jane Doe and View Profile Details\n\u001b[1A\u001b[2K  1) [chromium] › generated_tests/user_story_5-story-5/test-cases/tc-001/user_story_5_search_for_speaker_jane_doe_and.spec.js:113:1 › Search for Speaker Jane Doe and View Profile Details \n\n    Error: Unable to resolve locator. selector=\"input[type='search'], input[placeholder*='search' i], input[placeholder*='speaker' i], input[type='text']\" description=\"Wait for the search input field to be present on the speakers page\"\n\n      76 |   const resolved = await firstExisting(candidates);\n      77 |   if (!resolved) {\n    > 78 |     throw new Error(`Unable to resolve locator. selector=\"${selectorText}\" description=\"${descriptionText}\"`);\n         |           ^\n      79 |   }\n      80 |   return resolved;\n      81 | }\n        at resolveLocator (/Users/sailaja.pinisetty/ai-playwright-framework/backend/generated_tests/user_story_5-story-5/test-cases/tc-001/user_story_5_search_for_speaker_jane_doe_and.spec.js:78:11)\n        at waitForWithFallback (/Users/sailaja.pinisetty/ai-playwright-framework/backend/generated_tests/user_story_5-story-5/test-cases/tc-001/user_story_5_search_for_speaker_jane_doe_and.spec.js:99:19)\n        at /Users/sailaja.pinisetty/ai-playwright-framework/backend/generated_tests/user_story_5-story-5/test-cases/tc-001/user_story_5_search_for_speaker_jane_doe_and.spec.js:130:5\n\n    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────\n    .playwright-output/user_story_5-story-5-test--9b49b-oe-and-View-Profile-Details-chromium/test-failed-1.png\n    ────────────────────────────────────────────────────────────────────────────────────────────────\n\n    Error Context: .playwright-output/user_story_5-story-5-test--9b49b-oe-and-View-Profile-Details-chromium/error-context.md\n\n    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────\n    .playwright-output/user_story_5-story-5-test--9b49b-oe-and-View-Profile-Details-chromium/trace.zip\n    Usage:\n\n        npx playwright show-trace .playwright-output/user_story_5-story-5-test--9b49b-oe-and-View-Profile-Details-chromium/trace.zip\n\n    ────────────────────────────────────────────────────────────────────────────────────────────────\n\n\n\u001b[1A\u001b[2K  1 failed\n    [chromium] › generated_tests/user_story_5-story-5/test-cases/tc-001/user_story_5_search_for_speaker_jane_doe_and.spec.js:113:1 › Search for Speaker Jane Doe and View Profile Details \n  1 passed (4.0s)",
+  "totals": {
+    "executed": 2,
+    "passed": 1,
+    "failed": 1
+  }
+}

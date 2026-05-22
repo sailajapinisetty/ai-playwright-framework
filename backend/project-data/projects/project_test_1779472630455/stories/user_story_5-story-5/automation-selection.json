@@ -1,0 +1,29 @@
+{
+  "storySource": "Story 5 (UI input)",
+  "totalManualTests": 1,
+  "coverage": {
+    "totalAutomatable": 1,
+    "covered": 0,
+    "missing": 1,
+    "coveragePercent": 0,
+    "coveredCases": [],
+    "missingScenarioTitles": [
+      "Search for an existing speaker by name and view their full profile details"
+    ]
+  },
+  "selectedAutomatableTests": [
+    {
+      "id": "TC-001",
+      "title": "Search for an existing speaker by name and view their full profile details",
+      "reason": "This happy-path flow involves stable UI interactions (typing into an input, verifying list results, clicking a result, and asserting text on a detail page) that are straightforward to implement and reliably verify using Playwright selectors and assertions."
+    }
+  ],
+  "selectedMissingTestsForGeneration": [
+    {
+      "id": "TC-001",
+      "title": "Search for an existing speaker by name and view their full profile details",
+      "reason": "This happy-path flow involves stable UI interactions (typing into an input, verifying list results, clicking a result, and asserting text on a detail page) that are straightforward to implement and reliably verify using Playwright selectors and assertions."
+    }
+  ],
+  "skippedManualOnlyTests": []
+}

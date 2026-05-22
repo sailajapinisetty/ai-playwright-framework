@@ -9,6 +9,9 @@ const reportUiDir = path.resolve(rootDir, '../frontend/report-ui');
 const envFilePath = path.resolve(rootDir, '../.env');
 const port = Number(process.env.PORT || process.env.REPORT_UI_PORT || 4173);
 const uiHistoryPath = path.join(reportUiDir, 'data', 'ui-run-history.json');
+const projectRegistryPath = path.join(reportUiDir, 'data', 'projects-registry.json');
+const sharedReportDataPath = path.join(reportUiDir, 'data', 'report-data.json');
+const projectDataRootDir = path.join(rootDir, 'project-data', 'projects');
 let isRunInProgress = false;
 const defaultCorsOrigins = [
   'http://localhost:4173',
@@ -146,6 +149,29 @@ async function listDirectories(dirPath) {
   return entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();
 }
 
+async function listFilesRecursive(dirPath, fileExtension = '') {
+  if (!(await pathExists(dirPath))) {
+    return [];
+  }
+
+  const entries = await fs.readdir(dirPath, { withFileTypes: true });
+  const files = [];
+
+  for (const entry of entries) {
+    const entryPath = path.join(dirPath, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...(await listFilesRecursive(entryPath, fileExtension)));
+      continue;
+    }
+
+    if (entry.isFile() && (!fileExtension || entry.name.endsWith(fileExtension))) {
+      files.push(entryPath);
+    }
+  }
+
+  return files.sort();
+}
+
 async function readJsonFileIfExists(filePath, fallbackValue) {
   if (!(await pathExists(filePath))) {
     return fallbackValue;
@@ -156,6 +182,301 @@ async function readJsonFileIfExists(filePath, fallbackValue) {
     return JSON.parse(raw);
   } catch {
     return fallbackValue;
+  }
+}
+
+function normalizeProjectRegistry(value) {
+  const projects = Array.isArray(value?.projects) ? value.projects : [];
+  const selectedProjectId = String(value?.selectedProjectId || '').trim();
+
+  return {
+    selectedProjectId,
+    projects: projects.map((project) => ({
+      id: String(project?.id || '').trim(),
+      name: String(project?.name || '').trim(),
+      description: String(project?.description || '').trim(),
+      createdAt: String(project?.createdAt || ''),
+      updatedAt: String(project?.updatedAt || ''),
+      storyFolders: Array.isArray(project?.storyFolders)
+        ? project.storyFolders.map((entry) => String(entry || '').trim()).filter(Boolean)
+        : [],
+      urls: Array.isArray(project?.urls)
+        ? project.urls.map((entry) => ({
+          id: String(entry?.id || '').trim(),
+          label: String(entry?.label || '').trim(),
+          url: String(entry?.url || '').trim(),
+          isDefault: Boolean(entry?.isDefault),
+          createdAt: String(entry?.createdAt || ''),
+          updatedAt: String(entry?.updatedAt || '')
+        }))
+        : []
+    })).filter((project) => project.id && project.name)
+  };
+}
+
+async function readProjectRegistry() {
+  const raw = await readJsonFileIfExists(projectRegistryPath, {
+    selectedProjectId: '',
+    projects: []
+  });
+  return normalizeProjectRegistry(raw);
+}
+
+async function writeProjectRegistry(registry) {
+  await fs.mkdir(path.dirname(projectRegistryPath), { recursive: true });
+  await fs.writeFile(projectRegistryPath, JSON.stringify(normalizeProjectRegistry(registry), null, 2));
+}
+
+function sanitizeProjectName(value) {
+  return String(value || '').trim().replace(/\s+/g, ' ');
+}
+
+function makeEntityId(prefix, value) {
+  const base = String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '') || prefix;
+  return `${prefix}_${base}_${Date.now()}`;
+}
+
+function getProjectDefaultUrl(project) {
+  const urls = Array.isArray(project?.urls) ? project.urls : [];
+  const explicitDefault = urls.find((entry) => entry.isDefault && isHttpUrl(entry.url));
+  if (explicitDefault) {
+    return explicitDefault;
+  }
+
+  const firstValid = urls.find((entry) => isHttpUrl(entry.url));
+  return firstValid || null;
+}
+
+function getSelectedProject(registry) {
+  const selectedProjectId = String(registry?.selectedProjectId || '').trim();
+  const projects = Array.isArray(registry?.projects) ? registry.projects : [];
+  if (!selectedProjectId) {
+    return null;
+  }
+
+  return projects.find((project) => project.id === selectedProjectId) || null;
+}
+
+async function getSelectedProjectInfo() {
+  const registry = await readProjectRegistry();
+  const selectedProject = getSelectedProject(registry);
+  if (!selectedProject) {
+    return null;
+  }
+
+  return {
+    projectId: selectedProject.id,
+    projectName: selectedProject.name
+  };
+}
+
+async function saveDefaultUrlForSelectedProject(appUrl) {
+  const sanitized = String(appUrl || '').trim();
+  if (!sanitized || !isHttpUrl(sanitized)) {
+    return null;
+  }
+
+  const registry = await readProjectRegistry();
+  const selectedProjectId = String(registry.selectedProjectId || '').trim();
+  if (!selectedProjectId) {
+    return null;
+  }
+
+  const now = new Date().toISOString();
+  let savedUrl = null;
+
+  registry.projects = registry.projects.map((project) => {
+    if (project.id !== selectedProjectId) {
+      return project;
+    }
+
+    const currentUrls = Array.isArray(project.urls) ? project.urls : [];
+    const existing = currentUrls.find((entry) => String(entry.url || '').trim() === sanitized);
+    const nextUrls = currentUrls.map((entry) => ({ ...entry, isDefault: false, updatedAt: now }));
+
+    if (existing) {
+      const updated = {
+        ...existing,
+        isDefault: true,
+        updatedAt: now
+      };
+      const merged = nextUrls.map((entry) => (entry.id === existing.id ? updated : entry));
+      savedUrl = updated;
+      return {
+        ...project,
+        urls: merged,
+        updatedAt: now
+      };
+    }
+
+    const created = {
+      id: makeEntityId('url', sanitized),
+      label: 'Default URL',
+      url: sanitized,
+      isDefault: true,
+      createdAt: now,
+      updatedAt: now
+    };
+    savedUrl = created;
+    return {
+      ...project,
+      urls: [...nextUrls, created],
+      updatedAt: now
+    };
+  });
+
+  await writeProjectRegistry(registry);
+  return savedUrl;
+}
+
+function summarizeReportTotals(stories) {
+  const safeStories = Array.isArray(stories) ? stories : [];
+  const totals = {
+    stories: safeStories.length,
+    tests: 0,
+    manual: 0,
+    automated: 0,
+    automatable: 0,
+    automatedRunPassed: 0,
+    automatedRunFailed: 0,
+    executionPassed: 0,
+    executionFailed: 0,
+    notRun: 0
+  };
+
+  for (const story of safeStories) {
+    totals.tests += Number(story?.totals?.tests || 0);
+    totals.manual += Number(story?.totals?.manual || 0);
+    totals.automated += Number(story?.totals?.automated || 0);
+    totals.automatable += Number(story?.totals?.automatable || 0);
+    totals.automatedRunPassed += Number(story?.totals?.automatedRunPassed || 0);
+    totals.automatedRunFailed += Number(story?.totals?.automatedRunFailed || 0);
+    totals.executionPassed += Number(story?.totals?.executionPassed || 0);
+    totals.executionFailed += Number(story?.totals?.executionFailed || 0);
+    totals.notRun += Number(story?.totals?.notRun || 0);
+  }
+
+  return totals;
+}
+
+function filterReportByStoryFolders(reportData, storyFolders) {
+  const folderSet = new Set((Array.isArray(storyFolders) ? storyFolders : []).map((entry) => String(entry || '').trim()).filter(Boolean));
+  const allStories = Array.isArray(reportData?.stories) ? reportData.stories : [];
+  const selectedStories = folderSet.size === 0
+    ? allStories
+    : allStories.filter((story) => folderSet.has(String(story?.id || '')));
+
+  const totals = summarizeReportTotals(selectedStories);
+  const coverageCovered = selectedStories.reduce((sum, story) => sum + Number(story?.totals?.covered || 0), 0);
+  const coverageAutomatable = selectedStories.reduce((sum, story) => sum + Number(story?.totals?.automatable || 0), 0);
+
+  return {
+    ...reportData,
+    storyCount: selectedStories.length,
+    stories: selectedStories,
+    totals,
+    coverage: {
+      covered: coverageCovered,
+      automatable: coverageAutomatable,
+      overallPercent: coverageAutomatable === 0 ? 0 : Math.round((coverageCovered / coverageAutomatable) * 100)
+    }
+  };
+}
+
+async function copyDirectoryRecursive(sourceDir, targetDir) {
+  if (!(await pathExists(sourceDir))) {
+    return;
+  }
+
+  await fs.mkdir(targetDir, { recursive: true });
+  const entries = await fs.readdir(sourceDir, { withFileTypes: true });
+  for (const entry of entries) {
+    const sourcePath = path.join(sourceDir, entry.name);
+    const targetPath = path.join(targetDir, entry.name);
+    if (entry.isDirectory()) {
+      await copyDirectoryRecursive(sourcePath, targetPath);
+      continue;
+    }
+
+    if (entry.isFile()) {
+      await fs.copyFile(sourcePath, targetPath);
+    }
+  }
+}
+
+async function trackProjectStoryFolder(projectId, storyFolder) {
+  const safeProjectId = String(projectId || '').trim();
+  const safeStoryFolder = String(storyFolder || '').trim();
+  if (!safeProjectId || !safeStoryFolder) {
+    return;
+  }
+
+  const registry = await readProjectRegistry();
+  let changed = false;
+  registry.projects = registry.projects.map((project) => {
+    if (project.id !== safeProjectId) {
+      return project;
+    }
+
+    const storyFolders = new Set(Array.isArray(project.storyFolders) ? project.storyFolders : []);
+    if (storyFolders.has(safeStoryFolder)) {
+      return project;
+    }
+
+    storyFolders.add(safeStoryFolder);
+    changed = true;
+    return {
+      ...project,
+      storyFolders: [...storyFolders].sort(),
+      updatedAt: new Date().toISOString()
+    };
+  });
+
+  if (changed) {
+    await writeProjectRegistry(registry);
+  }
+}
+
+async function persistProjectRunArtifacts({ runEntry, includeStoryFolder = '' }) {
+  const projectId = String(runEntry?.projectId || '').trim();
+  const runId = String(runEntry?.runId || '').trim();
+  if (!projectId || !runId) {
+    return;
+  }
+
+  const registry = await readProjectRegistry();
+  const project = registry.projects.find((entry) => entry.id === projectId);
+  const trackedStoryFolders = Array.isArray(project?.storyFolders) ? project.storyFolders : [];
+  const oneStory = String(includeStoryFolder || '').trim();
+  const storyFolders = oneStory ? [oneStory] : trackedStoryFolders;
+
+  const projectRootDir = path.join(projectDataRootDir, projectId);
+  const runsDir = path.join(projectRootDir, 'runs', runId);
+  const storiesDir = path.join(projectRootDir, 'stories');
+  await fs.mkdir(runsDir, { recursive: true });
+  await fs.mkdir(storiesDir, { recursive: true });
+
+  await fs.writeFile(path.join(runsDir, 'run-entry.json'), JSON.stringify(runEntry, null, 2));
+
+  const reportData = await readJsonFileIfExists(sharedReportDataPath, null);
+  if (reportData) {
+    const filteredReport = filterReportByStoryFolders(reportData, storyFolders);
+    await fs.writeFile(path.join(runsDir, 'report-data.json'), JSON.stringify(filteredReport, null, 2));
+  }
+
+  const generatedTestsDir = path.join(rootDir, 'generated_tests');
+  for (const storyFolder of storyFolders) {
+    const safeFolder = String(storyFolder || '').trim();
+    if (!safeFolder) {
+      continue;
+    }
+
+    const sourceStoryDir = path.join(generatedTestsDir, safeFolder);
+    const targetStoryDir = path.join(storiesDir, safeFolder);
+    await copyDirectoryRecursive(sourceStoryDir, targetStoryDir);
   }
 }
 
@@ -176,9 +497,17 @@ function htmlEscape(value) {
     .replace(/'/g, '&#39;');
 }
 
-async function readManualTestCases() {
+async function readManualTestCases({ projectId = '' } = {}) {
   const generatedTestsDir = path.join(rootDir, 'generated_tests');
-  const storyFolders = await listDirectories(generatedTestsDir);
+  let storyFolders = await listDirectories(generatedTestsDir);
+  const requestedProjectId = String(projectId || '').trim();
+
+  if (requestedProjectId) {
+    const registry = await readProjectRegistry();
+    const project = registry.projects.find((entry) => entry.id === requestedProjectId);
+    const allowedStoryFolders = new Set(Array.isArray(project?.storyFolders) ? project.storyFolders : []);
+    storyFolders = storyFolders.filter((folder) => allowedStoryFolders.has(folder));
+  }
   const items = [];
 
   for (const storyFolder of storyFolders) {
@@ -192,6 +521,7 @@ async function readManualTestCases() {
       items.push({
         storyFolder,
         storyTitle,
+        source: 'manual',
         caseId: String(testCase?.id || ''),
         title: String(testCase?.title || ''),
         type: String(testCase?.type || ''),
@@ -200,12 +530,129 @@ async function readManualTestCases() {
         automationReason: String(testCase?.automationReason || '')
       });
     }
+
+    const testCasesDir = path.join(storyDir, 'test-cases');
+    const scriptFiles = await listFilesRecursive(testCasesDir, '.spec.js');
+    for (const scriptPath of scriptFiles) {
+      const relativePath = path.relative(testCasesDir, scriptPath).replace(/\\/g, '/');
+      const pathParts = relativePath.split('/');
+      const caseId = String(pathParts[0] || '').trim() || 'unknown-case';
+      const fileName = String(pathParts[pathParts.length - 1] || '').trim();
+      const prettyTitle = fileName
+        .replace(/\.spec\.js$/i, '')
+        .replace(/_/g, ' ')
+        .trim();
+
+      items.push({
+        storyFolder,
+        storyTitle,
+        source: 'automated',
+        caseId,
+        title: prettyTitle || fileName,
+        type: 'automated-script',
+        priority: '',
+        expectedResult: '',
+        automationReason: relativePath,
+        scriptPath: `generated_tests/${storyFolder}/test-cases/${relativePath}`
+      });
+    }
   }
 
   return {
     generatedAt: new Date().toISOString(),
     storyCount: storyFolders.length,
     totalCases: items.length,
+    items
+  };
+}
+
+async function readStoryTextForFolder({ projectId = '', storyFolder = '' } = {}) {
+  const safeProjectId = String(projectId || '').trim();
+  const safeStoryFolder = String(storyFolder || '').trim();
+  if (!safeProjectId || !safeStoryFolder) {
+    return { content: '', source: '' };
+  }
+
+  const projectStoryDir = path.join(projectDataRootDir, safeProjectId, 'stories', safeStoryFolder);
+  const projectCandidates = ['user-story.txt', 'user_story.txt'];
+  for (const fileName of projectCandidates) {
+    const filePath = path.join(projectStoryDir, fileName);
+    if (await pathExists(filePath)) {
+      const content = String(await fs.readFile(filePath, 'utf8')).trim();
+      if (content) {
+        return { content, source: `project-data/${safeStoryFolder}/${fileName}` };
+      }
+    }
+  }
+
+  const storyKeyMatch = safeStoryFolder.match(/^(user_story_\d+)/i);
+  if (storyKeyMatch) {
+    const storyKey = String(storyKeyMatch[1] || '').trim().toLowerCase();
+    const legacyStoriesDir = path.join(rootDir, 'user-stories');
+    const legacyFiles = await listFilesRecursive(legacyStoriesDir, '.txt');
+    const matchedLegacy = legacyFiles.find((filePath) => {
+      const base = path.basename(filePath, '.txt').toLowerCase();
+      return base === storyKey;
+    });
+
+    if (matchedLegacy) {
+      const content = String(await fs.readFile(matchedLegacy, 'utf8')).trim();
+      if (content) {
+        return { content, source: `user-stories/${path.basename(matchedLegacy)}` };
+      }
+    }
+  }
+
+  const manualCatalogPath = path.join(projectStoryDir, 'manual-test-cases.json');
+  const manualCatalog = await readJsonFileIfExists(manualCatalogPath, {});
+  const storyTitle = String(manualCatalog?.storyTitle || '').trim();
+  const criteria = Array.isArray(manualCatalog?.storyAcceptanceCriteria)
+    ? manualCatalog.storyAcceptanceCriteria.map((entry) => String(entry || '').trim()).filter(Boolean)
+    : [];
+  if (storyTitle || criteria.length > 0) {
+    const criteriaText = criteria.length > 0
+      ? `\n\nAcceptance Criteria:\n${criteria.map((entry) => `- ${entry}`).join('\n')}`
+      : '';
+    const content = `${storyTitle ? `Story title: ${storyTitle}` : ''}${criteriaText}`.trim();
+    return { content, source: `project-data/${safeStoryFolder}/manual-test-cases.json` };
+  }
+
+  return { content: '', source: '' };
+}
+
+async function readProjectStories({ projectId = '' } = {}) {
+  const safeProjectId = String(projectId || '').trim();
+  if (!safeProjectId) {
+    return {
+      generatedAt: new Date().toISOString(),
+      projectId: '',
+      projectName: '',
+      storyCount: 0,
+      items: []
+    };
+  }
+
+  const registry = await readProjectRegistry();
+  const project = registry.projects.find((entry) => entry.id === safeProjectId);
+  const storyFolders = Array.isArray(project?.storyFolders)
+    ? project.storyFolders.map((entry) => String(entry || '').trim()).filter(Boolean)
+    : [];
+
+  const items = [];
+  for (const storyFolder of storyFolders) {
+    const storyText = await readStoryTextForFolder({ projectId: safeProjectId, storyFolder });
+    items.push({
+      storyFolder,
+      content: String(storyText?.content || '').trim(),
+      source: String(storyText?.source || '').trim()
+    });
+  }
+
+  return {
+    generatedAt: new Date().toISOString(),
+    projectId: safeProjectId,
+    projectName: String(project?.name || ''),
+    storyCount: storyFolders.length,
     items
   };
 }
@@ -308,17 +755,50 @@ async function appendRunHistory(entry) {
   await fs.writeFile(uiHistoryPath, JSON.stringify(recent, null, 2));
 }
 
-async function appendPrecheckFailure({ reason, appUrl, userStory }) {
+function getProjectRunReportDataPath(projectId, runId) {
+  const safeProjectId = String(projectId || '').trim();
+  const safeRunId = String(runId || '').trim();
+  if (!safeProjectId || !safeRunId) {
+    return '';
+  }
+
+  return path.join(projectDataRootDir, safeProjectId, 'runs', safeRunId, 'report-data.json');
+}
+
+async function readRunScopedReportData(runId) {
+  const safeRunId = String(runId || '').trim();
+  if (!safeRunId) {
+    return await readJsonFileIfExists(sharedReportDataPath, null);
+  }
+
+  const history = await readRunHistory();
+  const runEntry = history.find((entry) => String(entry?.runId || '') === safeRunId);
+  const runReportPath = getProjectRunReportDataPath(runEntry?.projectId, safeRunId);
+  if (runReportPath) {
+    const runReport = await readJsonFileIfExists(runReportPath, null);
+    if (runReport) {
+      return runReport;
+    }
+  }
+
+  return await readJsonFileIfExists(sharedReportDataPath, null);
+}
+
+async function appendPrecheckFailure({ reason, appUrl, userStory, runType = 'FULL' }) {
   const now = new Date().toISOString();
+  const projectInfo = await getSelectedProjectInfo();
   const entry = {
     runId: `run_${Date.now()}`,
     startedAt: now,
     finishedAt: now,
+    runType: String(runType || 'FULL').toUpperCase(),
     status: 'FAIL',
     exitCode: -1,
     outputTail: String(reason || 'Precheck failed'),
     appUrl: String(appUrl || ''),
     userStoryPreview: String(userStory || '').slice(0, 200),
+    projectId: String(projectInfo?.projectId || ''),
+    projectName: String(projectInfo?.projectName || ''),
     totals: { executed: 0, passed: 0, failed: 1 }
   };
 
@@ -326,7 +806,21 @@ async function appendPrecheckFailure({ reason, appUrl, userStory }) {
   return entry;
 }
 
-async function readLatestReportTotals() {
+function parseRegressionTotals(outputText) {
+  const text = String(outputText || '');
+  const passedMatch = text.match(/(\d+)\s+passed/i);
+  const failedMatch = text.match(/(\d+)\s+failed/i);
+  const skippedMatch = text.match(/(\d+)\s+skipped/i);
+
+  const passed = Number(passedMatch?.[1] || 0);
+  const failed = Number(failedMatch?.[1] || 0);
+  const skipped = Number(skippedMatch?.[1] || 0);
+  const executed = passed + failed;
+
+  return { executed, passed, failed, skipped };
+}
+
+async function readLatestReportTotals(storyFolder = '') {
   const reportDataPath = path.join(reportUiDir, 'data', 'report-data.json');
   if (!(await pathExists(reportDataPath))) {
     return { executed: 0, passed: 0, failed: 0 };
@@ -335,6 +829,21 @@ async function readLatestReportTotals() {
   try {
     const raw = await fs.readFile(reportDataPath, 'utf8');
     const parsed = JSON.parse(raw);
+    const requestedStoryFolder = String(storyFolder || '').trim();
+    if (requestedStoryFolder) {
+      const stories = Array.isArray(parsed?.stories) ? parsed.stories : [];
+      const matchedStory = stories.find((story) => String(story?.id || '') === requestedStoryFolder);
+      if (matchedStory) {
+        const passed = Number(matchedStory?.totals?.automatedRunPassed || 0);
+        const failed = Number(matchedStory?.totals?.automatedRunFailed || 0);
+        return {
+          executed: passed + failed,
+          passed,
+          failed
+        };
+      }
+    }
+
     const passed = Number(parsed?.totals?.automatedRunPassed || 0);
     const failed = Number(parsed?.totals?.automatedRunFailed || 0);
     return {
@@ -372,6 +881,29 @@ async function readDefaultUrlFromEnvFile() {
   }
 }
 
+async function readDefaultUrl() {
+  const registry = await readProjectRegistry();
+  const selectedProject = getSelectedProject(registry);
+  if (selectedProject) {
+    const defaultUrlEntry = getProjectDefaultUrl(selectedProject);
+    if (defaultUrlEntry && isHttpUrl(defaultUrlEntry.url)) {
+      return {
+        appUrl: defaultUrlEntry.url,
+        projectId: selectedProject.id,
+        projectName: selectedProject.name,
+        urlId: defaultUrlEntry.id
+      };
+    }
+  }
+
+  return {
+    appUrl: await readDefaultUrlFromEnvFile(),
+    projectId: String(selectedProject?.id || ''),
+    projectName: String(selectedProject?.name || ''),
+    urlId: ''
+  };
+}
+
 async function saveDefaultUrlToEnvFile(appUrl) {
   const sanitized = String(appUrl || '').trim();
   if (!sanitized) {
@@ -396,6 +928,33 @@ async function saveDefaultUrlToEnvFile(appUrl) {
   return sanitized;
 }
 
+function toSafeId(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '') || 'story';
+}
+
+async function getNextStorySequenceNumber() {
+  const generatedTestsDir = path.join(rootDir, 'generated_tests');
+  const folders = await listDirectories(generatedTestsDir);
+  let maxNumber = 0;
+
+  for (const folder of folders) {
+    const match = String(folder).match(/^user_story_(\d+)-/i);
+    if (!match) {
+      continue;
+    }
+
+    const value = Number.parseInt(match[1], 10);
+    if (Number.isFinite(value) && value > maxNumber) {
+      maxNumber = value;
+    }
+  }
+
+  return maxNumber + 1;
+}
+
 async function runPipeline({ appUrl, userStory }) {
   if (isRunInProgress) {
     return { ok: false, status: 409, error: 'A test run is already in progress. Please wait for completion.' };
@@ -403,6 +962,11 @@ async function runPipeline({ appUrl, userStory }) {
 
   isRunInProgress = true;
   const startedAt = new Date().toISOString();
+  const storyNumber = await getNextStorySequenceNumber();
+  const storySource = `Story ${storyNumber} (UI input)`;
+  const storyId = toSafeId(`story-${storyNumber}`);
+  const storyFolder = `user_story_${storyNumber}-${storyId}`;
+  const projectInfo = await getSelectedProjectInfo();
 
   return new Promise((resolve) => {
     let output = '';
@@ -418,7 +982,10 @@ async function runPipeline({ appUrl, userStory }) {
 
     const env = {
       ...process.env,
-      APP_URL: appUrl
+      APP_URL: appUrl,
+      CLI_STORY_ID: storyId,
+      CLI_STORY_SOURCE: storySource,
+      CLI_STORY_NUMBER: String(storyNumber)
     };
 
     const proc = spawn('node', ['src/index.js'], {
@@ -437,12 +1004,18 @@ async function runPipeline({ appUrl, userStory }) {
         runId,
         startedAt,
         finishedAt,
+        runType: 'FULL',
+        storyFolder,
+        storySource,
+        projectId: String(projectInfo?.projectId || ''),
+        projectName: String(projectInfo?.projectName || ''),
         status: 'ERROR',
         exitCode: -1,
         outputTail: `${output}\n${error.message}`.trim(),
         totals: { executed: 0, passed: 0, failed: 0 }
       };
       await appendRunHistory(entry);
+      await persistProjectRunArtifacts({ runEntry: entry, includeStoryFolder: storyFolder });
       resolve({ ok: false, status: 500, error: error.message, entry });
     });
 
@@ -453,7 +1026,7 @@ async function runPipeline({ appUrl, userStory }) {
       } catch (error) {
         buildError = error;
       }
-      const totals = await readLatestReportTotals();
+      const totals = await readLatestReportTotals(storyFolder);
 
       isRunInProgress = false;
       const finishedAt = new Date().toISOString();
@@ -461,6 +1034,11 @@ async function runPipeline({ appUrl, userStory }) {
         runId,
         startedAt,
         finishedAt,
+        runType: 'FULL',
+        storyFolder,
+        storySource,
+        projectId: String(projectInfo?.projectId || ''),
+        projectName: String(projectInfo?.projectName || ''),
         status: code === 0 ? 'PASS' : 'FAIL',
         exitCode: Number(code),
         outputTail: output.trim(),
@@ -468,6 +1046,8 @@ async function runPipeline({ appUrl, userStory }) {
       };
 
       await appendRunHistory(entry);
+      await trackProjectStoryFolder(entry.projectId, storyFolder);
+      await persistProjectRunArtifacts({ runEntry: entry, includeStoryFolder: storyFolder });
 
       if (buildError) {
         resolve({ ok: false, status: 500, error: buildError.message, entry });
@@ -480,6 +1060,131 @@ async function runPipeline({ appUrl, userStory }) {
 
     proc.stdin.write(`${String(userStory || '').trim()}\n`);
     proc.stdin.end();
+  });
+}
+
+function normalizeRegressionScripts(selectedScripts) {
+  const scripts = Array.isArray(selectedScripts) ? selectedScripts : [];
+  const normalized = scripts
+    .map((entry) => String(entry || '').trim().replace(/\\/g, '/'))
+    .filter(Boolean)
+    .filter((entry) => entry.startsWith('generated_tests/'))
+    .filter((entry) => entry.endsWith('.spec.js'))
+    .filter((entry) => !entry.includes('..'));
+
+  return [...new Set(normalized)];
+}
+
+async function runRegressionPipeline({ appUrl, selectedScripts = [], suiteName = '' }) {
+  if (isRunInProgress) {
+    return { ok: false, status: 409, error: 'A test run is already in progress. Please wait for completion.' };
+  }
+
+  isRunInProgress = true;
+  const startedAt = new Date().toISOString();
+  const projectInfo = await getSelectedProjectInfo();
+
+  return new Promise((resolve) => {
+    let output = '';
+    const maxChars = 30_000;
+    const runId = `run_${Date.now()}`;
+
+    function append(text) {
+      output += text;
+      if (output.length > maxChars) {
+        output = output.slice(output.length - maxChars);
+      }
+    }
+
+    const env = {
+      ...process.env,
+      APP_URL: appUrl
+    };
+
+    const safeSelectedScripts = normalizeRegressionScripts(selectedScripts);
+    const safeSuiteName = String(suiteName || '').trim();
+    const playwrightArgs = ['playwright', 'test', '--config=playwright.config.js'];
+    if (safeSelectedScripts.length > 0) {
+      playwrightArgs.push(...safeSelectedScripts);
+    } else {
+      playwrightArgs.push('generated_tests');
+    }
+
+    const proc = spawn('npx', playwrightArgs, {
+      cwd: rootDir,
+      env,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      shell: true
+    });
+
+    proc.stdout.on('data', (data) => append(String(data)));
+    proc.stderr.on('data', (data) => append(String(data)));
+
+    proc.on('error', async (error) => {
+      isRunInProgress = false;
+      const finishedAt = new Date().toISOString();
+      const entry = {
+        runId,
+        startedAt,
+        finishedAt,
+        runType: 'REGRESSION',
+        suiteName: safeSuiteName,
+        selectedScripts: safeSelectedScripts,
+        projectId: String(projectInfo?.projectId || ''),
+        projectName: String(projectInfo?.projectName || ''),
+        status: 'ERROR',
+        exitCode: -1,
+        outputTail: `${output}\n${error.message}`.trim(),
+        totals: { executed: 0, passed: 0, failed: 0 }
+      };
+      await appendRunHistory(entry);
+      await persistProjectRunArtifacts({ runEntry: entry });
+      resolve({ ok: false, status: 500, error: error.message, entry });
+    });
+
+    proc.on('close', async (code) => {
+      let buildError = null;
+      try {
+        await buildReportData();
+      } catch (error) {
+        buildError = error;
+      }
+
+      isRunInProgress = false;
+      const finishedAt = new Date().toISOString();
+      const parsedTotals = parseRegressionTotals(output);
+      const fallbackTotals = await readLatestReportTotals();
+      const totals = parsedTotals.executed > 0 ? {
+        executed: parsedTotals.executed,
+        passed: parsedTotals.passed,
+        failed: parsedTotals.failed
+      } : fallbackTotals;
+
+      const entry = {
+        runId,
+        startedAt,
+        finishedAt,
+        runType: 'REGRESSION',
+        suiteName: safeSuiteName,
+        selectedScripts: safeSelectedScripts,
+        projectId: String(projectInfo?.projectId || ''),
+        projectName: String(projectInfo?.projectName || ''),
+        status: code === 0 ? 'PASS' : 'FAIL',
+        exitCode: Number(code),
+        outputTail: output.trim(),
+        totals
+      };
+
+      await appendRunHistory(entry);
+      await persistProjectRunArtifacts({ runEntry: entry });
+
+      if (buildError) {
+        resolve({ ok: false, status: 500, error: buildError.message, entry });
+        return;
+      }
+
+      resolve({ ok: true, status: 200, entry });
+    });
   });
 }
 
@@ -510,25 +1215,204 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === 'GET' && url.pathname === '/api/history') {
     const history = await readRunHistory();
-    writeJson(req, res, 200, { items: history });
+    const projectIdFilter = String(url.searchParams.get('projectId') || '').trim();
+    const items = projectIdFilter
+      ? history.filter((entry) => String(entry?.projectId || '') === projectIdFilter)
+      : history;
+    writeJson(req, res, 200, { items });
     return;
   }
 
+  if (req.method === 'GET' && url.pathname === '/api/report-data') {
+    const runId = String(url.searchParams.get('runId') || '').trim();
+    const reportData = await readRunScopedReportData(runId);
+    if (!reportData) {
+      writeJson(req, res, 404, { error: 'Report data not found.' });
+      return;
+    }
+
+    writeJson(req, res, 200, reportData);
+    return;
+  }
+
+  if (req.method === 'GET' && url.pathname === '/api/projects') {
+    const registry = await readProjectRegistry();
+    writeJson(req, res, 200, registry);
+    return;
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/projects') {
+    try {
+      const body = await readJsonBody(req);
+      const name = sanitizeProjectName(body.name);
+      const description = String(body.description || '').trim();
+
+      if (!name) {
+        writeJson(req, res, 400, { error: 'Project name is required.' });
+        return;
+      }
+
+      const registry = await readProjectRegistry();
+      const duplicate = registry.projects.find((project) => project.name.toLowerCase() === name.toLowerCase());
+      if (duplicate) {
+        writeJson(req, res, 409, { error: 'Project name already exists.' });
+        return;
+      }
+
+      const now = new Date().toISOString();
+      const project = {
+        id: makeEntityId('project', name),
+        name,
+        description,
+        createdAt: now,
+        updatedAt: now,
+        storyFolders: [],
+        urls: []
+      };
+
+      registry.projects.push(project);
+      registry.selectedProjectId = project.id;
+      await writeProjectRegistry(registry);
+      writeJson(req, res, 200, { project, selectedProjectId: project.id });
+      return;
+    } catch (error) {
+      writeJson(req, res, 500, { error: error.message });
+      return;
+    }
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/projects/select') {
+    try {
+      const body = await readJsonBody(req);
+      const projectId = String(body.projectId || '').trim();
+      if (!projectId) {
+        writeJson(req, res, 400, { error: 'projectId is required.' });
+        return;
+      }
+
+      const registry = await readProjectRegistry();
+      const selected = registry.projects.find((project) => project.id === projectId);
+      if (!selected) {
+        writeJson(req, res, 404, { error: 'Project not found.' });
+        return;
+      }
+
+      registry.selectedProjectId = projectId;
+      await writeProjectRegistry(registry);
+      writeJson(req, res, 200, { selectedProjectId: projectId });
+      return;
+    } catch (error) {
+      writeJson(req, res, 500, { error: error.message });
+      return;
+    }
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/projects/urls') {
+    try {
+      const body = await readJsonBody(req);
+      const projectId = String(body.projectId || '').trim();
+      const urlValue = String(body.url || '').trim();
+      const label = String(body.label || '').trim() || 'Saved URL';
+      const isDefault = Boolean(body.isDefault);
+
+      if (!projectId) {
+        writeJson(req, res, 400, { error: 'projectId is required.' });
+        return;
+      }
+
+      if (!isHttpUrl(urlValue)) {
+        writeJson(req, res, 400, { error: 'A valid http/https url is required.' });
+        return;
+      }
+
+      const registry = await readProjectRegistry();
+      const now = new Date().toISOString();
+      let savedUrl = null;
+      let projectFound = false;
+
+      registry.projects = registry.projects.map((project) => {
+        if (project.id !== projectId) {
+          return project;
+        }
+
+        projectFound = true;
+        const urls = Array.isArray(project.urls) ? project.urls : [];
+        const existing = urls.find((entry) => String(entry.url || '').trim() === urlValue);
+        const nextUrls = urls.map((entry) => ({
+          ...entry,
+          isDefault: isDefault ? false : Boolean(entry.isDefault),
+          updatedAt: now
+        }));
+
+        if (existing) {
+          const updated = {
+            ...existing,
+            label,
+            isDefault: isDefault ? true : Boolean(existing.isDefault),
+            updatedAt: now
+          };
+          savedUrl = updated;
+          return {
+            ...project,
+            urls: nextUrls.map((entry) => (entry.id === existing.id ? updated : entry)),
+            updatedAt: now
+          };
+        }
+
+        const created = {
+          id: makeEntityId('url', label),
+          label,
+          url: urlValue,
+          isDefault,
+          createdAt: now,
+          updatedAt: now
+        };
+        savedUrl = created;
+        return {
+          ...project,
+          urls: [...nextUrls, created],
+          updatedAt: now
+        };
+      });
+
+      if (!projectFound) {
+        writeJson(req, res, 404, { error: 'Project not found.' });
+        return;
+      }
+
+      await writeProjectRegistry(registry);
+      writeJson(req, res, 200, { url: savedUrl });
+      return;
+    } catch (error) {
+      writeJson(req, res, 500, { error: error.message });
+      return;
+    }
+  }
+
   if (req.method === 'GET' && url.pathname === '/api/default-url') {
-    const appUrl = await readDefaultUrlFromEnvFile();
-    writeJson(req, res, 200, { appUrl });
+    const result = await readDefaultUrl();
+    writeJson(req, res, 200, result);
     return;
   }
 
   if (req.method === 'GET' && url.pathname === '/api/manual-test-cases') {
-    const manualData = await readManualTestCases();
+    const projectId = String(url.searchParams.get('projectId') || '').trim();
+    const manualData = await readManualTestCases({ projectId });
     writeJson(req, res, 200, manualData);
+    return;
+  }
+
+  if (req.method === 'GET' && url.pathname === '/api/project-stories') {
+    const projectId = String(url.searchParams.get('projectId') || '').trim();
+    const storyData = await readProjectStories({ projectId });
+    writeJson(req, res, 200, storyData);
     return;
   }
 
   if (req.method === 'GET' && url.pathname === '/api/manual-test-cases/download') {
     const format = String(url.searchParams.get('format') || '').toLowerCase();
-    const manualData = await readManualTestCases();
+    const projectId = String(url.searchParams.get('projectId') || '').trim();
+    const manualData = await readManualTestCases({ projectId });
 
     if (format === 'excel') {
       const csv = buildManualCasesCsv(manualData);
@@ -571,8 +1455,13 @@ const server = http.createServer(async (req, res) => {
         return;
       }
 
-      const savedUrl = await saveDefaultUrlToEnvFile(appUrl);
-      writeJson(req, res, 200, { appUrl: savedUrl });
+      const savedProjectUrl = await saveDefaultUrlForSelectedProject(appUrl);
+      await saveDefaultUrlToEnvFile(appUrl);
+      writeJson(req, res, 200, {
+        appUrl,
+        savedToProject: Boolean(savedProjectUrl),
+        projectUrlId: String(savedProjectUrl?.id || '')
+      });
       return;
     } catch (error) {
       writeJson(req, res, 500, { error: error.message });
@@ -614,6 +1503,7 @@ const server = http.createServer(async (req, res) => {
       }
 
       if (saveDefaultUrl) {
+        await saveDefaultUrlForSelectedProject(appUrl);
         await saveDefaultUrlToEnvFile(appUrl);
       }
 
@@ -624,6 +1514,66 @@ const server = http.createServer(async (req, res) => {
       }
 
       writeJson(req, res, 200, { message: 'Run completed', run: runResult.entry });
+      return;
+    } catch (error) {
+      writeJson(req, res, 500, { error: error.message });
+      return;
+    }
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/run-regression') {
+    try {
+      const body = await readJsonBody(req);
+      const appUrl = String(body.appUrl || '').trim();
+      const saveDefaultUrl = Boolean(body.saveDefaultUrl);
+      const selectedScripts = normalizeRegressionScripts(body.selectedScripts);
+      const suiteName = String(body.suiteName || '').trim();
+
+      if (!suiteName) {
+        writeJson(req, res, 400, { error: 'suiteName is required for regression run.' });
+        return;
+      }
+
+      if (Array.isArray(body.selectedScripts) && body.selectedScripts.length > 0 && selectedScripts.length === 0) {
+        writeJson(req, res, 400, { error: 'No valid regression scripts were selected.' });
+        return;
+      }
+
+      if (!appUrl) {
+        const failureEntry = await appendPrecheckFailure({
+          reason: 'appUrl is required.',
+          appUrl,
+          userStory: '',
+          runType: 'REGRESSION'
+        });
+        writeJson(req, res, 400, { error: 'appUrl is required.', run: failureEntry });
+        return;
+      }
+
+      const urlValidation = await validateUrlReachability(appUrl);
+      if (!urlValidation.ok) {
+        const failureEntry = await appendPrecheckFailure({
+          reason: urlValidation.message,
+          appUrl,
+          userStory: '',
+          runType: 'REGRESSION'
+        });
+        writeJson(req, res, 400, { error: urlValidation.message, run: failureEntry });
+        return;
+      }
+
+      if (saveDefaultUrl) {
+        await saveDefaultUrlForSelectedProject(appUrl);
+        await saveDefaultUrlToEnvFile(appUrl);
+      }
+
+      const runResult = await runRegressionPipeline({ appUrl, selectedScripts, suiteName });
+      if (!runResult.ok) {
+        writeJson(req, res, runResult.status, { error: runResult.error || 'Regression run failed', run: runResult.entry });
+        return;
+      }
+
+      writeJson(req, res, 200, { message: 'Regression run completed', run: runResult.entry });
       return;
     } catch (error) {
       writeJson(req, res, 500, { error: error.message });
