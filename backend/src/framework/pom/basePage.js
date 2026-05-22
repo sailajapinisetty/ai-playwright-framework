@@ -1,0 +1,1 @@
+export { BasePage } from '../../../playwright-tests/framework/pom/basePage.js';

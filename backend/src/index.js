@@ -54,6 +54,15 @@ function toShortDescription(value) {
     .join('_') || 'scenario';
 }
 
+function toSuiteTag(value, fallback = '') {
+  const normalized = String(value || fallback)
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return normalized || fallback;
+}
+
 function normalizeProjectCode(value) {
   const normalized = String(value || '')
     .toUpperCase()
@@ -384,6 +393,14 @@ async function main() {
           fileNameHint,
           resultNameBase,
           screenshotPath,
+          suiteTags: [
+            'ai',
+            'regression',
+            `story-${storyNumber}`,
+            `case-${caseIndex + 1}`,
+            `type-${toSuiteTag(selectedCase.type, 'functional')}`,
+            `priority-${toSuiteTag(selectedCase.priority, 'medium')}`
+          ],
           outputDir: caseOutputDir
         });
 

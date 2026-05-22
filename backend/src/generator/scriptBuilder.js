@@ -39,27 +39,60 @@ function toPreferredGotoTarget(value) {
   return text;
 }
 
+function toPosixPath(value = '') {
+  return String(value).replace(/\\/g, '/');
+}
+
+function toImportPath(fromDir, targetPath) {
+  const relativePath = toPosixPath(path.relative(fromDir, targetPath));
+  return relativePath.startsWith('.') ? relativePath : `./${relativePath}`;
+}
+
+function sanitizeTag(tag) {
+  return String(tag || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function buildTaggedTitle(title, suiteTags = []) {
+  const safeTitle = String(title || 'AI generated test').trim() || 'AI generated test';
+  const tags = new Set();
+  const preferredTags = Array.isArray(suiteTags) ? suiteTags : ['ai', 'regression'];
+
+  for (const rawTag of preferredTags) {
+    const normalized = sanitizeTag(rawTag);
+    if (normalized) {
+      tags.add(`@${normalized}`);
+    }
+  }
+
+  const tagSuffix = [...tags].join(' ');
+  return tagSuffix ? `${safeTitle} ${tagSuffix}` : safeTitle;
+}
+
 function stepToCode(step) {
   const action = step.action;
-  const selector = step.selector ? `\`${esc(step.selector)}\`` : null;
-  const value = step.value ? `\`${esc(step.value)}\`` : null;
+  const selector = step.selector ? toJsString(step.selector) : null;
+  const value = step.value ? toJsString(step.value) : null;
   const description = toJsString(step.description || '');
 
   switch (action) {
     case 'goto':
-      return `await page.goto(${toJsString(toPreferredGotoTarget(step.value || config.appUrl))});`;
+      return `await app.gotoTarget(${toJsString(toPreferredGotoTarget(step.value || config.appUrl))});`;
     case 'click':
-      return `await clickWithFallback(page, ${selector || "''"}, ${description});`;
+      return `await app.click(${selector || "''"}, ${description});`;
     case 'fill':
-      return `await fillWithFallback(page, ${selector || "''"}, ${value || "''"}, ${description});`;
+      return `await app.fill(${selector || "''"}, ${value || "''"}, ${description});`;
     case 'press':
-      return `await pressWithFallback(page, ${selector || "''"}, ${value || "'Enter'"}, ${description});`;
+      return `await app.press(${selector || "''"}, ${value || "'Enter'"}, ${description});`;
     case 'waitFor':
-      return `await waitForWithFallback(page, ${selector || "''"}, ${description});`;
+      return `await app.waitForVisible(${selector || "''"}, ${description});`;
     case 'assertVisible':
-      return `await expectVisibleWithFallback(page, ${selector || "''"}, ${description});`;
+      return `await app.expectVisible(${selector || "''"}, ${description});`;
     case 'assertText':
-      return `await expectTextWithFallback(page, ${selector || "''"}, ${value || "''"}, ${description});`;
+      return `await app.expectText(${selector || "''"}, ${value || "''"}, ${description});`;
     default:
       return `// Unsupported action from AI: ${esc(action)};`;
   }
@@ -81,123 +114,16 @@ export async function buildPlaywrightScript(plan, options = {}) {
   const filePath = path.join(generatedDir, fileName);
   const screenshotPath = options.screenshotPath || 'artifacts/final-ui.png';
   const resultNameBase = options.resultNameBase || null;
+  const taggedTitle = buildTaggedTitle(plan.title, options.suiteTags);
+  const fixturePath = path.resolve(process.cwd(), 'playwright-tests', 'framework', 'fixtures', 'testFixtures.js');
+  const fixtureImportPath = toImportPath(path.dirname(filePath), fixturePath);
 
   const lines = [];
-  lines.push("import { test, expect } from '@playwright/test';");
+  lines.push(`import { test } from '${esc(fixtureImportPath)}';`);
   lines.push('');
-  lines.push('function parseRoleSelector(selector) {');
-  lines.push('  const match = String(selector || "").match(/^role=([a-z]+)(?:\\[name(\\*?)=[\'\"](.+?)[\'\"]\\])?$/i);');
-  lines.push('  if (!match) return null;');
-  lines.push('  return { role: match[1], isPartial: match[2] === "*", name: match[3] || "" };');
-  lines.push('}');
-  lines.push('');
-  lines.push('function textPattern(value) {');
-  lines.push('  const escaped = String(value || "").replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&");');
-  lines.push('  return new RegExp(escaped, "i");');
-  lines.push('}');
-  lines.push('');
-  lines.push('async function firstExisting(candidates) {');
-  lines.push('  for (const locator of candidates) {');
-  lines.push('    if (!locator) continue;');
-  lines.push('    try {');
-  lines.push('      if (await locator.count()) return locator.first();');
-  lines.push('    } catch {');
-  lines.push('      // Ignore malformed locator candidates and continue to fallback options.');
-  lines.push('    }');
-  lines.push('  }');
-  lines.push('  return null;');
-  lines.push('}');
-  lines.push('');
-  lines.push('function semanticCandidates(page, hint) {');
-  lines.push('  const text = String(hint || "").toLowerCase();');
-  lines.push('  const candidates = [];');
-  lines.push('');
-  lines.push('  if (text.includes("search")) {');
-  lines.push('    candidates.push(page.getByRole("searchbox", { name: /search/i }));');
-  lines.push('    candidates.push(page.getByPlaceholder(/search/i));');
-  lines.push('    candidates.push(page.getByLabel(/search/i));');
-  lines.push('    candidates.push(page.locator("input[type=\\"search\\"], input[placeholder*=\\"search\\" i], input[aria-label*=\\"search\\" i]"));');
-  lines.push('  }');
-  lines.push('');
-  lines.push('  if (text.includes("view details") || text.includes("details")) {');
-  lines.push('    candidates.push(page.getByRole("link", { name: /details|view details/i }));');
-  lines.push('  }');
-  lines.push('');
-  lines.push('  if (text.includes("add to cart") || text.includes("add")) {');
-  lines.push('    candidates.push(page.getByRole("button", { name: /add to cart|add/i }));');
-  lines.push('  }');
-  lines.push('');
-  lines.push('  if (text.includes("cart")) {');
-  lines.push('    candidates.push(page.getByRole("link", { name: /cart/i }));');
-  lines.push('  }');
-  lines.push('');
-  lines.push('  return candidates;');
-  lines.push('}');
-  lines.push('');
-  lines.push('async function resolveLocator(page, selector, description) {');
-  lines.push('  const selectorText = String(selector || "").trim();');
-  lines.push('  const descriptionText = String(description || "").trim();');
-  lines.push('  const candidates = [];');
-  lines.push('');
-  lines.push('  if (selectorText) {');
-  lines.push('    candidates.push(page.locator(selectorText));');
-  lines.push('');
-  lines.push('    const roleInfo = parseRoleSelector(selectorText);');
-  lines.push('    if (roleInfo) {');
-  lines.push('      if (roleInfo.name) {');
-  lines.push('        candidates.push(page.getByRole(roleInfo.role, { name: roleInfo.isPartial ? textPattern(roleInfo.name) : roleInfo.name }));');
-  lines.push('      } else {');
-  lines.push('        candidates.push(page.getByRole(roleInfo.role));');
-  lines.push('      }');
-  lines.push('    }');
-  lines.push('');
-  lines.push('    if (selectorText.startsWith("text=")) {');
-  lines.push('      candidates.push(page.getByText(selectorText.slice(5)));');
-  lines.push('    }');
-  lines.push('  }');
-  lines.push('');
-  lines.push('  candidates.push(...semanticCandidates(page, `${selectorText} ${descriptionText}`));');
-  lines.push('');
-  lines.push('  const resolved = await firstExisting(candidates);');
-  lines.push('  if (!resolved) {');
-  lines.push('    throw new Error(`Unable to resolve locator. selector="${selectorText}" description="${descriptionText}"`);');
-  lines.push('  }');
-  lines.push('  return resolved;');
-  lines.push('}');
-  lines.push('');
-  lines.push('async function clickWithFallback(page, selector, description) {');
-  lines.push('  const locator = await resolveLocator(page, selector, description);');
-  lines.push('  await locator.click();');
-  lines.push('}');
-  lines.push('');
-  lines.push('async function fillWithFallback(page, selector, value, description) {');
-  lines.push('  const locator = await resolveLocator(page, selector, description);');
-  lines.push('  await locator.fill(value);');
-  lines.push('}');
-  lines.push('');
-  lines.push('async function pressWithFallback(page, selector, key, description) {');
-  lines.push('  const locator = await resolveLocator(page, selector, description);');
-  lines.push('  await locator.press(key);');
-  lines.push('}');
-  lines.push('');
-  lines.push('async function waitForWithFallback(page, selector, description) {');
-  lines.push('  const locator = await resolveLocator(page, selector, description);');
-  lines.push('  await expect(locator).toBeVisible();');
-  lines.push('}');
-  lines.push('');
-  lines.push('async function expectVisibleWithFallback(page, selector, description) {');
-  lines.push('  const locator = await resolveLocator(page, selector, description);');
-  lines.push('  await expect(locator).toBeVisible();');
-  lines.push('}');
-  lines.push('');
-  lines.push('async function expectTextWithFallback(page, selector, value, description) {');
-  lines.push('  const locator = await resolveLocator(page, selector, description);');
-  lines.push('  await expect(locator).toContainText(value);');
-  lines.push('}');
-  lines.push('');
-  lines.push(`test('${esc(plan.title)}', async ({ page }, testInfo) => {`);
+  lines.push(`test('${esc(taggedTitle)}', async ({ app }, testInfo) => {`);
   lines.push('  try {');
-  lines.push(`    await page.goto('${esc(toPreferredGotoTarget(plan.url || config.appUrl))}');`);
+  lines.push(`    await app.gotoTarget('${esc(toPreferredGotoTarget(plan.url || config.appUrl))}');`);
   lines.push('');
 
   for (const step of plan.steps) {
@@ -209,10 +135,10 @@ export async function buildPlaywrightScript(plan, options = {}) {
   }
 
   lines.push('  } finally {');
-  lines.push('    if (!page.isClosed()) {');
-  lines.push(`      await page.screenshot({ path: '${esc(screenshotPath)}', fullPage: true });`);
+  lines.push('    if (!app.page.isClosed()) {');
+  lines.push(`      await app.page.screenshot({ path: '${esc(screenshotPath)}', fullPage: true });`);
   if (resultNameBase) {
-    lines.push(`      await page.screenshot({ path: \`test-results/${esc(resultNameBase)}__\${testInfo.project.name}.png\`, fullPage: true });`);
+    lines.push(`      await app.page.screenshot({ path: \`test-results/${esc(resultNameBase)}__\${testInfo.project.name}.png\`, fullPage: true });`);
   }
   lines.push('    }');
   lines.push('  }');

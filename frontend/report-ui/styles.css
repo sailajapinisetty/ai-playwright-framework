@@ -609,6 +609,67 @@ body {
   text-transform: uppercase;
 }
 
+.insight-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.insight-card {
+  border: 1px solid rgba(28, 26, 24, 0.12);
+  border-radius: 12px;
+  background: rgba(255, 251, 245, 0.85);
+  padding: 12px;
+}
+
+.insight-card h4 {
+  margin: 0;
+}
+
+.quality-score-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.quality-score-row h3 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.quality-score-row p {
+  margin: 6px 0 0;
+}
+
+.confidence-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 110px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  font-size: 18px;
+  font-weight: 700;
+  background: rgba(28, 26, 24, 0.1);
+}
+
+.confidence-pill.pass {
+  background: rgba(36, 106, 74, 0.16);
+  color: var(--success);
+}
+
+.confidence-pill.warn {
+  background: rgba(157, 100, 21, 0.16);
+  color: #7a4f12;
+}
+
+.confidence-pill.fail {
+  background: rgba(138, 47, 47, 0.14);
+  color: var(--danger);
+}
+
 @media (max-width: 960px) {
   .shell {
     grid-template-columns: 1fr;

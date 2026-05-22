@@ -14,6 +14,17 @@ export async function runGeneratedTest(testFiles = []) {
   await cleanPlaywrightArtifacts();
 
   const args = ['playwright', 'test'];
+  const grep = String(process.env.PW_GREP || '').trim();
+  const project = String(process.env.PW_PROJECT || '').trim();
+
+  if (grep) {
+    args.push('--grep', grep);
+  }
+
+  if (project) {
+    args.push('--project', project);
+  }
+
   if (Array.isArray(testFiles) && testFiles.length > 0) {
     args.push(...testFiles);
   } else {
