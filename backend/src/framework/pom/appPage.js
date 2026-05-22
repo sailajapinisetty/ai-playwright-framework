@@ -1,0 +1,1 @@
+export { AppPage } from '../../../playwright-tests/framework/pom/appPage.js';

@@ -48,8 +48,9 @@ function toAssetUrl(value) {
 function renderGlobalStats(report) {
   const totals = report.totals;
   return [
-    ['Total Automated Tests', totals.automated || 0],
-    ['Execution Passed', totals.automatedRunPassed || 0],
+    ['Total Tests', totals.tests || 0],
+    ['Automated Tests', totals.automated || 0],
+    ['Automated Passed', totals.automatedRunPassed || 0],
     ['Execution Failed', totals.automatedRunFailed || 0],
     ['Overall Coverage', `${report.coverage?.overallPercent || 0}%`]
   ].map(([label, value]) => `
@@ -176,6 +177,192 @@ function collectFailedCases(report) {
   return failedCases;
 }
 
+function normalizeTextKey(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]+/g, ' ')
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
+function inferSmartFailureReason(item) {
+  const raw = String(item?.failureCause || item?.outputTail || item?.validationSummary || '').trim();
+  if (!raw) {
+    return 'Failure reason not captured. Re-run with trace for richer diagnostics.';
+  }
+
+  const text = raw.toLowerCase();
+  if (text.includes('unable to resolve locator') || text.includes('locator')) {
+    return 'Likely selector drift or unstable locator. Prefer role/testid selectors and keep fallback strategy updated.';
+  }
+  if (text.includes('timeout')) {
+    return 'Likely synchronization issue (timing/wait condition). Add explicit waits for stable UI state and API completion.';
+  }
+  if (text.includes('tohaveurl') || text.includes('navigation') || text.includes('net::')) {
+    return 'Navigation/environment instability detected. Validate base URL, routing readiness, and network dependencies.';
+  }
+  if (text.includes('expect(') || text.includes('assert')) {
+    return 'Assertion mismatch against current behavior. Re-check expected outcome versus latest product flow.';
+  }
+
+  return `Unclassified failure pattern: ${raw.slice(0, 180)}${raw.length > 180 ? '...' : ''}`;
+}
+
+function collectAllCases(report) {
+  const all = [];
+  for (const story of Array.isArray(report?.stories) ? report.stories : []) {
+    for (const item of Array.isArray(story?.cases) ? story.cases : []) {
+      all.push({
+        ...item,
+        storyId: story.id,
+        storyTitle: story.title,
+        missingScenarioTitles: Array.isArray(story?.coverage?.missingScenarioTitles) ? story.coverage.missingScenarioTitles : []
+      });
+    }
+  }
+  return all;
+}
+
+function computeExecutionTrends(historyItems) {
+  const safeItems = Array.isArray(historyItems) ? historyItems : [];
+  const sorted = [...safeItems]
+    .filter((item) => item?.startedAt && item?.finishedAt)
+    .sort((a, b) => new Date(a.startedAt).getTime() - new Date(b.startedAt).getTime());
+
+  const points = sorted.slice(-8).map((item) => {
+    const started = new Date(item.startedAt).getTime();
+    const finished = new Date(item.finishedAt).getTime();
+    const durationSec = Number.isFinite(started) && Number.isFinite(finished) ? Math.max(0, Math.round((finished - started) / 1000)) : 0;
+    const totals = item?.totals || {};
+    const executed = Number(totals.executed || 0);
+    const passed = Number(totals.passed || 0);
+    const failed = Number(totals.failed || 0);
+    const passRate = executed > 0 ? Math.round((passed / executed) * 100) : (failed === 0 ? 100 : 0);
+    return {
+      runId: String(item.runId || ''),
+      runType: String(item.runType || 'FULL').toUpperCase(),
+      when: new Date(item.finishedAt || item.startedAt).toLocaleString(),
+      durationSec,
+      passRate,
+      executed,
+      passed,
+      failed
+    };
+  });
+
+  const avgDuration = points.length > 0
+    ? Math.round(points.reduce((sum, p) => sum + p.durationSec, 0) / points.length)
+    : 0;
+  const avgPassRate = points.length > 0
+    ? Math.round(points.reduce((sum, p) => sum + p.passRate, 0) / points.length)
+    : 0;
+
+  return { points, avgDuration, avgPassRate };
+}
+
+function computeQualityInsights(report, historyItems) {
+  const allCases = collectAllCases(report);
+  const failedCases = allCases.filter((item) => String(item.executionStatus || '').toUpperCase() === 'FAIL');
+  const passedCases = allCases.filter((item) => String(item.executionStatus || '').toUpperCase() === 'PASS');
+
+  const duplicatesMap = new Map();
+  for (const item of allCases) {
+    const key = normalizeTextKey(item.title || item.caseId);
+    if (!key) {
+      continue;
+    }
+    const existing = duplicatesMap.get(key) || [];
+    existing.push(item);
+    duplicatesMap.set(key, existing);
+  }
+  const duplicateGroups = [...duplicatesMap.values()].filter((group) => group.length > 1);
+
+  const flakyCases = allCases.filter((item) => {
+    const historyStatuses = (Array.isArray(item.runHistory) ? item.runHistory : [])
+      .map((entry) => String(entry?.executionStatus || '').toUpperCase())
+      .filter(Boolean);
+    const hasPass = historyStatuses.includes('PASS');
+    const hasFail = historyStatuses.includes('FAIL');
+    return hasPass && hasFail;
+  });
+
+  const highRiskIssues = [];
+  for (const item of failedCases) {
+    const priority = String(item.priority || '').toLowerCase();
+    if (priority === 'high' || priority === 'critical') {
+      highRiskIssues.push({
+        type: 'Failed high-priority test',
+        item,
+        detail: inferSmartFailureReason(item)
+      });
+    }
+  }
+  for (const item of flakyCases) {
+    highRiskIssues.push({
+      type: 'Flaky behavior',
+      item,
+      detail: 'Case has both PASS and FAIL outcomes across runs. Stabilize selectors and waits before release gating.'
+    });
+  }
+
+  const coverageGaps = [];
+  for (const story of Array.isArray(report?.stories) ? report.stories : []) {
+    const missing = Array.isArray(story?.coverage?.missingScenarioTitles) ? story.coverage.missingScenarioTitles : [];
+    for (const scenario of missing) {
+      coverageGaps.push({
+        storyTitle: story.title,
+        scenario: String(scenario || '').trim()
+      });
+    }
+  }
+
+  const suggestedTests = [];
+  for (const item of allCases) {
+    for (const suggestion of Array.isArray(item.improvements) ? item.improvements : []) {
+      if (suggestedTests.length >= 12) {
+        break;
+      }
+      suggestedTests.push({
+        storyTitle: item.storyTitle,
+        caseId: item.caseId,
+        suggestion: String(suggestion || '').trim()
+      });
+    }
+    if (suggestedTests.length >= 12) {
+      break;
+    }
+  }
+
+  const executionTrends = computeExecutionTrends(historyItems);
+
+  const totalCases = allCases.length;
+  const passRate = totalCases > 0 ? (passedCases.length / totalCases) : 0;
+  const coveragePercent = Number(report?.coverage?.overallPercent || 0) / 100;
+  const flakyPenalty = totalCases > 0 ? (flakyCases.length / totalCases) : 0;
+  const duplicatePenalty = totalCases > 0 ? (duplicateGroups.reduce((sum, group) => sum + (group.length - 1), 0) / totalCases) : 0;
+  const riskPenalty = Math.min(1, highRiskIssues.length / Math.max(1, totalCases));
+  const confidence = Math.max(0, Math.min(100, Math.round(
+    (passRate * 45) +
+    (coveragePercent * 35) +
+    ((1 - flakyPenalty) * 10) +
+    ((1 - duplicatePenalty) * 5) +
+    ((1 - riskPenalty) * 5)
+  )));
+
+  return {
+    allCases,
+    failedCases,
+    passedCases,
+    duplicateGroups,
+    flakyCases,
+    highRiskIssues,
+    coverageGaps,
+    suggestedTests,
+    executionTrends,
+    confidence
+  };
+}
+
 function collectPassedCases(report) {
   const passedCases = [];
   for (const story of Array.isArray(report?.stories) ? report.stories : []) {
@@ -222,11 +409,157 @@ function renderPassedCases(passedCases) {
   `;
 }
 
-function renderReportDetail(report) {
+function renderQualityInsights(report, historyItems) {
+  const insights = computeQualityInsights(report, historyItems);
+  const smartFailureCards = insights.failedCases.length === 0
+    ? '<p>No failed tests in this selection.</p>'
+    : insights.failedCases.map((item) => `
+      <article class="insight-card">
+        <p class="eyebrow">${escapeHtml(item.storyTitle)} | ${escapeHtml(item.caseId)}</p>
+        <h4>${escapeHtml(item.title)}</h4>
+        <p>${escapeHtml(inferSmartFailureReason(item))}</p>
+      </article>
+    `).join('');
+
+  const flakyList = insights.flakyCases.length === 0
+    ? '<p>No flaky tests detected from available run history.</p>'
+    : `<ul class="list-block">${insights.flakyCases.map((item) => `<li>${escapeHtml(item.caseId)} - ${escapeHtml(item.title)} (${escapeHtml(item.storyTitle)})</li>`).join('')}</ul>`;
+
+  const duplicateList = insights.duplicateGroups.length === 0
+    ? '<p>No duplicate test titles detected.</p>'
+    : `<ul class="list-block">${insights.duplicateGroups.map((group) => {
+      const first = group[0] || {};
+      const list = group.map((item) => `${item.caseId} (${item.storyTitle})`).join(', ');
+      return `<li>${escapeHtml(first.title || first.caseId)} -> ${escapeHtml(list)}</li>`;
+    }).join('')}</ul>`;
+
+  const riskList = insights.highRiskIssues.length === 0
+    ? '<p>No high-risk issues detected for this report snapshot.</p>'
+    : `<ul class="list-block">${insights.highRiskIssues.slice(0, 12).map((entry) => `<li><strong>${escapeHtml(entry.type)}:</strong> ${escapeHtml(entry.item.caseId)} - ${escapeHtml(entry.detail)}</li>`).join('')}</ul>`;
+
+  const coverageGapList = insights.coverageGaps.length === 0
+    ? '<p>No coverage gaps reported by story coverage metadata.</p>'
+    : `<ul class="list-block">${insights.coverageGaps.map((gap) => `<li>${escapeHtml(gap.storyTitle)}: ${escapeHtml(gap.scenario)}</li>`).join('')}</ul>`;
+
+  const trends = insights.executionTrends;
+  const trendRows = trends.points.length === 0
+    ? '<p>No execution trend data yet.</p>'
+    : `
+      <div class="table-wrap">
+        <table class="cases-table">
+          <thead>
+            <tr>
+              <th>Run</th>
+              <th>Type</th>
+              <th>Duration (s)</th>
+              <th>Pass Rate</th>
+              <th>Executed</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${trends.points.map((p) => `
+              <tr>
+                <td>${escapeHtml(p.when)}</td>
+                <td>${escapeHtml(p.runType)}</td>
+                <td>${escapeHtml(p.durationSec)}</td>
+                <td>${escapeHtml(`${p.passRate}%`)}</td>
+                <td>${escapeHtml(p.executed)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+      <p>Average duration: <strong>${escapeHtml(trends.avgDuration)}s</strong> | Average pass rate: <strong>${escapeHtml(trends.avgPassRate)}%</strong></p>
+    `;
+
+  const suggestedList = insights.suggestedTests.length === 0
+    ? '<p>No AI improvement suggestions found yet.</p>'
+    : `<ul class="list-block">${insights.suggestedTests.map((item) => `<li>${escapeHtml(item.caseId)} (${escapeHtml(item.storyTitle)}): ${escapeHtml(item.suggestion)}</li>`).join('')}</ul>`;
+
+  const missingScenariosList = insights.coverageGaps.length === 0
+    ? '<p>No missing scenarios were detected.</p>'
+    : `<ul class="list-block">${insights.coverageGaps.map((gap) => `<li>${escapeHtml(gap.scenario)}</li>`).join('')}</ul>`;
+
+  return `
+    <article class="section-card">
+      <p class="eyebrow">AI Quality Intelligence</p>
+      <div class="quality-score-row">
+        <div>
+          <h3>Playwright Test Confidence Score</h3>
+          <p>Composite signal from pass rate, coverage, flakiness, duplication, and risk.</p>
+        </div>
+        <div class="confidence-pill ${insights.confidence >= 75 ? 'pass' : (insights.confidence >= 50 ? 'warn' : 'fail')}">${escapeHtml(`${insights.confidence}/100`)}</div>
+      </div>
+      <div class="insight-grid">
+        <article class="insight-card"><p class="eyebrow">Flaky Tests</p><h4>${escapeHtml(insights.flakyCases.length)}</h4></article>
+        <article class="insight-card"><p class="eyebrow">Duplicate Tests</p><h4>${escapeHtml(insights.duplicateGroups.length)}</h4></article>
+        <article class="insight-card"><p class="eyebrow">High Risk Issues</p><h4>${escapeHtml(insights.highRiskIssues.length)}</h4></article>
+        <article class="insight-card"><p class="eyebrow">Coverage Gaps</p><h4>${escapeHtml(insights.coverageGaps.length)}</h4></article>
+      </div>
+    </article>
+
+    <article class="section-card">
+      <p class="eyebrow">Failed Tests With Smart Reasons</p>
+      <div class="insight-grid">${smartFailureCards}</div>
+    </article>
+
+    <article class="section-card">
+      <p class="eyebrow">Flaky Tests</p>
+      ${flakyList}
+    </article>
+
+    <article class="section-card">
+      <p class="eyebrow">Duplicate Tests</p>
+      ${duplicateList}
+    </article>
+
+    <article class="section-card">
+      <p class="eyebrow">High Risk Issues</p>
+      ${riskList}
+    </article>
+
+    <article class="section-card">
+      <p class="eyebrow">Coverage Gaps</p>
+      ${coverageGapList}
+    </article>
+
+    <article class="section-card">
+      <p class="eyebrow">Execution Time Trends</p>
+      ${trendRows}
+    </article>
+
+    <article class="section-card">
+      <p class="eyebrow">Suggested Tests (AI Recommendations)</p>
+      ${suggestedList}
+    </article>
+
+    <article class="section-card">
+      <p class="eyebrow">Missing Scenarios</p>
+      ${missingScenariosList}
+    </article>
+  `;
+}
+
+function renderReportDetail(report, historyItems = []) {
   const passedCases = collectPassedCases(report);
   const failedCases = collectFailedCases(report);
   const detailPanel = document.getElementById('detail-panel');
+  const totalTests = Number(report?.totals?.tests || 0);
+  const totalAutomated = Number(report?.totals?.automated || 0);
+  const totalAutomatedPassed = Number(report?.totals?.automatedRunPassed || 0);
+  const totalPassed = Number(report?.totals?.executionPassed || 0);
+  const totalFailed = Number(report?.totals?.executionFailed || 0);
   detailPanel.innerHTML = `
+    <article class="section-card">
+      <p class="eyebrow">Execution Snapshot</p>
+      <div class="insight-grid">
+        <article class="insight-card"><p class="eyebrow">Total Tests</p><h4>${escapeHtml(totalTests)}</h4></article>
+        <article class="insight-card"><p class="eyebrow">Automated Tests</p><h4>${escapeHtml(totalAutomated)}</h4></article>
+        <article class="insight-card"><p class="eyebrow">Automated Passed</p><h4>${escapeHtml(totalAutomatedPassed)}</h4></article>
+        <article class="insight-card"><p class="eyebrow">Passed Tests</p><h4>${escapeHtml(totalPassed)}</h4></article>
+        <article class="insight-card"><p class="eyebrow">Failed Tests</p><h4>${escapeHtml(totalFailed)}</h4></article>
+      </div>
+    </article>
     <article class="section-card">
       <p class="eyebrow">Passed Tests With Screenshots</p>
       ${renderPassedCases(passedCases)}
@@ -239,6 +572,7 @@ function renderReportDetail(report) {
       <p class="eyebrow">Debug Panel</p>
       <p>Click a failed test to view failure cause and debug steps.</p>
     </article>
+    ${renderQualityInsights(report, historyItems)}
   `;
 
   const failedCaseMap = new Map(failedCases.map((item) => [item.failedKey, item]));
@@ -414,7 +748,7 @@ function wireReport(report, options = {}) {
     generatedAtNode.textContent = overrideText || `Generated ${new Date(report.generatedAt).toLocaleString()}`;
   }
   document.getElementById('global-stats').innerHTML = renderGlobalStats(report);
-  renderReportDetail(report);
+  renderReportDetail(report, options.historyItems || []);
 }
 
 async function submitRun(appUrl, userStory, saveDefaultUrl) {
@@ -1655,8 +1989,12 @@ async function initReportPage() {
         if (runType === 'REGRESSION') {
           runTypeBadge.textContent = 'Regression Report';
           runTypeBadge.classList.remove('hidden');
+        } else if (runType === 'FULL') {
+          runTypeBadge.textContent = 'Story Testing Report';
+          runTypeBadge.classList.remove('hidden');
         } else {
-          runTypeBadge.classList.add('hidden');
+          runTypeBadge.textContent = `${runType} Report`;
+          runTypeBadge.classList.remove('hidden');
         }
       }
       if (runType === 'REGRESSION' && suiteSelectionMetaNode) {
@@ -1681,7 +2019,8 @@ async function initReportPage() {
   const report = await loadReport(selectedRunId || '');
   const isRunScopedReport = Boolean(selectedRunId);
   const reportToRender = isRunScopedReport ? report : filterReportForRun(report, selectedRun);
-  wireReport(reportToRender, { generatedAtText });
+  const historyItems = await loadHistory();
+  wireReport(reportToRender, { generatedAtText, historyItems });
 
   if (backMainBtn) {
     backMainBtn.addEventListener('click', () => {
