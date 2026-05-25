@@ -108,7 +108,7 @@ export async function generateManualTestCatalog(userStory) {
   ].join(' ');
 
   const user = [
-    'Create 1 manual test cases for this user story:',
+    'Create all possible and high-quality high priority manual test cases for this user story:',
     userStory,
     '',
     'Output schema:',

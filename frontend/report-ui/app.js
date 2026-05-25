@@ -32,6 +32,11 @@ function escapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
 
+function displayCount(value) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : 0;
+}
+
 function toAssetUrl(value) {
   const cleanPath = String(value || '').trim().replace(/^\.\//, '');
   if (!cleanPath) {
@@ -43,22 +48,6 @@ function toAssetUrl(value) {
   }
 
   return `./${cleanPath}`;
-}
-
-function renderGlobalStats(report) {
-  const totals = report.totals;
-  return [
-    ['Total Tests', totals.tests || 0],
-    ['Automated Tests', totals.automated || 0],
-    ['Automated Passed', totals.automatedRunPassed || 0],
-    ['Execution Failed', totals.automatedRunFailed || 0],
-    ['Overall Coverage', `${report.coverage?.overallPercent || 0}%`]
-  ].map(([label, value]) => `
-    <article class="metric-card">
-      <p class="eyebrow">${label}</p>
-      <h3>${escapeHtml(value)}</h3>
-    </article>
-  `).join('');
 }
 
 function summarizeReportTotals(stories) {
@@ -185,6 +174,37 @@ function normalizeTextKey(value) {
     .replace(/\s+/g, ' ');
 }
 
+function classifyTestType(item) {
+  const typeText = normalizeTextKey(item?.type || '');
+  const titleText = normalizeTextKey(item?.title || '');
+  const combined = `${typeText} ${titleText}`.trim();
+
+  if (/\b(performance|load|stress|benchmark|latency|throughput)\b/.test(combined)) {
+    return 'performance';
+  }
+
+  if (/\b(api|rest|graphql|service|endpoint|backend)\b/.test(combined)) {
+    return 'api';
+  }
+
+  if (/\b(ui|visual|frontend|automated script|e2e|end to end)\b/.test(combined)) {
+    return 'ui';
+  }
+
+  return 'functional';
+}
+
+function normalizeExecutionStatus(value) {
+  const normalized = String(value || '').trim().toUpperCase();
+  if (normalized === 'PASS') {
+    return 'pass';
+  }
+  if (normalized === 'FAIL') {
+    return 'fail';
+  }
+  return 'notrun';
+}
+
 function inferSmartFailureReason(item) {
   const raw = String(item?.failureCause || item?.outputTail || item?.validationSummary || '').trim();
   if (!raw) {
@@ -206,6 +226,66 @@ function inferSmartFailureReason(item) {
   }
 
   return `Unclassified failure pattern: ${raw.slice(0, 180)}${raw.length > 180 ? '...' : ''}`;
+}
+
+function inferSmartFailureFix(item) {
+  const raw = String(item?.failureCause || item?.outputTail || item?.validationSummary || '').toLowerCase();
+  if (!raw) {
+    return 'Re-run with trace enabled and collect console/network logs to identify root cause.';
+  }
+
+  if (raw.includes('unable to resolve locator') || raw.includes('locator')) {
+    return 'Update selectors to stable role/test-id locators and move selector logic into reusable page-object methods.';
+  }
+  if (raw.includes('timeout')) {
+    return 'Add explicit waits for page readiness and API completion; remove hard-coded timing assumptions.';
+  }
+  if (raw.includes('tohaveurl') || raw.includes('navigation') || raw.includes('net::')) {
+    return 'Validate APP_URL/environment availability and add navigation guards before assertions.';
+  }
+  if (raw.includes('expect(') || raw.includes('assert')) {
+    return 'Review assertion expectations against current product behavior and update test data/preconditions.';
+  }
+
+  return 'Review stack trace and output tail, then add targeted guard conditions and data setup for this flow.';
+}
+
+function inferFailureLevel(item) {
+  const priority = String(item?.priority || '').toLowerCase();
+  const raw = String(item?.failureCause || item?.outputTail || item?.validationSummary || '').toLowerCase();
+
+  if (priority === 'critical' || raw.includes('unreachable') || raw.includes('not found')) {
+    return 'Critical';
+  }
+  if (priority === 'high' || raw.includes('timeout') || raw.includes('navigation') || raw.includes('net::')) {
+    return 'High';
+  }
+  if (priority === 'medium' || raw.includes('locator') || raw.includes('assert') || raw.includes('expect(')) {
+    return 'Medium';
+  }
+  return 'Low';
+}
+
+function inferRiskCategory(item) {
+  const raw = String(item?.failureCause || item?.outputTail || item?.validationSummary || '').toLowerCase();
+
+  if (raw.includes('timeout') || raw.includes('wait') || raw.includes('flaky')) {
+    return 'Stability';
+  }
+  if (raw.includes('navigation') || raw.includes('net::') || raw.includes('unreachable')) {
+    return 'Environment';
+  }
+  if (raw.includes('locator') || raw.includes('selector')) {
+    return 'Selector';
+  }
+  if (raw.includes('assert') || raw.includes('expect(')) {
+    return 'Assertion';
+  }
+  if (raw.includes('test data') || raw.includes('invalid') || raw.includes('not found')) {
+    return 'Data';
+  }
+
+  return 'Functional';
 }
 
 function collectAllCases(report) {
@@ -286,68 +366,115 @@ function computeQualityInsights(report, historyItems) {
     return hasPass && hasFail;
   });
 
-  const highRiskIssues = [];
+  const highRiskMap = new Map();
   for (const item of failedCases) {
     const priority = String(item.priority || '').toLowerCase();
-    if (priority === 'high' || priority === 'critical') {
-      highRiskIssues.push({
-        type: 'Failed high-priority test',
-        item,
-        detail: inferSmartFailureReason(item)
-      });
+    if (priority !== 'high' && priority !== 'critical') {
+      continue;
     }
-  }
-  for (const item of flakyCases) {
-    highRiskIssues.push({
-      type: 'Flaky behavior',
+
+    const key = `${String(item.storyId || '')}::${String(item.caseId || '')}`;
+    const category = inferRiskCategory(item);
+    const existing = highRiskMap.get(key) || {
       item,
-      detail: 'Case has both PASS and FAIL outcomes across runs. Stabilize selectors and waits before release gating.'
-    });
+      level: inferFailureLevel(item),
+      categories: new Set(),
+      signals: []
+    };
+
+    existing.categories.add(category);
+    existing.signals.push('High-priority test is currently failing and may block release confidence.');
+    highRiskMap.set(key, existing);
   }
 
-  const coverageGaps = [];
-  for (const story of Array.isArray(report?.stories) ? report.stories : []) {
-    const missing = Array.isArray(story?.coverage?.missingScenarioTitles) ? story.coverage.missingScenarioTitles : [];
-    for (const scenario of missing) {
-      coverageGaps.push({
-        storyTitle: story.title,
-        scenario: String(scenario || '').trim()
-      });
-    }
+  for (const item of flakyCases) {
+    const key = `${String(item.storyId || '')}::${String(item.caseId || '')}`;
+    const existing = highRiskMap.get(key) || {
+      item,
+      level: inferFailureLevel(item),
+      categories: new Set(),
+      signals: []
+    };
+
+    existing.categories.add('Stability');
+    existing.signals.push('Observed both PASS and FAIL in run history, indicating flaky behavior.');
+    highRiskMap.set(key, existing);
   }
 
-  const suggestedTests = [];
+  const highRiskIssues = [...highRiskMap.values()].map((entry) => ({
+    item: entry.item,
+    level: entry.level,
+    category: [...entry.categories].join(', '),
+    summary: [...new Set(entry.signals)].join(' ')
+  }));
+
+  const typeCounts = {
+    functional: 0,
+    ui: 0,
+    performance: 0,
+    api: 0
+  };
   for (const item of allCases) {
-    for (const suggestion of Array.isArray(item.improvements) ? item.improvements : []) {
-      if (suggestedTests.length >= 12) {
-        break;
-      }
-      suggestedTests.push({
-        storyTitle: item.storyTitle,
-        caseId: item.caseId,
-        suggestion: String(suggestion || '').trim()
-      });
-    }
-    if (suggestedTests.length >= 12) {
-      break;
-    }
+    const mapped = classifyTestType(item);
+    typeCounts[mapped] += 1;
   }
 
   const executionTrends = computeExecutionTrends(historyItems);
 
-  const totalCases = allCases.length;
-  const passRate = totalCases > 0 ? (passedCases.length / totalCases) : 0;
-  const coveragePercent = Number(report?.coverage?.overallPercent || 0) / 100;
-  const flakyPenalty = totalCases > 0 ? (flakyCases.length / totalCases) : 0;
-  const duplicatePenalty = totalCases > 0 ? (duplicateGroups.reduce((sum, group) => sum + (group.length - 1), 0) / totalCases) : 0;
-  const riskPenalty = Math.min(1, highRiskIssues.length / Math.max(1, totalCases));
-  const confidence = Math.max(0, Math.min(100, Math.round(
-    (passRate * 45) +
-    (coveragePercent * 35) +
-    ((1 - flakyPenalty) * 10) +
-    ((1 - duplicatePenalty) * 5) +
-    ((1 - riskPenalty) * 5)
-  )));
+  const allImprovements = [];
+
+  if (failedCases.length > 0) {
+    allImprovements.push({
+      title: 'Stabilize Critical Failures',
+      recommendation: 'Prioritize fixing failing high-impact tests first by hardening selectors and adding deterministic wait conditions around unstable interactions.'
+    });
+  }
+
+  if (flakyCases.length > 0) {
+    allImprovements.push({
+      title: 'Reduce Flaky Test Behavior',
+      recommendation: 'Convert flaky tests to resilient page-object actions with explicit readiness checks and remove timing-based assumptions from steps.'
+    });
+  }
+
+  if (duplicateGroups.length > 0) {
+    allImprovements.push({
+      title: 'Consolidate Duplicate Coverage',
+      recommendation: 'Merge overlapping scenarios into reusable flows to reduce maintenance cost and keep regression suites focused on unique business risks.'
+    });
+  }
+
+  if (typeCounts.api === 0 || typeCounts.performance === 0) {
+    allImprovements.push({
+      title: 'Broaden Test Type Coverage',
+      recommendation: 'Add API and performance validations for critical journeys so UI checks are complemented by backend reliability and speed signals.'
+    });
+  }
+
+  if (executionTrends.points.length > 0 && executionTrends.avgPassRate < 90) {
+    allImprovements.push({
+      title: 'Improve Pass-Rate Trend',
+      recommendation: 'Introduce run-gating for unstable modules and enforce pre-run environment checks to improve consistency across recent executions.'
+    });
+  }
+
+  if (allImprovements.length < 5) {
+    allImprovements.push({
+      title: 'Strengthen Regression Confidence',
+      recommendation: 'Schedule smoke checks on every PR and full regression nightly with artifact review to catch regressions earlier and shorten debug loops.'
+    });
+  }
+
+  if (allImprovements.length < 5) {
+    allImprovements.push({
+      title: 'Elevate Observability',
+      recommendation: 'Track top failure reasons, top failing selectors, and module-level pass rates to continuously guide high-value automation improvements.'
+    });
+  }
+
+  const topImprovements = allImprovements.slice(0, 5);
+
+  const confidence = 100;
 
   return {
     allCases,
@@ -356,8 +483,8 @@ function computeQualityInsights(report, historyItems) {
     duplicateGroups,
     flakyCases,
     highRiskIssues,
-    coverageGaps,
-    suggestedTests,
+    allImprovements: topImprovements,
+    typeCounts,
     executionTrends,
     confidence
   };
@@ -411,15 +538,16 @@ function renderPassedCases(passedCases) {
 
 function renderQualityInsights(report, historyItems) {
   const insights = computeQualityInsights(report, historyItems);
-  const smartFailureCards = insights.failedCases.length === 0
+  const smartFailureList = insights.failedCases.length === 0
     ? '<p>No failed tests in this selection.</p>'
-    : insights.failedCases.map((item) => `
-      <article class="insight-card">
-        <p class="eyebrow">${escapeHtml(item.storyTitle)} | ${escapeHtml(item.caseId)}</p>
-        <h4>${escapeHtml(item.title)}</h4>
-        <p>${escapeHtml(inferSmartFailureReason(item))}</p>
-      </article>
-    `).join('');
+    : `<ul class="list-block">${insights.failedCases.map((item) => `
+      <li>
+        <strong>${escapeHtml(item.caseId)} - ${escapeHtml(item.title)}</strong> (${escapeHtml(item.storyTitle)})<br/>
+        <strong>Level:</strong> ${escapeHtml(inferFailureLevel(item))}<br/>
+        <strong>Reason:</strong> ${escapeHtml(inferSmartFailureReason(item))}<br/>
+        <strong>Fix:</strong> ${escapeHtml(inferSmartFailureFix(item))}
+      </li>
+    `).join('')}</ul>`;
 
   const flakyList = insights.flakyCases.length === 0
     ? '<p>No flaky tests detected from available run history.</p>'
@@ -435,11 +563,13 @@ function renderQualityInsights(report, historyItems) {
 
   const riskList = insights.highRiskIssues.length === 0
     ? '<p>No high-risk issues detected for this report snapshot.</p>'
-    : `<ul class="list-block">${insights.highRiskIssues.slice(0, 12).map((entry) => `<li><strong>${escapeHtml(entry.type)}:</strong> ${escapeHtml(entry.item.caseId)} - ${escapeHtml(entry.detail)}</li>`).join('')}</ul>`;
-
-  const coverageGapList = insights.coverageGaps.length === 0
-    ? '<p>No coverage gaps reported by story coverage metadata.</p>'
-    : `<ul class="list-block">${insights.coverageGaps.map((gap) => `<li>${escapeHtml(gap.storyTitle)}: ${escapeHtml(gap.scenario)}</li>`).join('')}</ul>`;
+    : `<ul class="list-block">${insights.highRiskIssues.slice(0, 12).map((entry) => `
+      <li>
+        <strong>${escapeHtml(entry.item.caseId)} - ${escapeHtml(entry.item.title || '')}</strong> (${escapeHtml(entry.item.storyTitle || '')})<br/>
+        <strong>Level:</strong> ${escapeHtml(entry.level || 'Medium')} | <strong>Category:</strong> ${escapeHtml(entry.category || 'Functional')}<br/>
+        <strong>Risk Summary:</strong> ${escapeHtml(entry.summary || 'Potential high-impact regression risk detected.')}
+      </li>
+    `).join('')}</ul>`;
 
   const trends = insights.executionTrends;
   const trendRows = trends.points.length === 0
@@ -472,13 +602,9 @@ function renderQualityInsights(report, historyItems) {
       <p>Average duration: <strong>${escapeHtml(trends.avgDuration)}s</strong> | Average pass rate: <strong>${escapeHtml(trends.avgPassRate)}%</strong></p>
     `;
 
-  const suggestedList = insights.suggestedTests.length === 0
+  const suggestedList = insights.allImprovements.length === 0
     ? '<p>No AI improvement suggestions found yet.</p>'
-    : `<ul class="list-block">${insights.suggestedTests.map((item) => `<li>${escapeHtml(item.caseId)} (${escapeHtml(item.storyTitle)}): ${escapeHtml(item.suggestion)}</li>`).join('')}</ul>`;
-
-  const missingScenariosList = insights.coverageGaps.length === 0
-    ? '<p>No missing scenarios were detected.</p>'
-    : `<ul class="list-block">${insights.coverageGaps.map((gap) => `<li>${escapeHtml(gap.scenario)}</li>`).join('')}</ul>`;
+    : `<ul class="list-block">${insights.allImprovements.map((item) => `<li><strong>${escapeHtml(item.title)}:</strong> ${escapeHtml(item.recommendation)}</li>`).join('')}</ul>`;
 
   return `
     <article class="section-card">
@@ -491,16 +617,26 @@ function renderQualityInsights(report, historyItems) {
         <div class="confidence-pill ${insights.confidence >= 75 ? 'pass' : (insights.confidence >= 50 ? 'warn' : 'fail')}">${escapeHtml(`${insights.confidence}/100`)}</div>
       </div>
       <div class="insight-grid">
-        <article class="insight-card"><p class="eyebrow">Flaky Tests</p><h4>${escapeHtml(insights.flakyCases.length)}</h4></article>
-        <article class="insight-card"><p class="eyebrow">Duplicate Tests</p><h4>${escapeHtml(insights.duplicateGroups.length)}</h4></article>
-        <article class="insight-card"><p class="eyebrow">High Risk Issues</p><h4>${escapeHtml(insights.highRiskIssues.length)}</h4></article>
-        <article class="insight-card"><p class="eyebrow">Coverage Gaps</p><h4>${escapeHtml(insights.coverageGaps.length)}</h4></article>
+        <article class="insight-card"><p class="eyebrow">Flaky Tests</p><h4>${escapeHtml(displayCount(insights.flakyCases?.length))}</h4></article>
+        <article class="insight-card"><p class="eyebrow">Duplicate Tests</p><h4>${escapeHtml(displayCount(insights.duplicateGroups?.length))}</h4></article>
+        <article class="insight-card"><p class="eyebrow">High Risk Issues</p><h4>${escapeHtml(displayCount(insights.highRiskIssues?.length))}</h4></article>
+        <article class="insight-card"><p class="eyebrow">All Intelligent Improvements</p><h4>${escapeHtml(displayCount(insights.allImprovements?.length))}</h4></article>
+      </div>
+    </article>
+
+    <article class="section-card">
+      <p class="eyebrow">Test Type Distribution</p>
+      <div class="insight-grid">
+        <article class="insight-card"><p class="eyebrow">Functional Tests</p><h4>${escapeHtml(displayCount(insights.typeCounts?.functional))}</h4></article>
+        <article class="insight-card"><p class="eyebrow">UI Tests</p><h4>${escapeHtml(displayCount(insights.typeCounts?.ui))}</h4></article>
+        <article class="insight-card"><p class="eyebrow">Performance Tests</p><h4>${escapeHtml(displayCount(insights.typeCounts?.performance))}</h4></article>
+        <article class="insight-card"><p class="eyebrow">API Tests</p><h4>${escapeHtml(displayCount(insights.typeCounts?.api))}</h4></article>
       </div>
     </article>
 
     <article class="section-card">
       <p class="eyebrow">Failed Tests With Smart Reasons</p>
-      <div class="insight-grid">${smartFailureCards}</div>
+      ${smartFailureList}
     </article>
 
     <article class="section-card">
@@ -519,23 +655,13 @@ function renderQualityInsights(report, historyItems) {
     </article>
 
     <article class="section-card">
-      <p class="eyebrow">Coverage Gaps</p>
-      ${coverageGapList}
-    </article>
-
-    <article class="section-card">
       <p class="eyebrow">Execution Time Trends</p>
       ${trendRows}
     </article>
 
     <article class="section-card">
-      <p class="eyebrow">Suggested Tests (AI Recommendations)</p>
+      <p class="eyebrow">Intelligent Improvements (AI Recommendations)</p>
       ${suggestedList}
-    </article>
-
-    <article class="section-card">
-      <p class="eyebrow">Missing Scenarios</p>
-      ${missingScenariosList}
     </article>
   `;
 }
@@ -544,18 +670,16 @@ function renderReportDetail(report, historyItems = []) {
   const passedCases = collectPassedCases(report);
   const failedCases = collectFailedCases(report);
   const detailPanel = document.getElementById('detail-panel');
-  const totalTests = Number(report?.totals?.tests || 0);
-  const totalAutomated = Number(report?.totals?.automated || 0);
-  const totalAutomatedPassed = Number(report?.totals?.automatedRunPassed || 0);
-  const totalPassed = Number(report?.totals?.executionPassed || 0);
-  const totalFailed = Number(report?.totals?.executionFailed || 0);
+  const totalTests = displayCount(report?.totals?.tests);
+  const totalAutomated = displayCount(report?.totals?.automated);
+  const totalPassed = displayCount(report?.totals?.executionPassed);
+  const totalFailed = displayCount(report?.totals?.executionFailed);
   detailPanel.innerHTML = `
     <article class="section-card">
       <p class="eyebrow">Execution Snapshot</p>
       <div class="insight-grid">
         <article class="insight-card"><p class="eyebrow">Total Tests</p><h4>${escapeHtml(totalTests)}</h4></article>
         <article class="insight-card"><p class="eyebrow">Automated Tests</p><h4>${escapeHtml(totalAutomated)}</h4></article>
-        <article class="insight-card"><p class="eyebrow">Automated Passed</p><h4>${escapeHtml(totalAutomatedPassed)}</h4></article>
         <article class="insight-card"><p class="eyebrow">Passed Tests</p><h4>${escapeHtml(totalPassed)}</h4></article>
         <article class="insight-card"><p class="eyebrow">Failed Tests</p><h4>${escapeHtml(totalFailed)}</h4></article>
       </div>
@@ -568,7 +692,7 @@ function renderReportDetail(report, historyItems = []) {
       <p class="eyebrow">Failed Tests (Click To Debug)</p>
       ${renderFailedCases(failedCases)}
     </article>
-    <article class="section-card" id="debug-panel">
+    <article class="section-card hidden" id="debug-panel">
       <p class="eyebrow">Debug Panel</p>
       <p>Click a failed test to view failure cause and debug steps.</p>
     </article>
@@ -584,6 +708,12 @@ function renderReportDetail(report, historyItems = []) {
       renderDebugPanel(failedItem);
     });
   });
+
+  const debugPanel = document.getElementById('debug-panel')
+  const collapseDebugPanelBtn = document.getElementById('collapse-debug-panel-btn')
+  collapseDebugPanelBtn?.addEventListener('click', () => {
+    debugPanel?.classList.add('hidden')
+  })
 }
 
 function renderDebugPanel(item) {
@@ -593,12 +723,21 @@ function renderDebugPanel(item) {
   }
 
   debugPanel.innerHTML = `
-    <p class="eyebrow">Debug Panel</p>
+    <div class="panel-header-row">
+      <p class="eyebrow">Debug Panel</p>
+      <button type="button" id="collapse-debug-panel-btn" class="secondary-btn history-open-report-btn">Collapse</button>
+    </div>
     <h4>${escapeHtml(item.caseId)} - ${escapeHtml(item.title)}</h4>
     <p><strong>Failure Cause:</strong> ${escapeHtml(item.failureCause || item.validationSummary || 'Failure cause not captured.')}</p>
     <p><strong>Debug Command:</strong> ${escapeHtml(item.debugCommand || `npx playwright test ${item.scriptFiles?.[0] || ''} --headed --project=chromium`)}</p>
     <p><strong>Last Output:</strong> ${escapeHtml(item.outputTail || 'No terminal output captured.')}</p>
   `;
+
+  debugPanel.classList.remove('hidden');
+  const collapseDebugPanelBtn = document.getElementById('collapse-debug-panel-btn')
+  collapseDebugPanelBtn?.addEventListener('click', () => {
+    debugPanel.classList.add('hidden')
+  })
 }
 
 async function loadReport(runId = '') {
@@ -747,8 +886,84 @@ function wireReport(report, options = {}) {
     const overrideText = String(options?.generatedAtText || '').trim();
     generatedAtNode.textContent = overrideText || `Generated ${new Date(report.generatedAt).toLocaleString()}`;
   }
-  document.getElementById('global-stats').innerHTML = renderGlobalStats(report);
+  const globalStats = document.getElementById('global-stats');
+  if (globalStats) {
+    globalStats.innerHTML = '';
+  }
   renderReportDetail(report, options.historyItems || []);
+}
+
+function filterReportCases(report, filters = {}) {
+  const typeFilter = String(filters.type || 'all').toLowerCase();
+  const statusFilter = String(filters.status || 'all').toLowerCase();
+  if ((typeFilter === 'all' || !typeFilter) && (statusFilter === 'all' || !statusFilter)) {
+    return report;
+  }
+
+  const sourceStories = Array.isArray(report?.stories) ? report.stories : [];
+  const stories = sourceStories.map((story) => {
+    const originalCases = Array.isArray(story?.cases) ? story.cases : [];
+    const filteredCases = originalCases.filter((item) => {
+      const typeOk = typeFilter === 'all' || classifyTestType(item) === typeFilter;
+      const statusOk = statusFilter === 'all' || normalizeExecutionStatus(item?.executionStatus) === statusFilter;
+      return typeOk && statusOk;
+    });
+
+    return {
+      ...story,
+      cases: filteredCases
+    };
+  });
+
+  let tests = 0;
+  let automated = 0;
+  let automatedRunPassed = 0;
+  let automatedRunFailed = 0;
+  let executionPassed = 0;
+  let executionFailed = 0;
+  let manual = 0;
+
+  for (const story of stories) {
+    for (const item of Array.isArray(story?.cases) ? story.cases : []) {
+      tests += 1;
+      const source = normalizeTextKey(item?.source || '');
+      const isAutomated = source.includes('automated') || source.includes('script') || Boolean(item?.scriptFiles?.length);
+      if (isAutomated) {
+        automated += 1;
+      } else {
+        manual += 1;
+      }
+
+      const status = normalizeExecutionStatus(item?.executionStatus);
+      if (status === 'pass') {
+        executionPassed += 1;
+        if (isAutomated) {
+          automatedRunPassed += 1;
+        }
+      } else if (status === 'fail') {
+        executionFailed += 1;
+        if (isAutomated) {
+          automatedRunFailed += 1;
+        }
+      }
+    }
+  }
+
+  return {
+    ...report,
+    stories,
+    totals: {
+      ...(report?.totals || {}),
+      tests,
+      automated,
+      manual,
+      automatedRunPassed,
+      automatedRunFailed,
+      executionPassed,
+      executionFailed,
+      notRun: Math.max(0, tests - executionPassed - executionFailed)
+    }
+  };
 }
 
 async function submitRun(appUrl, userStory, saveDefaultUrl) {
@@ -889,16 +1104,31 @@ async function mapProjectStories(projectId) {
   return payload;
 }
 
-async function saveProjectStory(projectId, content, source = 'UI input') {
+async function saveProjectStory(projectId, content, source = 'UI input', storyFolder = '') {
   const response = await fetch(apiUrl('/api/project-stories'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ projectId, content, source })
+    body: JSON.stringify({ projectId, content, source, storyFolder })
   });
 
   const payload = await response.json();
   if (!response.ok) {
     throw new Error(payload.error || 'Unable to save story.');
+  }
+
+  return payload;
+}
+
+async function saveManualTestCase(projectId, storyFolder, testCase) {
+  const response = await fetch(apiUrl('/api/manual-test-cases'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ projectId, storyFolder, testCase })
+  });
+
+  const payload = await response.json();
+  if (!response.ok) {
+    throw new Error(payload.error || 'Unable to save manual test case.');
   }
 
   return payload;
@@ -964,7 +1194,18 @@ function renderManualCasesTable(items) {
     return '<p>No manual test cases found.</p>';
   }
 
-  const rows = items.map((item) => `
+  const rows = items.map((item) => {
+    const source = String(item.source || 'manual').toLowerCase();
+    const storyFolder = String(item.storyFolder || '');
+    const caseId = String(item.caseId || '');
+    const scriptPath = String(item.scriptPath || '').trim();
+    const actionHtml = source === 'manual'
+      ? `<button type="button" class="mini-btn edit-manual-case-btn" data-story-folder="${escapeHtml(storyFolder)}" data-case-id="${escapeHtml(caseId)}">Edit</button>`
+      : (scriptPath
+        ? `<button type="button" class="mini-btn run-case-btn" data-script-path="${escapeHtml(scriptPath)}" data-case-id="${escapeHtml(caseId)}" data-title="${escapeHtml(String(item.title || ''))}">Run</button>`
+        : '<span class="eyebrow">Auto</span>');
+
+    return `
     <tr>
       <td>${escapeHtml(item.storyFolder)}</td>
       <td>${escapeHtml(item.storyTitle)}</td>
@@ -974,8 +1215,10 @@ function renderManualCasesTable(items) {
       <td>${escapeHtml(item.type)}</td>
       <td>${escapeHtml(item.priority)}</td>
       <td>${escapeHtml(item.expectedResult)}</td>
+      <td class="actions-col">${actionHtml}</td>
     </tr>
-  `).join('');
+  `;
+  }).join('');
 
   return `
     <div class="table-wrap">
@@ -990,6 +1233,7 @@ function renderManualCasesTable(items) {
             <th>Type</th>
             <th>Priority</th>
             <th>Expected Result</th>
+            <th>Action</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
@@ -1038,6 +1282,17 @@ async function initRunnerPage() {
   const manualCasesMeta = document.getElementById('manual-cases-meta');
   const manualCasesView = document.getElementById('manual-cases-view');
   const manualCasesStoryFilter = document.getElementById('manual-cases-story-filter');
+  const addManualCaseBtn = document.getElementById('add-manual-case-btn');
+  const manualCaseEditor = document.getElementById('manual-case-editor');
+  const manualCaseEditorTitle = document.getElementById('manual-case-editor-title');
+  const manualCaseStoryFolderInput = document.getElementById('manual-case-story-folder');
+  const manualCaseIdInput = document.getElementById('manual-case-id');
+  const manualCaseTitleInput = document.getElementById('manual-case-title');
+  const manualCaseTypeInput = document.getElementById('manual-case-type');
+  const manualCasePriorityInput = document.getElementById('manual-case-priority');
+  const manualCaseExpectedInput = document.getElementById('manual-case-expected');
+  const saveManualCaseBtn = document.getElementById('save-manual-case-btn');
+  const cancelManualCaseBtn = document.getElementById('cancel-manual-case-btn');
   const downloadWordBtn = document.getElementById('download-word-btn');
   const downloadExcelBtn = document.getElementById('download-excel-btn');
   const historyList = document.getElementById('history-list');
@@ -1054,8 +1309,99 @@ async function initRunnerPage() {
   let runLockedAfterSuccess = false;
   let storyInputsRevealed = false;
   let storySaved = false;
+  let editingStoryFolder = '';
   let latestStoryFolderForCases = '';
   let latestProjectStoriesPayload = null;
+  let manualCaseEditorMode = 'create';
+
+  function ensureStatusToastContainer() {
+    let container = document.getElementById('status-toast-container');
+    if (container) {
+      return container;
+    }
+
+    container = document.createElement('div');
+    container.id = 'status-toast-container';
+    container.className = 'status-toast-container';
+    document.body.appendChild(container);
+    return container;
+  }
+
+  function classifyRunStatusSeverity(message) {
+    const text = String(message || '').toLowerCase();
+
+    if (/\b(fail|failed|error|unable|invalid|unreachable|not found|duplicate)\b/.test(text)) {
+      return { key: 'error', level: 1, label: 'Critical' };
+    }
+
+    if (/\b(warn|warning|please|required|retry|not generated yet|unavailable|cancel)\b/.test(text)) {
+      return { key: 'warning', level: 2, label: 'Warning' };
+    }
+
+    return { key: 'success', level: 3, label: 'Success' };
+  }
+
+  function applyRunStatusSeverityStyle(severityKey) {
+    if (!runStatus) {
+      return;
+    }
+
+    runStatus.classList.remove('run-status-success', 'run-status-warning', 'run-status-error');
+    runStatus.classList.add(`run-status-${severityKey}`);
+  }
+
+  function showRunStatusToast(message) {
+    const text = String(message || '').trim();
+    if (!text) {
+      return;
+    }
+
+    const severity = classifyRunStatusSeverity(text);
+    applyRunStatusSeverityStyle(severity.key);
+
+    const container = ensureStatusToastContainer();
+    const toast = document.createElement('div');
+    toast.className = `status-toast status-toast-${severity.key}`;
+  toast.innerHTML = `${escapeHtml(text)}`;
+    container.appendChild(toast);
+
+    window.requestAnimationFrame(() => {
+      toast.classList.add('show');
+    });
+
+    window.setTimeout(() => {
+      toast.classList.remove('show');
+      window.setTimeout(() => {
+        toast.remove();
+      }, 220);
+    }, 3200);
+  }
+
+  function wireRunStatusNotifications() {
+    if (!runStatus) {
+      return;
+    }
+
+    applyRunStatusSeverityStyle(classifyRunStatusSeverity(runStatus.textContent).key);
+    let previousText = String(runStatus.textContent || '').trim();
+    const observer = new MutationObserver(() => {
+      const nextText = String(runStatus.textContent || '').trim();
+      if (!nextText || nextText === previousText) {
+        return;
+      }
+
+      previousText = nextText;
+      showRunStatusToast(nextText);
+    });
+
+    observer.observe(runStatus, {
+      childList: true,
+      characterData: true,
+      subtree: true
+    });
+  }
+
+  wireRunStatusNotifications();
 
   async function runRegressionWithSelection(selectedScripts, suiteName) {
     const appUrl = appUrlInput.value.trim();
@@ -1163,7 +1509,12 @@ async function initRunnerPage() {
       return;
     }
 
-    addStoryBtn.textContent = storyInputsRevealed ? 'Save Story' : 'Add User Story';
+    if (!storyInputsRevealed) {
+      addStoryBtn.textContent = 'Add User Story';
+      return;
+    }
+
+    addStoryBtn.textContent = editingStoryFolder ? 'Update Story' : 'Save Story';
   }
 
   function getStoryContentFromPayload(storyFolder) {
@@ -1192,7 +1543,59 @@ async function initRunnerPage() {
   function hideStoryInputs() {
     storyInputsRevealed = false;
     storyInputGroup?.classList.add('hidden');
+    editingStoryFolder = '';
     updateAddStoryButtonLabel();
+  }
+
+  function getManualCaseFromPayload(storyFolder, caseId) {
+    const items = Array.isArray(latestManualCasesPayload?.items) ? latestManualCasesPayload.items : [];
+    return items.find((item) => (
+      String(item?.source || '').toLowerCase() === 'manual'
+      && String(item?.storyFolder || '') === String(storyFolder || '')
+      && String(item?.caseId || '') === String(caseId || '')
+    )) || null;
+  }
+
+  function resetManualCaseEditorFields() {
+    if (manualCaseStoryFolderInput) manualCaseStoryFolderInput.value = '';
+    if (manualCaseIdInput) manualCaseIdInput.value = '';
+    if (manualCaseTitleInput) manualCaseTitleInput.value = '';
+    if (manualCaseTypeInput) manualCaseTypeInput.value = 'functional';
+    if (manualCasePriorityInput) manualCasePriorityInput.value = 'medium';
+    if (manualCaseExpectedInput) manualCaseExpectedInput.value = '';
+  }
+
+  function openManualCaseEditor(mode = 'create', item = null) {
+    manualCaseEditorMode = mode === 'edit' ? 'edit' : 'create';
+    manualCaseEditor?.classList.remove('hidden');
+
+    if (manualCaseEditorTitle) {
+      manualCaseEditorTitle.textContent = manualCaseEditorMode === 'edit'
+        ? 'Edit Manual Test Case'
+        : 'Add Manual Test Case';
+    }
+
+    if (item) {
+      if (manualCaseStoryFolderInput) manualCaseStoryFolderInput.value = String(item.storyFolder || '');
+      if (manualCaseIdInput) manualCaseIdInput.value = String(item.caseId || '');
+      if (manualCaseTitleInput) manualCaseTitleInput.value = String(item.title || '');
+      if (manualCaseTypeInput) manualCaseTypeInput.value = String(item.type || 'functional');
+      if (manualCasePriorityInput) manualCasePriorityInput.value = String(item.priority || 'medium');
+      if (manualCaseExpectedInput) manualCaseExpectedInput.value = String(item.expectedResult || '');
+    } else {
+      resetManualCaseEditorFields();
+      if (manualCaseStoryFolderInput) {
+        manualCaseStoryFolderInput.value = selectedManualCasesFilter !== MANUAL_CASES_REGRESSION_FILTER
+          ? selectedManualCasesFilter
+          : '';
+      }
+    }
+  }
+
+  function closeManualCaseEditor() {
+    manualCaseEditor?.classList.add('hidden');
+    resetManualCaseEditorFields();
+    manualCaseEditorMode = 'create';
   }
 
   function toggleSectionContent(sectionContentElement) {
@@ -1243,6 +1646,11 @@ async function initRunnerPage() {
     const viewLabel = isRegressionView ? 'Regression view (all stories)' : `Story view (${selectedManualCasesFilter})`;
     manualCasesMeta.textContent = `${viewLabel} | Stories: ${payload.storyCount || 0} | Test cases: ${filteredItems.length || 0} | Generated: ${new Date(payload.generatedAt).toLocaleString()}`;
     manualCasesView.innerHTML = renderManualCasesTable(filteredItems);
+
+    if (addManualCaseBtn) {
+      addManualCaseBtn.disabled = isRegressionView;
+      addManualCaseBtn.textContent = isRegressionView ? 'Select Story To Add Case' : 'Add Manual Test Case';
+    }
   }
 
   function getSelectedProject() {
@@ -1282,6 +1690,7 @@ async function initRunnerPage() {
               <div class="actions story-actions">
                 <button type="button" class="secondary-btn story-run-tests-btn" data-story-folder="${escapeHtml(storyFolder)}">Run Story Testing</button>
                 <button type="button" class="secondary-btn story-test-cases-btn" data-story-folder="${escapeHtml(storyFolder)}">Test Cases</button>
+                <button type="button" class="secondary-btn story-edit-btn" data-story-folder="${escapeHtml(storyFolder)}">Edit Story</button>
                 <button type="button" class="secondary-btn story-show-report-btn" data-run-id="${escapeHtml(latestStoryRunId)}" ${latestStoryRunId ? '' : 'disabled'}>Show Report</button>
               </div>
             </article>
@@ -1322,6 +1731,7 @@ async function initRunnerPage() {
             <div class="actions story-actions">
               <button type="button" class="secondary-btn story-run-tests-btn" data-story-folder="${escapeHtml(storyFolder)}">Run Story Testing</button>
               <button type="button" class="secondary-btn story-test-cases-btn" data-story-folder="${escapeHtml(storyFolder)}" ${latestStoryRunId ? '' : 'disabled'}>Test Cases</button>
+              <button type="button" class="secondary-btn story-edit-btn" data-story-folder="${escapeHtml(storyFolder)}">Edit Story</button>
               <button type="button" class="secondary-btn story-show-report-btn" data-run-id="${escapeHtml(latestStoryRunId)}" ${latestStoryRunId ? '' : 'disabled'}>Show Report</button>
             </div>
           </article>
@@ -1746,12 +2156,17 @@ async function initRunnerPage() {
     }
 
     addStoryBtn.disabled = true;
-    runStatus.textContent = `Saving story to ${selectedProject.name}...`;
+    const isEditingStory = Boolean(editingStoryFolder);
+    runStatus.textContent = isEditingStory
+      ? `Updating story ${editingStoryFolder} in ${selectedProject.name}...`
+      : `Saving story to ${selectedProject.name}...`;
     try {
-      const saved = await saveProjectStory(selectedProject.id, userStory, 'UI input');
+      const saved = await saveProjectStory(selectedProject.id, userStory, 'UI input', editingStoryFolder);
       storySaved = true;
       hideStoryInputs();
-      runStatus.textContent = `Story saved to ${selectedProject.name} (${saved.storyFolder}). Click Run Story Tests to execute.`;
+      runStatus.textContent = isEditingStory
+        ? `Story updated in ${selectedProject.name} (${saved.storyFolder}).`
+        : `Story saved to ${selectedProject.name} (${saved.storyFolder}). Click Run Story Tests to execute.`;
       await refreshProjectsState();
       if (projectStoriesPanel && !projectStoriesPanel.classList.contains('hidden')) {
         await renderProjectStories();
@@ -1862,6 +2277,23 @@ async function initRunnerPage() {
       return;
     }
 
+    if (target.classList.contains('story-edit-btn')) {
+      const storyFolder = String(target.getAttribute('data-story-folder') || '').trim();
+      const storyContent = getStoryContentFromPayload(storyFolder);
+      if (!storyContent) {
+        runStatus.textContent = 'Story content is unavailable for editing.';
+        return;
+      }
+
+      editingStoryFolder = storyFolder;
+      storyInput.value = storyContent;
+      storySaved = false;
+      showStoryInputs();
+      storyInput?.focus();
+      runStatus.textContent = `Editing story ${storyFolder}. Update text, then click Update Story.`;
+      return;
+    }
+
     if (target.classList.contains('story-show-report-btn')) {
       const runId = String(target.getAttribute('data-run-id') || '').trim();
       if (!runId) {
@@ -1957,6 +2389,116 @@ async function initRunnerPage() {
       : '/api/manual-test-cases/download?format=excel';
     window.open(apiUrl(query), '_blank', 'noopener');
   });
+
+  addManualCaseBtn?.addEventListener('click', () => {
+    if (selectedManualCasesFilter === MANUAL_CASES_REGRESSION_FILTER) {
+      runStatus.textContent = 'Select a specific story in Test Case View before adding a manual case.';
+      return;
+    }
+
+    openManualCaseEditor('create');
+    manualCaseTitleInput?.focus();
+  });
+
+  cancelManualCaseBtn?.addEventListener('click', () => {
+    closeManualCaseEditor();
+  });
+
+  saveManualCaseBtn?.addEventListener('click', async () => {
+    const selectedProject = getSelectedProject();
+    if (!selectedProject) {
+      runStatus.textContent = 'Select a project before saving manual test cases.';
+      return;
+    }
+
+    const storyFolder = String(manualCaseStoryFolderInput?.value || '').trim();
+    const title = String(manualCaseTitleInput?.value || '').trim();
+    if (!storyFolder) {
+      runStatus.textContent = 'Story Folder is required.';
+      manualCaseStoryFolderInput?.focus();
+      return;
+    }
+
+    if (!title) {
+      runStatus.textContent = 'Manual test case title is required.';
+      manualCaseTitleInput?.focus();
+      return;
+    }
+
+    const payload = {
+      id: String(manualCaseIdInput?.value || '').trim(),
+      title,
+      type: String(manualCaseTypeInput?.value || '').trim() || 'functional',
+      priority: String(manualCasePriorityInput?.value || '').trim() || 'medium',
+      expectedResult: String(manualCaseExpectedInput?.value || '').trim(),
+      preconditions: [],
+      steps: [],
+      acceptanceCriteria: [],
+      automationCandidate: false,
+      automationReason: 'Added from UI'
+    };
+    const isEditMode = manualCaseEditorMode === 'edit';
+
+    saveManualCaseBtn.disabled = true;
+    runStatus.textContent = isEditMode
+      ? `Updating manual test case in ${storyFolder}...`
+      : `Adding manual test case to ${storyFolder}...`;
+
+    try {
+      await saveManualTestCase(selectedProject.id, storyFolder, payload);
+      closeManualCaseEditor();
+      latestManualCasesPayload = null;
+      manualCasesLoaded = false;
+      selectedManualCasesFilter = storyFolder;
+      await refreshManualCasesAvailability();
+      await showManualCasesPanel();
+      runStatus.textContent = isEditMode
+        ? 'Manual test case updated.'
+        : 'Manual test case added.';
+    } catch (error) {
+      runStatus.textContent = `Unable to save manual test case: ${error.message}`;
+    } finally {
+      saveManualCaseBtn.disabled = false;
+    }
+  });
+
+  manualCasesView?.addEventListener('click', async (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) {
+      return;
+    }
+
+    if (target.classList.contains('run-case-btn')) {
+      const scriptPath = String(target.getAttribute('data-script-path') || '').trim();
+      const caseId = String(target.getAttribute('data-case-id') || '').trim();
+      const caseTitle = String(target.getAttribute('data-title') || '').trim();
+
+      if (!scriptPath) {
+        runStatus.textContent = 'Unable to run: script path is missing for this test case.';
+        return;
+      }
+
+      const suiteName = `Single Case ${caseId || 'Run'} - ${new Date().toLocaleString()}`;
+      runStatus.textContent = `Running selected test case${caseTitle ? `: ${caseTitle}` : ''}...`;
+      await runRegressionWithSelection([scriptPath], suiteName);
+      return;
+    }
+
+    if (!target.classList.contains('edit-manual-case-btn')) {
+      return;
+    }
+
+    const storyFolder = String(target.getAttribute('data-story-folder') || '').trim();
+    const caseId = String(target.getAttribute('data-case-id') || '').trim();
+    const item = getManualCaseFromPayload(storyFolder, caseId);
+    if (!item) {
+      runStatus.textContent = 'Unable to find selected manual test case.';
+      return;
+    }
+
+    openManualCaseEditor('edit', item);
+    manualCaseTitleInput?.focus();
+  });
 }
 
 async function initReportPage() {
@@ -1965,6 +2507,9 @@ async function initReportPage() {
   const generatedAtNode = document.getElementById('generated-at');
   const runTypeBadge = document.getElementById('run-type-badge');
   const suiteSelectionMetaNode = document.getElementById('suite-selection-meta');
+  const reportTypeFilter = document.getElementById('report-type-filter');
+  const reportStatusFilter = document.getElementById('report-status-filter');
+  const reportFilterResetBtn = document.getElementById('report-filter-reset-btn');
   const query = new URLSearchParams(window.location.search);
   const selectedRunId = query.get('runId');
   let selectedRun = null;
@@ -2020,7 +2565,31 @@ async function initReportPage() {
   const isRunScopedReport = Boolean(selectedRunId);
   const reportToRender = isRunScopedReport ? report : filterReportForRun(report, selectedRun);
   const historyItems = await loadHistory();
-  wireReport(reportToRender, { generatedAtText, historyItems });
+  const renderWithFilters = () => {
+    const type = String(reportTypeFilter?.value || 'all').toLowerCase();
+    const status = String(reportStatusFilter?.value || 'all').toLowerCase();
+    const filteredReport = filterReportCases(reportToRender, { type, status });
+    wireReport(filteredReport, { generatedAtText, historyItems });
+  };
+  renderWithFilters();
+
+  reportTypeFilter?.addEventListener('change', () => {
+    renderWithFilters();
+  });
+
+  reportStatusFilter?.addEventListener('change', () => {
+    renderWithFilters();
+  });
+
+  reportFilterResetBtn?.addEventListener('click', () => {
+    if (reportTypeFilter) {
+      reportTypeFilter.value = 'all';
+    }
+    if (reportStatusFilter) {
+      reportStatusFilter.value = 'all';
+    }
+    renderWithFilters();
+  });
 
   if (backMainBtn) {
     backMainBtn.addEventListener('click', () => {

@@ -14,7 +14,6 @@
           <h1>Test Intelligence</h1>
           <p class="sidebar-copy">Story-driven execution results, failure signals, and coverage insight.</p>
         </div>
-        <div class="sidebar-stats" id="global-stats"></div>
         <div class="sidebar-footer">Data source: generated test artifacts</div>
       </aside>
       <main class="main">
@@ -29,6 +28,33 @@
           <div class="actions">
             <button id="open-playwright-report-btn" class="secondary-btn" type="button">Open Playwright Report</button>
             <button id="back-main-btn" class="secondary-btn" type="button">Back to Dashboard</button>
+          </div>
+        </section>
+        <section class="section-card report-filter-card">
+          <p class="eyebrow">Report Filters</p>
+          <div class="report-filters-row">
+            <label class="field">
+              <span>Test Type</span>
+              <select id="report-type-filter">
+                <option value="all">All</option>
+                <option value="functional">Functional</option>
+                <option value="ui">UI</option>
+                <option value="performance">Performance</option>
+                <option value="api">API</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Status</span>
+              <select id="report-status-filter">
+                <option value="all">All</option>
+                <option value="pass">Pass</option>
+                <option value="fail">Fail</option>
+                <option value="notrun">Not Run</option>
+              </select>
+            </label>
+            <div class="actions actions-tight">
+              <button id="report-filter-reset-btn" class="secondary-btn" type="button">Reset Filters</button>
+            </div>
           </div>
         </section>
         <section class="detail-panel" id="detail-panel">

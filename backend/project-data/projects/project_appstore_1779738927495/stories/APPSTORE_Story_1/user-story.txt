@@ -1,0 +1,2 @@
+As a user i wanto to see the list of Products in teh landing page 
+ teh products shoudl be with an image and name and price

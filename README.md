@@ -92,6 +92,98 @@ To open the HTML report:
 
 npm run report:generated_tests
 
+## Sync Generated Tests To External Playwright Suite
+
+Use this when your testers run a separate Playwright repository/folder.
+
+1. Generate tests in this repo as usual.
+2. Sync generated tests into the external suite folder.
+3. Testers run and commit from that external folder (which can have its own CI/CD pipeline).
+
+Basic sync:
+
+SYNC_TARGET_DIR=../playwright-manual-suite npm run sync:tester-suite
+
+Run with the dedicated agent:
+
+SYNC_TARGET_DIR=../playwright-manual-suite npm run agent:sync-suite
+
+Set once in `.env` (recommended):
+
+SYNC_TARGET_DIR=/Users/sailaja.pinisetty/ai-playwright-test-framework
+SYNC_TARGET_SUBDIR=generated_tests
+
+Then you can run without passing the path each time:
+
+npm run agent:sync-suite
+
+Optional controls:
+
+- SYNC_TARGET_SUBDIR: destination subfolder inside target repo (default: generated_tests)
+- SYNC_CLEAN_TARGET: remove destination folder before copy (true/false)
+- SYNC_INCLUDE_SELECTION_FILES: include manual-case and selection metadata files (true/false, default: true)
+
+Examples:
+
+SYNC_TARGET_DIR=../playwright-manual-suite SYNC_TARGET_SUBDIR=tests/generated npm run sync:tester-suite
+
+SYNC_TARGET_DIR=../playwright-manual-suite npm run sync:tester-suite:clean
+
+After sync, in the external Playwright repo, testers can run:
+
+npx playwright test tests/generated
+
+Then commit and push there to trigger that repo's CI/CD.
+
+### Auto-run Sync Agent After Generation
+
+Enable the sync agent in the main flow so every generation run also syncs to the tester suite:
+
+SYNC_AGENT_ENABLED=true SYNC_TARGET_DIR=../playwright-manual-suite npm run start:cli
+
+### Sync Agent Git Automation
+
+Use these environment variables with `npm run agent:sync-suite` (or with `npm run start:cli` when `SYNC_AGENT_ENABLED=true`):
+
+- SYNC_GIT_AUTO_COMMIT=true: stage synced files and create a commit in the external tester repo
+- SYNC_GIT_COMMIT_MESSAGE="chore(tests): sync generated suite": optional custom commit message
+- SYNC_GIT_AUTO_PUSH=true: push the new commit to origin (requires SYNC_GIT_AUTO_COMMIT=true)
+- SYNC_GIT_PUSH_BRANCH=main: optional destination branch for push (defaults to current branch in tester repo)
+- SYNC_GIT_CREATE_PR=true: safe mode, pushes to a dedicated PR branch and opens PR when possible
+- SYNC_GIT_PR_BASE_BRANCH=main: base branch for PR mode (default: main)
+- SYNC_GIT_PR_BRANCH=sync/generated-tests/my-branch: optional explicit PR head branch name
+- SYNC_GIT_PR_TITLE="chore(tests): sync generated suite": optional PR title
+- SYNC_GIT_PR_BODY="...": optional PR body
+
+Example:
+
+SYNC_TARGET_DIR=../playwright-manual-suite SYNC_GIT_AUTO_COMMIT=true SYNC_GIT_AUTO_PUSH=true SYNC_GIT_PUSH_BRANCH=main npm run agent:sync-suite
+
+Safe PR mode example:
+
+SYNC_TARGET_DIR=../playwright-manual-suite SYNC_GIT_AUTO_COMMIT=true SYNC_GIT_AUTO_PUSH=true SYNC_GIT_CREATE_PR=true SYNC_GIT_PR_BASE_BRANCH=main npm run agent:sync-suite
+
+Notes for PR mode:
+
+- The agent creates/switches to a sync branch in the tester repo, commits, pushes, and then returns to the previous branch.
+- If GitHub CLI (`gh`) is installed and authenticated, it creates the PR automatically.
+- If `gh` is unavailable, the agent prints a compare URL you can open to create the PR manually.
+
+### Branch-Based Destination Mapping
+
+You can route generated tests into different target subfolders based on source branch:
+
+- SYNC_TARGET_SUBDIR_MAP as JSON object
+- Exact match key: "main"
+- Prefix wildcard key: "feature/*"
+- Optional fallback key: "default"
+
+Example:
+
+SYNC_TARGET_DIR=../playwright-manual-suite SYNC_TARGET_SUBDIR_MAP='{"main":"tests/release","feature/*":"tests/dev","default":"tests/generated"}' npm run agent:sync-suite
+
+If `SYNC_TARGET_SUBDIR` is explicitly set, it takes precedence over `SYNC_TARGET_SUBDIR_MAP`.
+
 When prompted:
 - Type a user story and press Enter to run that one story.
 - Or just press Enter to load all user stories from user-stories/*.txt and generate separate tests for each file.

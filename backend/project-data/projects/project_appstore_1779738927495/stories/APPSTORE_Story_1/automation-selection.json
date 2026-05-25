@@ -1,0 +1,106 @@
+{
+  "storySource": "Story 1 (UI input)",
+  "totalManualTests": 8,
+  "coverage": {
+    "totalAutomatable": 8,
+    "covered": 0,
+    "missing": 8,
+    "coveragePercent": 0,
+    "coveredCases": [],
+    "missingScenarioTitles": [
+      "Verify product list is displayed on landing page for a guest user",
+      "Verify each product displays a product name in the list",
+      "Verify each product displays an image on the landing page",
+      "Verify each product displays a price on the landing page",
+      "Verify landing page loads product list within acceptable response time",
+      "Verify empty state message is shown when no products are available",
+      "Verify product list is displayed correctly on desktop screen size",
+      "Verify product list is displayed correctly on tablet screen size"
+    ]
+  },
+  "selectedAutomatableTests": [
+    {
+      "id": "APPSTORE_Story_1_TestCase_1",
+      "title": "Verify product list is displayed on landing page for a guest user",
+      "reason": "Stable UI element presence check; easily verifiable with Playwright by asserting product list container is visible and contains at least one item"
+    },
+    {
+      "id": "APPSTORE_Story_1_TestCase_2",
+      "title": "Verify each product displays a product name in the list",
+      "reason": "Text content assertions per product card can be reliably done in Playwright by iterating over product list items and checking innerText"
+    },
+    {
+      "id": "APPSTORE_Story_1_TestCase_3",
+      "title": "Verify each product displays an image on the landing page",
+      "reason": "Playwright can evaluate image naturalWidth > 0 and src attribute presence to confirm images are loaded correctly"
+    },
+    {
+      "id": "APPSTORE_Story_1_TestCase_4",
+      "title": "Verify each product displays a price on the landing page",
+      "reason": "Playwright can use regex or text assertions to verify price format per product card"
+    },
+    {
+      "id": "APPSTORE_Story_1_TestCase_5",
+      "title": "Verify landing page loads product list within acceptable response time",
+      "reason": "Playwright supports performance timing APIs and can measure time-to-visible for specific elements"
+    },
+    {
+      "id": "APPSTORE_Story_1_TestCase_6",
+      "title": "Verify empty state message is shown when no products are available",
+      "reason": "Playwright can assert visibility of empty state element when mock API returns an empty product array"
+    },
+    {
+      "id": "APPSTORE_Story_1_TestCase_7",
+      "title": "Verify product list is displayed correctly on desktop screen size",
+      "reason": "Playwright supports viewport configuration and visual assertions for layout verification at specific resolutions"
+    },
+    {
+      "id": "APPSTORE_Story_1_TestCase_8",
+      "title": "Verify product list is displayed correctly on tablet screen size",
+      "reason": "Playwright can emulate tablet viewports and run the same product list assertions at different screen sizes"
+    }
+  ],
+  "selectedMissingTestsForGeneration": [
+    {
+      "id": "APPSTORE_Story_1_TestCase_1",
+      "title": "Verify product list is displayed on landing page for a guest user",
+      "reason": "Stable UI element presence check; easily verifiable with Playwright by asserting product list container is visible and contains at least one item"
+    },
+    {
+      "id": "APPSTORE_Story_1_TestCase_2",
+      "title": "Verify each product displays a product name in the list",
+      "reason": "Text content assertions per product card can be reliably done in Playwright by iterating over product list items and checking innerText"
+    },
+    {
+      "id": "APPSTORE_Story_1_TestCase_3",
+      "title": "Verify each product displays an image on the landing page",
+      "reason": "Playwright can evaluate image naturalWidth > 0 and src attribute presence to confirm images are loaded correctly"
+    },
+    {
+      "id": "APPSTORE_Story_1_TestCase_4",
+      "title": "Verify each product displays a price on the landing page",
+      "reason": "Playwright can use regex or text assertions to verify price format per product card"
+    },
+    {
+      "id": "APPSTORE_Story_1_TestCase_5",
+      "title": "Verify landing page loads product list within acceptable response time",
+      "reason": "Playwright supports performance timing APIs and can measure time-to-visible for specific elements"
+    },
+    {
+      "id": "APPSTORE_Story_1_TestCase_6",
+      "title": "Verify empty state message is shown when no products are available",
+      "reason": "Playwright can assert visibility of empty state element when mock API returns an empty product array"
+    },
+    {
+      "id": "APPSTORE_Story_1_TestCase_7",
+      "title": "Verify product list is displayed correctly on desktop screen size",
+      "reason": "Playwright supports viewport configuration and visual assertions for layout verification at specific resolutions"
+    },
+    {
+      "id": "APPSTORE_Story_1_TestCase_8",
+      "title": "Verify product list is displayed correctly on tablet screen size",
+      "reason": "Playwright can emulate tablet viewports and run the same product list assertions at different screen sizes"
+    }
+  ],
+  "skippedManualOnlyTests": []
+}

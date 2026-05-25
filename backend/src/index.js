@@ -10,6 +10,7 @@ import { validatorAgentValidate } from './agents/validatorAgent.js';
 import { reporterAgentWriteReport } from './agents/reporterAgent.js';
 import { improvementAgentSuggest } from './agents/improvementAgent.js';
 import { analyzeCoverageAndGaps, buildContinuousImprovementFeedback } from './agents/testIntelligenceAgent.js';
+import { isSyncAgentEnabled, syncAgentRun } from './agents/syncAgent.js';
 import { buildReportData } from './ui/buildReportData.js';
 import { config } from './config.js';
 
@@ -241,6 +242,16 @@ async function main() {
   const generatedScriptPaths = [];
   let anyCasePassed = false;
   let hadFinalFailures = false;
+
+  async function runOptionalSyncAgent() {
+    if (!isSyncAgentEnabled()) {
+      return;
+    }
+
+    const syncResult = await syncAgentRun();
+    console.log('\nSync agent result: SUCCESS');
+    console.log(`Synced generated tests from ${syncResult.sourceDisplay} to ${syncResult.targetDisplay}.`);
+  }
 
   for (let i = 0; i < stories.length; i += 1) {
     const storyEntry = stories[i];
@@ -493,10 +504,12 @@ async function main() {
 
   if (generatedCount === 0) {
     console.log('\nNo new unique tests were generated. Existing tests are already covering these stories.');
+    await runOptionalSyncAgent();
   }
 
   if (generatedScriptPaths.length === 0) {
     await buildReportData();
+    await runOptionalSyncAgent();
     console.log('\nNo automatable tests were generated to execute.');
     console.log('\nFlow complete: User Story -> Manual Test Cases -> Automation Selection -> Script Generation');
     return;
@@ -504,6 +517,7 @@ async function main() {
 
   if (config.agentMode) {
     await buildReportData();
+    await runOptionalSyncAgent();
     const outcome = hadFinalFailures
       ? 'PARTIAL_FAIL'
       : (anyCasePassed ? 'PASS' : 'FAIL');
@@ -516,6 +530,7 @@ async function main() {
   const runResult = await runGeneratedTest(generatedScriptPaths);
   console.log(`Playwright result: ${runResult.passed ? 'PASS' : 'FAIL'} (code ${runResult.code})`);
   await buildReportData();
+  await runOptionalSyncAgent();
 
   console.log('\nFlow complete: User Story -> Manual Test Cases -> Automation Selection -> Playwright Scripts -> Test Execution');
 }
