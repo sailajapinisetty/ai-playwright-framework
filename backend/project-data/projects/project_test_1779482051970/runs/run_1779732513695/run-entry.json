@@ -1,0 +1,20 @@
+{
+  "runId": "run_1779732513695",
+  "startedAt": "2026-05-25T18:08:33.694Z",
+  "finishedAt": "2026-05-25T18:08:39.252Z",
+  "runType": "REGRESSION",
+  "suiteName": "Regression Suite 5/22/2026, 5:28:12 PM",
+  "selectedScripts": [
+    "generated_tests/TEST_Story_1/test-cases/TEST_Story_1_TestCase_1/test_story_1_verify_logged_in_user_with_cart.spec.js"
+  ],
+  "projectId": "project_test_1779482051970",
+  "projectName": "test",
+  "status": "PASS",
+  "exitCode": 0,
+  "outputTail": "Running 2 tests using 2 workers\n\n\u001b[1A\u001b[2K[1/2] [webkit] › generated_tests/TEST_Story_1/test-cases/TEST_Story_1_TestCase_1/test_story_1_verify_logged_in_user_with_cart.spec.js:113:1 › Verify logged-in user with cart items can view cart page successfully\n\u001b[1A\u001b[2K[2/2] [chromium] › generated_tests/TEST_Story_1/test-cases/TEST_Story_1_TestCase_1/test_story_1_verify_logged_in_user_with_cart.spec.js:113:1 › Verify logged-in user with cart items can view cart page successfully\n\u001b[1A\u001b[2K  2 passed (4.7s)",
+  "totals": {
+    "executed": 2,
+    "passed": 2,
+    "failed": 0
+  }
+}
