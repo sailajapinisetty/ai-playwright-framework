@@ -133,7 +133,15 @@
                   <option value="__REGRESSION__">Regression (All Stories)</option>
                 </select>
               </label>
+              <button id="manual-cases-columns-btn" class="secondary-btn" type="button">Choose Columns</button>
               <button id="add-manual-case-btn" class="secondary-btn" type="button">Add Manual Test Case</button>
+            </div>
+            <div id="manual-cases-columns-panel" class="section-card hidden">
+              <div class="panel-header-row">
+                <p class="eyebrow">Visible Columns</p>
+                <button id="manual-cases-columns-close-btn" class="secondary-btn story-panel-toggle-btn" type="button">x</button>
+              </div>
+              <div id="manual-cases-columns-options" class="manual-cases-columns-options"></div>
             </div>
             <div id="manual-case-editor" class="manual-case-editor hidden">
               <p class="eyebrow" id="manual-case-editor-title">Manual Test Case Editor</p>
@@ -150,6 +158,10 @@
                   <span>Title</span>
                   <input id="manual-case-title" type="text" placeholder="Verify cart item count updates" />
                 </label>
+                <label class="field field-wide">
+                  <span>Description</span>
+                  <textarea id="manual-case-description" rows="2" placeholder="Short summary of what this test validates"></textarea>
+                </label>
                 <label class="field">
                   <span>Type</span>
                   <input id="manual-case-type" type="text" placeholder="functional" />
@@ -159,8 +171,28 @@
                   <input id="manual-case-priority" type="text" placeholder="high" />
                 </label>
                 <label class="field field-wide">
+                  <span>Preconditions (one per line)</span>
+                  <textarea id="manual-case-preconditions" rows="3" placeholder="User is logged in"></textarea>
+                </label>
+                <label class="field field-wide">
+                  <span>Steps (one per line)</span>
+                  <textarea id="manual-case-steps" rows="4" placeholder="1. Open app\n2. Add product to cart"></textarea>
+                </label>
+                <label class="field field-wide">
                   <span>Expected Result</span>
                   <textarea id="manual-case-expected" rows="3" placeholder="Item is added and cart count increments"></textarea>
+                </label>
+                <label class="field field-wide">
+                  <span>Actual Result</span>
+                  <textarea id="manual-case-actual" rows="3" placeholder="Observed outcome after execution"></textarea>
+                </label>
+                <label class="field">
+                  <span>Status</span>
+                  <select id="manual-case-status">
+                    <option value="Not Run">Not Run</option>
+                    <option value="Pass">Pass</option>
+                    <option value="Fail">Fail</option>
+                  </select>
                 </label>
               </div>
               <div class="actions actions-tight">

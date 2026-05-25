@@ -50,6 +50,59 @@ function toAssetUrl(value) {
   return `./${cleanPath}`;
 }
 
+let activeReportSectionId = 'execution-snapshot';
+
+function activateReportSection(sectionId) {
+  const sections = [...document.querySelectorAll('#detail-panel [data-report-section]')];
+  if (sections.length === 0) {
+    return;
+  }
+
+  let nextActive = String(sectionId || '').trim();
+  if (!nextActive || !sections.some((section) => section.getAttribute('data-report-section') === nextActive)) {
+    nextActive = String(sections[0].getAttribute('data-report-section') || '').trim();
+  }
+
+  activeReportSectionId = nextActive;
+  for (const section of sections) {
+    const currentId = String(section.getAttribute('data-report-section') || '').trim();
+    section.classList.toggle('hidden', currentId !== nextActive);
+  }
+
+  const navButtons = [...document.querySelectorAll('.report-section-link')];
+  for (const button of navButtons) {
+    const currentId = String(button.getAttribute('data-target-section') || '').trim();
+    button.classList.toggle('active', currentId === nextActive);
+  }
+}
+
+function setupReportSectionNavigation() {
+  const navContainer = document.getElementById('report-section-nav');
+  const navLinksHost = document.getElementById('report-section-links');
+  const sections = [...document.querySelectorAll('#detail-panel [data-report-section]')];
+  if (!navContainer || !navLinksHost || sections.length === 0) {
+    return;
+  }
+
+  navContainer.classList.remove('hidden');
+
+  navLinksHost.innerHTML = sections.map((section) => {
+    const sectionId = String(section.getAttribute('data-report-section') || '').trim();
+    const sectionTitle = String(section.getAttribute('data-section-title') || '').trim() || sectionId;
+    return `<button type="button" class="report-section-link" data-target-section="${escapeHtml(sectionId)}">${escapeHtml(sectionTitle)}</button>`;
+  }).join('');
+
+  const navButtons = [...navLinksHost.querySelectorAll('.report-section-link')];
+  for (const button of navButtons) {
+    button.addEventListener('click', () => {
+      const sectionId = String(button.getAttribute('data-target-section') || '').trim();
+      activateReportSection(sectionId);
+    });
+  }
+
+  activateReportSection(activeReportSectionId);
+}
+
 function summarizeReportTotals(stories) {
   const safeStories = Array.isArray(stories) ? stories : [];
   const totals = {
@@ -607,7 +660,7 @@ function renderQualityInsights(report, historyItems) {
     : `<ul class="list-block">${insights.allImprovements.map((item) => `<li><strong>${escapeHtml(item.title)}:</strong> ${escapeHtml(item.recommendation)}</li>`).join('')}</ul>`;
 
   return `
-    <article class="section-card">
+    <article class="section-card" data-report-section="ai-quality-intelligence" data-section-title="AI Quality Intelligence">
       <p class="eyebrow">AI Quality Intelligence</p>
       <div class="quality-score-row">
         <div>
@@ -624,7 +677,7 @@ function renderQualityInsights(report, historyItems) {
       </div>
     </article>
 
-    <article class="section-card">
+    <article class="section-card" data-report-section="test-type-distribution" data-section-title="Test Type Distribution">
       <p class="eyebrow">Test Type Distribution</p>
       <div class="insight-grid">
         <article class="insight-card"><p class="eyebrow">Functional Tests</p><h4>${escapeHtml(displayCount(insights.typeCounts?.functional))}</h4></article>
@@ -634,32 +687,32 @@ function renderQualityInsights(report, historyItems) {
       </div>
     </article>
 
-    <article class="section-card">
+    <article class="section-card" data-report-section="failed-smart-reasons" data-section-title="Failed Tests With Smart Reasons">
       <p class="eyebrow">Failed Tests With Smart Reasons</p>
       ${smartFailureList}
     </article>
 
-    <article class="section-card">
+    <article class="section-card" data-report-section="flaky-tests" data-section-title="Flaky Tests">
       <p class="eyebrow">Flaky Tests</p>
       ${flakyList}
     </article>
 
-    <article class="section-card">
+    <article class="section-card" data-report-section="duplicate-tests" data-section-title="Duplicate Tests">
       <p class="eyebrow">Duplicate Tests</p>
       ${duplicateList}
     </article>
 
-    <article class="section-card">
+    <article class="section-card" data-report-section="high-risk-issues" data-section-title="High Risk Issues">
       <p class="eyebrow">High Risk Issues</p>
       ${riskList}
     </article>
 
-    <article class="section-card">
+    <article class="section-card" data-report-section="execution-time-trends" data-section-title="Execution Time Trends">
       <p class="eyebrow">Execution Time Trends</p>
       ${trendRows}
     </article>
 
-    <article class="section-card">
+    <article class="section-card" data-report-section="intelligent-improvements" data-section-title="Intelligent Improvements">
       <p class="eyebrow">Intelligent Improvements (AI Recommendations)</p>
       ${suggestedList}
     </article>
@@ -675,7 +728,7 @@ function renderReportDetail(report, historyItems = []) {
   const totalPassed = displayCount(report?.totals?.executionPassed);
   const totalFailed = displayCount(report?.totals?.executionFailed);
   detailPanel.innerHTML = `
-    <article class="section-card">
+    <article class="section-card" data-report-section="execution-snapshot" data-section-title="Execution Snapshot">
       <p class="eyebrow">Execution Snapshot</p>
       <div class="insight-grid">
         <article class="insight-card"><p class="eyebrow">Total Tests</p><h4>${escapeHtml(totalTests)}</h4></article>
@@ -684,11 +737,11 @@ function renderReportDetail(report, historyItems = []) {
         <article class="insight-card"><p class="eyebrow">Failed Tests</p><h4>${escapeHtml(totalFailed)}</h4></article>
       </div>
     </article>
-    <article class="section-card">
+    <article class="section-card" data-report-section="passed-tests" data-section-title="Passed Tests With Screenshots">
       <p class="eyebrow">Passed Tests With Screenshots</p>
       ${renderPassedCases(passedCases)}
     </article>
-    <article class="section-card">
+    <article class="section-card" data-report-section="failed-tests" data-section-title="Failed Tests (Click To Debug)">
       <p class="eyebrow">Failed Tests (Click To Debug)</p>
       ${renderFailedCases(failedCases)}
     </article>
@@ -891,6 +944,7 @@ function wireReport(report, options = {}) {
     globalStats.innerHTML = '';
   }
   renderReportDetail(report, options.historyItems || []);
+  setupReportSectionNavigation();
 }
 
 function filterReportCases(report, filters = {}) {
@@ -1163,6 +1217,65 @@ async function loadProjectStories(projectId = '') {
 }
 
 const MANUAL_CASES_REGRESSION_FILTER = '__REGRESSION__';
+const MANUAL_CASE_COLUMNS = [
+  { key: 'storyFolder', label: 'Story Folder' },
+  { key: 'storyTitle', label: 'Story Title' },
+  { key: 'source', label: 'Source' },
+  { key: 'caseId', label: 'Case ID' },
+  { key: 'title', label: 'Title' },
+  { key: 'description', label: 'Description' },
+  { key: 'type', label: 'Type' },
+  { key: 'priority', label: 'Priority' },
+  { key: 'preconditions', label: 'Preconditions' },
+  { key: 'steps', label: 'Steps' },
+  { key: 'expectedResult', label: 'Expected Result' },
+  { key: 'actualResult', label: 'Actual Result' },
+  { key: 'status', label: 'Status' },
+  { key: 'action', label: 'Action' }
+];
+const MANUAL_CASE_COLUMNS_STORAGE_KEY = 'manual_case_columns_v1';
+
+function normalizeSelectedManualCaseColumns(value) {
+  const allowed = new Set(MANUAL_CASE_COLUMNS.map((entry) => entry.key));
+  const selected = Array.isArray(value)
+    ? value.map((entry) => String(entry || '').trim()).filter((entry) => allowed.has(entry))
+    : [];
+
+  if (selected.length === 0) {
+    return MANUAL_CASE_COLUMNS.map((entry) => entry.key);
+  }
+
+  if (!selected.includes('action')) {
+    selected.push('action');
+  }
+
+  return [...new Set(selected)];
+}
+
+function loadManualCaseColumnsPreference() {
+  try {
+    const raw = window.localStorage.getItem(MANUAL_CASE_COLUMNS_STORAGE_KEY);
+    if (!raw) {
+      return MANUAL_CASE_COLUMNS.map((entry) => entry.key);
+    }
+
+    const parsed = JSON.parse(raw);
+    return normalizeSelectedManualCaseColumns(parsed);
+  } catch {
+    return MANUAL_CASE_COLUMNS.map((entry) => entry.key);
+  }
+}
+
+function saveManualCaseColumnsPreference(columns) {
+  try {
+    window.localStorage.setItem(
+      MANUAL_CASE_COLUMNS_STORAGE_KEY,
+      JSON.stringify(normalizeSelectedManualCaseColumns(columns))
+    );
+  } catch {
+    // Ignore localStorage write failures.
+  }
+}
 
 function buildManualCaseStoryOptions(items) {
   const map = new Map();
@@ -1189,10 +1302,14 @@ function filterManualCasesItems(items, selectedStoryFilter) {
   return (Array.isArray(items) ? items : []).filter((item) => String(item?.storyFolder || '') === selectedStoryFilter);
 }
 
-function renderManualCasesTable(items) {
+function renderManualCasesTable(items, selectedColumns = []) {
   if (!items || items.length === 0) {
     return '<p>No manual test cases found.</p>';
   }
+
+  const joinList = (value) => (Array.isArray(value) ? value.filter(Boolean).join(' | ') : '');
+  const visibleColumnKeys = normalizeSelectedManualCaseColumns(selectedColumns);
+  const visibleColumns = MANUAL_CASE_COLUMNS.filter((column) => visibleColumnKeys.includes(column.key));
 
   const rows = items.map((item) => {
     const source = String(item.source || 'manual').toLowerCase();
@@ -1205,36 +1322,38 @@ function renderManualCasesTable(items) {
         ? `<button type="button" class="mini-btn run-case-btn" data-script-path="${escapeHtml(scriptPath)}" data-case-id="${escapeHtml(caseId)}" data-title="${escapeHtml(String(item.title || ''))}">Run</button>`
         : '<span class="eyebrow">Auto</span>');
 
-    return `
-    <tr>
-      <td>${escapeHtml(item.storyFolder)}</td>
-      <td>${escapeHtml(item.storyTitle)}</td>
-      <td>${escapeHtml(String(item.source || 'manual').toUpperCase())}</td>
-      <td>${escapeHtml(item.caseId)}</td>
-      <td>${escapeHtml(item.title)}</td>
-      <td>${escapeHtml(item.type)}</td>
-      <td>${escapeHtml(item.priority)}</td>
-      <td>${escapeHtml(item.expectedResult)}</td>
-      <td class="actions-col">${actionHtml}</td>
-    </tr>
-  `;
+    const cells = {
+      storyFolder: escapeHtml(item.storyFolder),
+      storyTitle: escapeHtml(item.storyTitle),
+      source: escapeHtml(String(item.source || 'manual').toUpperCase()),
+      caseId: escapeHtml(item.caseId),
+      title: escapeHtml(item.title),
+      description: escapeHtml(item.description || ''),
+      type: escapeHtml(item.type),
+      priority: escapeHtml(item.priority),
+      preconditions: escapeHtml(joinList(item.preconditions)),
+      steps: escapeHtml(joinList(item.steps)),
+      expectedResult: escapeHtml(item.expectedResult),
+      actualResult: escapeHtml(item.actualResult || ''),
+      status: escapeHtml(item.status || 'Not Run'),
+      action: actionHtml
+    };
+
+    const rowCells = visibleColumns.map((column) => {
+      const cssClass = column.key === 'action' ? ' class="actions-col"' : '';
+      return `<td${cssClass}>${cells[column.key] || ''}</td>`;
+    }).join('');
+
+    return `<tr>${rowCells}</tr>`;
   }).join('');
+
+  const headers = visibleColumns.map((column) => `<th>${escapeHtml(column.label)}</th>`).join('');
 
   return `
     <div class="table-wrap">
       <table class="cases-table">
         <thead>
-          <tr>
-            <th>Story Folder</th>
-            <th>Story Title</th>
-            <th>Source</th>
-            <th>Case ID</th>
-            <th>Title</th>
-            <th>Type</th>
-            <th>Priority</th>
-            <th>Expected Result</th>
-            <th>Action</th>
-          </tr>
+          <tr>${headers}</tr>
         </thead>
         <tbody>${rows}</tbody>
       </table>
@@ -1282,15 +1401,24 @@ async function initRunnerPage() {
   const manualCasesMeta = document.getElementById('manual-cases-meta');
   const manualCasesView = document.getElementById('manual-cases-view');
   const manualCasesStoryFilter = document.getElementById('manual-cases-story-filter');
+  const manualCasesColumnsBtn = document.getElementById('manual-cases-columns-btn');
+  const manualCasesColumnsPanel = document.getElementById('manual-cases-columns-panel');
+  const manualCasesColumnsOptions = document.getElementById('manual-cases-columns-options');
+  const manualCasesColumnsCloseBtn = document.getElementById('manual-cases-columns-close-btn');
   const addManualCaseBtn = document.getElementById('add-manual-case-btn');
   const manualCaseEditor = document.getElementById('manual-case-editor');
   const manualCaseEditorTitle = document.getElementById('manual-case-editor-title');
   const manualCaseStoryFolderInput = document.getElementById('manual-case-story-folder');
   const manualCaseIdInput = document.getElementById('manual-case-id');
   const manualCaseTitleInput = document.getElementById('manual-case-title');
+  const manualCaseDescriptionInput = document.getElementById('manual-case-description');
   const manualCaseTypeInput = document.getElementById('manual-case-type');
   const manualCasePriorityInput = document.getElementById('manual-case-priority');
+  const manualCasePreconditionsInput = document.getElementById('manual-case-preconditions');
+  const manualCaseStepsInput = document.getElementById('manual-case-steps');
   const manualCaseExpectedInput = document.getElementById('manual-case-expected');
+  const manualCaseActualInput = document.getElementById('manual-case-actual');
+  const manualCaseStatusInput = document.getElementById('manual-case-status');
   const saveManualCaseBtn = document.getElementById('save-manual-case-btn');
   const cancelManualCaseBtn = document.getElementById('cancel-manual-case-btn');
   const downloadWordBtn = document.getElementById('download-word-btn');
@@ -1306,6 +1434,7 @@ async function initRunnerPage() {
   let manualCasesAvailable = false;
   let latestManualCasesPayload = null;
   let selectedManualCasesFilter = MANUAL_CASES_REGRESSION_FILTER;
+  let selectedManualCaseColumns = loadManualCaseColumnsPreference();
   let runLockedAfterSuccess = false;
   let storyInputsRevealed = false;
   let storySaved = false;
@@ -1560,9 +1689,22 @@ async function initRunnerPage() {
     if (manualCaseStoryFolderInput) manualCaseStoryFolderInput.value = '';
     if (manualCaseIdInput) manualCaseIdInput.value = '';
     if (manualCaseTitleInput) manualCaseTitleInput.value = '';
+    if (manualCaseDescriptionInput) manualCaseDescriptionInput.value = '';
     if (manualCaseTypeInput) manualCaseTypeInput.value = 'functional';
     if (manualCasePriorityInput) manualCasePriorityInput.value = 'medium';
+    if (manualCasePreconditionsInput) manualCasePreconditionsInput.value = '';
+    if (manualCaseStepsInput) manualCaseStepsInput.value = '';
     if (manualCaseExpectedInput) manualCaseExpectedInput.value = '';
+    if (manualCaseActualInput) manualCaseActualInput.value = '';
+    if (manualCaseStatusInput) manualCaseStatusInput.value = 'Not Run';
+    if (manualCaseStoryFolderInput) {
+      manualCaseStoryFolderInput.readOnly = false;
+      manualCaseStoryFolderInput.removeAttribute('data-original-story-folder');
+    }
+    if (manualCaseIdInput) {
+      manualCaseIdInput.readOnly = false;
+      manualCaseIdInput.removeAttribute('data-original-case-id');
+    }
   }
 
   function openManualCaseEditor(mode = 'create', item = null) {
@@ -1579,9 +1721,24 @@ async function initRunnerPage() {
       if (manualCaseStoryFolderInput) manualCaseStoryFolderInput.value = String(item.storyFolder || '');
       if (manualCaseIdInput) manualCaseIdInput.value = String(item.caseId || '');
       if (manualCaseTitleInput) manualCaseTitleInput.value = String(item.title || '');
+      if (manualCaseDescriptionInput) manualCaseDescriptionInput.value = String(item.description || '');
       if (manualCaseTypeInput) manualCaseTypeInput.value = String(item.type || 'functional');
       if (manualCasePriorityInput) manualCasePriorityInput.value = String(item.priority || 'medium');
+      if (manualCasePreconditionsInput) manualCasePreconditionsInput.value = Array.isArray(item.preconditions) ? item.preconditions.join('\n') : '';
+      if (manualCaseStepsInput) manualCaseStepsInput.value = Array.isArray(item.steps) ? item.steps.join('\n') : '';
       if (manualCaseExpectedInput) manualCaseExpectedInput.value = String(item.expectedResult || '');
+      if (manualCaseActualInput) manualCaseActualInput.value = String(item.actualResult || '');
+      if (manualCaseStatusInput) manualCaseStatusInput.value = String(item.status || 'Not Run');
+      if (manualCaseEditorMode === 'edit') {
+        if (manualCaseStoryFolderInput) {
+          manualCaseStoryFolderInput.readOnly = true;
+          manualCaseStoryFolderInput.setAttribute('data-original-story-folder', String(item.storyFolder || ''));
+        }
+        if (manualCaseIdInput) {
+          manualCaseIdInput.readOnly = true;
+          manualCaseIdInput.setAttribute('data-original-case-id', String(item.caseId || ''));
+        }
+      }
     } else {
       resetManualCaseEditorFields();
       if (manualCaseStoryFolderInput) {
@@ -1609,6 +1766,39 @@ async function initRunnerPage() {
   function resetManualCasesCache() {
     manualCasesLoaded = false;
     latestManualCasesPayload = null;
+  }
+
+  function getFilteredManualCasesItems(payload) {
+    const items = Array.isArray(payload?.items) ? payload.items : [];
+    return filterManualCasesItems(items, selectedManualCasesFilter);
+  }
+
+  function renderManualCaseColumnsPicker() {
+    if (!manualCasesColumnsOptions) {
+      return;
+    }
+
+    const selectedSet = new Set(normalizeSelectedManualCaseColumns(selectedManualCaseColumns));
+    manualCasesColumnsOptions.innerHTML = MANUAL_CASE_COLUMNS.map((column) => {
+      const isRequired = column.key === 'action';
+      const checked = selectedSet.has(column.key) ? 'checked' : '';
+      const disabled = isRequired ? 'disabled' : '';
+      return `
+        <label class="field-check">
+          <input class="manual-cases-column-check" type="checkbox" value="${escapeHtml(column.key)}" ${checked} ${disabled} />
+          <span>${escapeHtml(column.label)}</span>
+        </label>
+      `;
+    }).join('');
+  }
+
+  function rerenderManualCasesTableFromCurrentPayload() {
+    if (!latestManualCasesPayload) {
+      return;
+    }
+
+    const filteredItems = getFilteredManualCasesItems(latestManualCasesPayload);
+    manualCasesView.innerHTML = renderManualCasesTable(filteredItems, selectedManualCaseColumns);
   }
 
   function applyManualCasesFilter(payload) {
@@ -1641,11 +1831,11 @@ async function initRunnerPage() {
       manualCasesStoryFilter.disabled = storyOptions.length === 0;
     }
 
-    const filteredItems = filterManualCasesItems(items, selectedManualCasesFilter);
+    const filteredItems = getFilteredManualCasesItems(payload);
     const isRegressionView = selectedManualCasesFilter === MANUAL_CASES_REGRESSION_FILTER;
     const viewLabel = isRegressionView ? 'Regression view (all stories)' : `Story view (${selectedManualCasesFilter})`;
     manualCasesMeta.textContent = `${viewLabel} | Stories: ${payload.storyCount || 0} | Test cases: ${filteredItems.length || 0} | Generated: ${new Date(payload.generatedAt).toLocaleString()}`;
-    manualCasesView.innerHTML = renderManualCasesTable(filteredItems);
+    manualCasesView.innerHTML = renderManualCasesTable(filteredItems, selectedManualCaseColumns);
 
     if (addManualCaseBtn) {
       addManualCaseBtn.disabled = isRegressionView;
@@ -2369,6 +2559,35 @@ async function initRunnerPage() {
     }
   });
 
+  manualCasesColumnsBtn?.addEventListener('click', () => {
+    if (!manualCasesColumnsPanel) {
+      return;
+    }
+
+    renderManualCaseColumnsPicker();
+    manualCasesColumnsPanel.classList.toggle('hidden');
+  });
+
+  manualCasesColumnsCloseBtn?.addEventListener('click', () => {
+    manualCasesColumnsPanel?.classList.add('hidden');
+  });
+
+  manualCasesColumnsOptions?.addEventListener('change', (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement) || !target.classList.contains('manual-cases-column-check')) {
+      return;
+    }
+
+    const selected = [...manualCasesColumnsOptions.querySelectorAll('.manual-cases-column-check')]
+      .filter((input) => input instanceof HTMLInputElement && input.checked)
+      .map((input) => String(input.value || '').trim())
+      .filter(Boolean);
+
+    selectedManualCaseColumns = normalizeSelectedManualCaseColumns(selected);
+    saveManualCaseColumnsPreference(selectedManualCaseColumns);
+    rerenderManualCasesTableFromCurrentPayload();
+  });
+
   testCasesBtn.addEventListener('click', async () => {
     await showManualCasesPanel();
     manualCasesPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -2425,14 +2644,23 @@ async function initRunnerPage() {
       return;
     }
 
+    const parseMultiline = (value) => String(value || '')
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean);
+
     const payload = {
       id: String(manualCaseIdInput?.value || '').trim(),
+      originalCaseId: String(manualCaseIdInput?.getAttribute('data-original-case-id') || '').trim(),
       title,
+      description: String(manualCaseDescriptionInput?.value || '').trim(),
       type: String(manualCaseTypeInput?.value || '').trim() || 'functional',
       priority: String(manualCasePriorityInput?.value || '').trim() || 'medium',
+      preconditions: parseMultiline(manualCasePreconditionsInput?.value),
+      steps: parseMultiline(manualCaseStepsInput?.value),
       expectedResult: String(manualCaseExpectedInput?.value || '').trim(),
-      preconditions: [],
-      steps: [],
+      actualResult: String(manualCaseActualInput?.value || '').trim(),
+      status: String(manualCaseStatusInput?.value || 'Not Run').trim() || 'Not Run',
       acceptanceCriteria: [],
       automationCandidate: false,
       automationReason: 'Added from UI'

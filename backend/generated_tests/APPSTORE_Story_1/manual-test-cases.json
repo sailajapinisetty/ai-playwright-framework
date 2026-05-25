@@ -15,26 +15,12 @@
       "title": "Verify product list is displayed on landing page for a guest user",
       "type": "functional",
       "priority": "high",
-      "preconditions": [
-        "Application is deployed and accessible",
-        "At least one product exists in the database/backend",
-        "User is not logged in (guest state)",
-        "Browser cache is cleared"
-      ],
-      "steps": [
-        "Open a supported web browser",
-        "Navigate to the application landing page URL",
-        "Wait for the page to fully load",
-        "Observe the main content area of the landing page",
-        "Verify that a list or grid of products is present on the page"
-      ],
+      "preconditions": [],
+      "steps": [],
       "expectedResult": "The landing page displays a visible list or grid of products without requiring any login or additional navigation steps",
-      "acceptanceCriteria": [
-        "AC1",
-        "AC3"
-      ],
-      "automationCandidate": true,
-      "automationReason": "Stable UI element presence check; easily verifiable with Playwright by asserting product list container is visible and contains at least one item",
+      "acceptanceCriteria": [],
+      "automationCandidate": false,
+      "automationReason": "Added from UI",
       "tags": [
         "smoke",
         "regression",

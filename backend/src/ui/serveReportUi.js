@@ -489,18 +489,53 @@ function manualCaseSignature(testCase) {
 function normalizeManualCaseInput(value, fallbackId = '') {
   const raw = value && typeof value === 'object' ? value : {};
   const normalizedId = String(raw.id || fallbackId || '').trim();
+  const normalizedStatus = String(raw.status || 'Not Run').trim() || 'Not Run';
   return {
     id: normalizedId,
     title: String(raw.title || '').trim(),
+    description: String(raw.description || '').trim(),
     type: String(raw.type || '').trim() || 'functional',
     priority: String(raw.priority || '').trim() || 'medium',
     preconditions: normalizeManualCaseArray(raw.preconditions),
     steps: normalizeManualCaseArray(raw.steps),
     expectedResult: String(raw.expectedResult || '').trim(),
+    actualResult: String(raw.actualResult || '').trim(),
+    status: normalizedStatus,
     acceptanceCriteria: normalizeManualCaseArray(raw.acceptanceCriteria),
     automationCandidate: Boolean(raw.automationCandidate),
     automationReason: String(raw.automationReason || '').trim()
   };
+}
+
+function buildAutomatedCaseResultMap(reportData) {
+  const map = new Map();
+  const stories = Array.isArray(reportData?.stories) ? reportData.stories : [];
+
+  for (const story of stories) {
+    const storyFolder = String(story?.id || '').trim();
+    const cases = Array.isArray(story?.cases) ? story.cases : [];
+    for (const entry of cases) {
+      const caseId = String(entry?.caseId || '').trim();
+      if (!storyFolder || !caseId) {
+        continue;
+      }
+
+      const executionStatus = String(entry?.executionStatus || 'NOT_RUN').toUpperCase();
+      const status = executionStatus === 'PASS'
+        ? 'Pass'
+        : (executionStatus === 'FAIL' ? 'Fail' : 'Not Run');
+      const actualResult = executionStatus === 'PASS'
+        ? (String(entry?.validationSummary || '').trim() || 'Automated execution passed.')
+        : (String(entry?.failureCause || entry?.validationSummary || '').trim() || 'Automated execution not completed yet.');
+
+      map.set(`${storyFolder}::${caseId}`, {
+        status,
+        actualResult
+      });
+    }
+  }
+
+  return map;
 }
 
 async function saveProjectStory({ projectId = '', storyFolder = '', content = '', source = 'UI input' } = {}) {
@@ -569,19 +604,21 @@ async function upsertManualTestCase({ projectId = '', storyFolder = '', testCase
   }
 
   const normalizedInput = normalizeManualCaseInput(testCase);
+  const originalCaseId = String(testCase?.originalCaseId || '').trim();
   if (!normalizedInput.title) {
     throw new Error('testCase.title is required.');
   }
 
   const existingCases = Array.isArray(manualCatalog.testCases) ? manualCatalog.testCases : [];
-  const targetId = normalizedInput.id || `${safeStoryFolder}_MANUAL_${Date.now()}`;
+  const targetId = normalizedInput.id || originalCaseId || `${safeStoryFolder}_MANUAL_${Date.now()}`;
+  const matchId = originalCaseId || targetId;
   const finalCase = normalizeManualCaseInput({ ...normalizedInput, id: targetId }, targetId);
 
   const incomingSignature = manualCaseSignature(finalCase);
   let bestDuplicate = null;
   for (const entry of existingCases) {
     const existingId = String(entry?.id || '').trim();
-    if (!existingId || existingId === targetId) {
+    if (!existingId || existingId === targetId || (matchId && existingId === matchId)) {
       continue;
     }
 
@@ -601,7 +638,7 @@ async function upsertManualTestCase({ projectId = '', storyFolder = '', testCase
 
   let action = 'created';
   const updatedCases = existingCases.map((entry) => {
-    if (String(entry?.id || '').trim() !== targetId) {
+    if (String(entry?.id || '').trim() !== matchId) {
       return entry;
     }
 
@@ -747,6 +784,8 @@ function htmlEscape(value) {
 
 async function readManualTestCases({ projectId = '' } = {}) {
   const generatedTestsDir = path.join(rootDir, 'generated_tests');
+  const latestReportData = await readJsonFileIfExists(sharedReportDataPath, null);
+  const automatedResultMap = buildAutomatedCaseResultMap(latestReportData);
   let storyFolders = await listDirectories(generatedTestsDir);
   const requestedProjectId = String(projectId || '').trim();
 
@@ -774,9 +813,14 @@ async function readManualTestCases({ projectId = '' } = {}) {
         source: 'manual',
         caseId: String(testCase?.id || ''),
         title: String(testCase?.title || ''),
+        description: String(testCase?.description || testCase?.title || ''),
         type: String(testCase?.type || ''),
         priority: String(testCase?.priority || ''),
+        preconditions: Array.isArray(testCase?.preconditions) ? testCase.preconditions : [],
+        steps: Array.isArray(testCase?.steps) ? testCase.steps : [],
         expectedResult: String(testCase?.expectedResult || ''),
+        actualResult: String(testCase?.actualResult || ''),
+        status: String(testCase?.status || 'Not Run'),
         automationReason: String(testCase?.automationReason || '')
       });
     }
@@ -792,6 +836,11 @@ async function readManualTestCases({ projectId = '' } = {}) {
         .replace(/\.spec\.js$/i, '')
         .replace(/_/g, ' ')
         .trim();
+      const resultEntry = automatedResultMap.get(`${storyFolder}::${caseId}`) || {
+        status: 'Not Run',
+        actualResult: 'Automated execution not completed yet.'
+      };
+      const linkedManualCase = testCases.find((entry) => String(entry?.id || '').trim() === caseId) || null;
 
       items.push({
         storyFolder,
@@ -799,9 +848,14 @@ async function readManualTestCases({ projectId = '' } = {}) {
         source: 'automated',
         caseId,
         title: prettyTitle || fileName,
+        description: String(linkedManualCase?.description || linkedManualCase?.title || prettyTitle || fileName),
         type: 'automated-script',
         priority: '',
-        expectedResult: '',
+        preconditions: Array.isArray(linkedManualCase?.preconditions) ? linkedManualCase.preconditions : [],
+        steps: Array.isArray(linkedManualCase?.steps) ? linkedManualCase.steps : [],
+        expectedResult: String(linkedManualCase?.expectedResult || ''),
+        actualResult: String(resultEntry.actualResult || ''),
+        status: String(resultEntry.status || 'Not Run'),
         automationReason: relativePath,
         scriptPath: `generated_tests/${storyFolder}/test-cases/${relativePath}`
       });
@@ -932,22 +986,34 @@ function buildManualCasesCsv(manualData) {
   const header = [
     'Story Folder',
     'Story Title',
+    'Source',
     'Case ID',
     'Title',
+    'Description',
     'Type',
     'Priority',
+    'Preconditions',
+    'Steps',
     'Expected Result',
+    'Actual Result',
+    'Status',
     'Automation Reason'
   ];
 
   const rows = manualData.items.map((item) => [
     item.storyFolder,
     item.storyTitle,
+    item.source,
     item.caseId,
     item.title,
+    item.description,
     item.type,
     item.priority,
+    Array.isArray(item.preconditions) ? item.preconditions.join(' | ') : '',
+    Array.isArray(item.steps) ? item.steps.join(' | ') : '',
     item.expectedResult,
+    item.actualResult,
+    item.status,
     item.automationReason
   ]);
 
@@ -959,11 +1025,17 @@ function buildManualCasesWordHtml(manualData) {
     <tr>
       <td>${htmlEscape(item.storyFolder)}</td>
       <td>${htmlEscape(item.storyTitle)}</td>
+      <td>${htmlEscape(item.source)}</td>
       <td>${htmlEscape(item.caseId)}</td>
       <td>${htmlEscape(item.title)}</td>
+      <td>${htmlEscape(item.description)}</td>
       <td>${htmlEscape(item.type)}</td>
       <td>${htmlEscape(item.priority)}</td>
+      <td>${htmlEscape(Array.isArray(item.preconditions) ? item.preconditions.join(' | ') : '')}</td>
+      <td>${htmlEscape(Array.isArray(item.steps) ? item.steps.join(' | ') : '')}</td>
       <td>${htmlEscape(item.expectedResult)}</td>
+      <td>${htmlEscape(item.actualResult)}</td>
+      <td>${htmlEscape(item.status)}</td>
       <td>${htmlEscape(item.automationReason)}</td>
     </tr>
   `).join('');
@@ -990,11 +1062,17 @@ function buildManualCasesWordHtml(manualData) {
         <tr>
           <th>Story Folder</th>
           <th>Story Title</th>
+          <th>Source</th>
           <th>Case ID</th>
           <th>Title</th>
+          <th>Description</th>
           <th>Type</th>
           <th>Priority</th>
+          <th>Preconditions</th>
+          <th>Steps</th>
           <th>Expected Result</th>
+          <th>Actual Result</th>
+          <th>Status</th>
           <th>Automation Reason</th>
         </tr>
       </thead>
