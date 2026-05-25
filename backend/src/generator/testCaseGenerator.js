@@ -55,6 +55,7 @@ function normalizeCase(testCase, index) {
   return {
     id: String(testCase?.id || `PROJECTCODE_Story_1_TestCase_${index + 1}`),
     title,
+    description: String(testCase?.description || title).trim(),
     type: String(testCase?.type || 'functional').trim() || 'functional',
     priority: String(testCase?.priority || 'medium').trim() || 'medium',
     preconditions: normalizeTextList(testCase?.preconditions),
@@ -81,6 +82,7 @@ function fallbackManualCatalog(userStory) {
       {
         id: 'PROJECTCODE_Story_1_TestCase_1',
         title: summary ? `Validate core flow: ${summary.slice(0, 60)}` : 'Validate core flow from provided user story',
+        description: summary ? `Validate end-to-end behavior for story: ${summary.slice(0, 120)}` : 'Validate the primary end-to-end user flow.',
         type: 'functional',
         priority: 'high',
         preconditions: ['Application URL is reachable.'],
@@ -119,6 +121,7 @@ export async function generateManualTestCatalog(userStory) {
     '    {',
     '      "id": "PROJECTCODE_Story_1_TestCase_1",',
     '      "title": "clear test case title",',
+    '      "description": "short test case description",',
     '      "type": "functional|negative|edge|accessibility|usability|error-handling",',
     '      "priority": "high|medium|low",',
     '      "preconditions": ["state before test"],',
