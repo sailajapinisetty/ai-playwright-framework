@@ -6,6 +6,7 @@
   "scripts": {
     "start": "cd backend && node src/ui/serveReportUi.js",
     "start:cli": "cd backend && node src/index.js",
+    "clean:all": "rm -rf backend/generated_tests backend/artifacts backend/playwright-report backend/test-results backend/project-data user-stories frontend/report-ui/data/report-data.json frontend/report-ui/data/projects-registry.json frontend/report-ui/data/ui-run-history.json",
     "test:generated_tests": "playwright test --config=backend/playwright.config.js backend/generated_tests",
     "report:generated_tests": "playwright show-report backend/playwright-report",
     "agent:sync-suite": "node backend/src/agents/runSyncAgent.js",

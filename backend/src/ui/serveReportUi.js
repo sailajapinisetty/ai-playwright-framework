@@ -440,8 +440,72 @@ async function trackProjectStoryFolder(projectId, storyFolder) {
   }
 }
 
-async function saveProjectStory({ projectId = '', content = '', source = 'UI input' } = {}) {
+function normalizeManualCaseArray(value) {
+  return Array.isArray(value)
+    ? value.map((entry) => String(entry || '').trim()).filter(Boolean)
+    : [];
+}
+
+function normalizeCaseText(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function caseTokens(value) {
+  return new Set(normalizeCaseText(value).split(' ').filter(Boolean));
+}
+
+function caseSimilarity(aText, bText) {
+  const a = caseTokens(aText);
+  const b = caseTokens(bText);
+  if (a.size === 0 || b.size === 0) {
+    return 0;
+  }
+
+  let overlap = 0;
+  for (const token of a) {
+    if (b.has(token)) {
+      overlap += 1;
+    }
+  }
+
+  return overlap / Math.max(a.size, b.size);
+}
+
+function manualCaseSignature(testCase) {
+  const steps = Array.isArray(testCase?.steps) ? testCase.steps.join(' ') : '';
+  const preconditions = Array.isArray(testCase?.preconditions) ? testCase.preconditions.join(' ') : '';
+  return normalizeCaseText([
+    testCase?.title,
+    testCase?.expectedResult,
+    steps,
+    preconditions
+  ].join(' '));
+}
+
+function normalizeManualCaseInput(value, fallbackId = '') {
+  const raw = value && typeof value === 'object' ? value : {};
+  const normalizedId = String(raw.id || fallbackId || '').trim();
+  return {
+    id: normalizedId,
+    title: String(raw.title || '').trim(),
+    type: String(raw.type || '').trim() || 'functional',
+    priority: String(raw.priority || '').trim() || 'medium',
+    preconditions: normalizeManualCaseArray(raw.preconditions),
+    steps: normalizeManualCaseArray(raw.steps),
+    expectedResult: String(raw.expectedResult || '').trim(),
+    acceptanceCriteria: normalizeManualCaseArray(raw.acceptanceCriteria),
+    automationCandidate: Boolean(raw.automationCandidate),
+    automationReason: String(raw.automationReason || '').trim()
+  };
+}
+
+async function saveProjectStory({ projectId = '', storyFolder = '', content = '', source = 'UI input' } = {}) {
   const safeProjectId = String(projectId || '').trim();
+  const safeStoryFolder = String(storyFolder || '').trim();
   const safeContent = String(content || '').trim();
   const safeSource = String(source || 'UI input').trim();
 
@@ -459,25 +523,118 @@ async function saveProjectStory({ projectId = '', content = '', source = 'UI inp
   }
 
   const projectCode = normalizeProjectCode(project.name || project.id || 'PRJ');
-  const storyNumber = await getNextStorySequenceNumber();
-  const storyFolder = buildStoryName(projectCode, storyNumber);
-  const projectStoryDir = path.join(projectDataRootDir, safeProjectId, 'stories', storyFolder);
+  const isUpdate = Boolean(safeStoryFolder);
+  const storyNumber = isUpdate ? null : await getNextStorySequenceNumber();
+  const resolvedStoryFolder = isUpdate ? safeStoryFolder : buildStoryName(projectCode, storyNumber);
+  const projectStoryDir = path.join(projectDataRootDir, safeProjectId, 'stories', resolvedStoryFolder);
+
+  if (isUpdate && !(await pathExists(projectStoryDir))) {
+    throw new Error('Story folder not found for update.');
+  }
+
   await fs.mkdir(projectStoryDir, { recursive: true });
   await fs.writeFile(path.join(projectStoryDir, 'user-story.txt'), `${safeContent}\n`);
   await fs.writeFile(path.join(projectStoryDir, 'story-meta.json'), JSON.stringify({
     savedAt: new Date().toISOString(),
     source: safeSource,
-    storyFolder
+    storyFolder: resolvedStoryFolder,
+    mode: isUpdate ? 'update' : 'create'
   }, null, 2));
 
-  await trackProjectStoryFolder(safeProjectId, storyFolder);
+  await trackProjectStoryFolder(safeProjectId, resolvedStoryFolder);
 
   return {
     projectId: safeProjectId,
     projectName: String(project.name || ''),
-    storyFolder,
+    storyFolder: resolvedStoryFolder,
     storyNumber,
-    source: safeSource
+    source: safeSource,
+    mode: isUpdate ? 'update' : 'create'
+  };
+}
+
+async function upsertManualTestCase({ projectId = '', storyFolder = '', testCase = {} } = {}) {
+  const safeStoryFolder = String(storyFolder || '').trim();
+  const safeProjectId = String(projectId || '').trim();
+  if (!safeStoryFolder) {
+    throw new Error('storyFolder is required.');
+  }
+
+  const generatedTestsDir = path.join(rootDir, 'generated_tests');
+  const storyDir = path.join(generatedTestsDir, safeStoryFolder);
+  const manualPath = path.join(storyDir, 'manual-test-cases.json');
+  const manualCatalog = await readJsonFileIfExists(manualPath, null);
+  if (!manualCatalog || typeof manualCatalog !== 'object') {
+    throw new Error('Manual catalog not found for storyFolder. Run story generation first.');
+  }
+
+  const normalizedInput = normalizeManualCaseInput(testCase);
+  if (!normalizedInput.title) {
+    throw new Error('testCase.title is required.');
+  }
+
+  const existingCases = Array.isArray(manualCatalog.testCases) ? manualCatalog.testCases : [];
+  const targetId = normalizedInput.id || `${safeStoryFolder}_MANUAL_${Date.now()}`;
+  const finalCase = normalizeManualCaseInput({ ...normalizedInput, id: targetId }, targetId);
+
+  const incomingSignature = manualCaseSignature(finalCase);
+  let bestDuplicate = null;
+  for (const entry of existingCases) {
+    const existingId = String(entry?.id || '').trim();
+    if (!existingId || existingId === targetId) {
+      continue;
+    }
+
+    const similarity = caseSimilarity(incomingSignature, manualCaseSignature(entry));
+    if (!bestDuplicate || similarity > bestDuplicate.similarity) {
+      bestDuplicate = {
+        id: existingId,
+        title: String(entry?.title || '').trim(),
+        similarity
+      };
+    }
+  }
+
+  if (bestDuplicate && bestDuplicate.similarity >= 0.75) {
+    throw new Error(`Duplicate manual test case detected with ${bestDuplicate.id} (${Math.round(bestDuplicate.similarity * 100)}% similarity).`);
+  }
+
+  let action = 'created';
+  const updatedCases = existingCases.map((entry) => {
+    if (String(entry?.id || '').trim() !== targetId) {
+      return entry;
+    }
+
+    action = 'updated';
+    return {
+      ...entry,
+      ...finalCase
+    };
+  });
+
+  if (action === 'created') {
+    updatedCases.push(finalCase);
+  }
+
+  const nextCatalog = {
+    ...manualCatalog,
+    testCases: updatedCases
+  };
+
+  await fs.mkdir(storyDir, { recursive: true });
+  await fs.writeFile(manualPath, JSON.stringify(nextCatalog, null, 2));
+
+  if (safeProjectId) {
+    const projectStoryDir = path.join(projectDataRootDir, safeProjectId, 'stories', safeStoryFolder);
+    if (await pathExists(projectStoryDir)) {
+      await fs.writeFile(path.join(projectStoryDir, 'manual-test-cases.json'), JSON.stringify(nextCatalog, null, 2));
+    }
+  }
+
+  return {
+    storyFolder: safeStoryFolder,
+    action,
+    testCase: finalCase
   };
 }
 
@@ -1561,6 +1718,7 @@ const server = http.createServer(async (req, res) => {
     try {
       const body = await readJsonBody(req);
       const projectId = String(body.projectId || '').trim();
+      const storyFolder = String(body.storyFolder || '').trim();
       const content = String(body.content || '').trim();
       const source = String(body.source || 'UI input').trim();
 
@@ -1573,12 +1731,30 @@ const server = http.createServer(async (req, res) => {
         return;
       }
 
-      const saved = await saveProjectStory({ projectId, content, source });
+      const saved = await saveProjectStory({ projectId, storyFolder, content, source });
       writeJson(req, res, 200, saved);
       return;
     } catch (error) {
       const message = String(error?.message || 'Unable to save project story.');
-      const statusCode = message === 'Project not found.' ? 404 : 500;
+      const statusCode = (message === 'Project not found.' || message === 'Story folder not found for update.') ? 404 : 500;
+      writeJson(req, res, statusCode, { error: message });
+      return;
+    }
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/manual-test-cases') {
+    try {
+      const body = await readJsonBody(req);
+      const projectId = String(body.projectId || '').trim();
+      const storyFolder = String(body.storyFolder || '').trim();
+      const testCase = body.testCase;
+
+      const saved = await upsertManualTestCase({ projectId, storyFolder, testCase });
+      writeJson(req, res, 200, saved);
+      return;
+    } catch (error) {
+      const message = String(error?.message || 'Unable to save manual test case.');
+      const statusCode = message.includes('not found') ? 404 : 400;
       writeJson(req, res, statusCode, { error: message });
       return;
     }

@@ -133,6 +133,40 @@
                   <option value="__REGRESSION__">Regression (All Stories)</option>
                 </select>
               </label>
+              <button id="add-manual-case-btn" class="secondary-btn" type="button">Add Manual Test Case</button>
+            </div>
+            <div id="manual-case-editor" class="manual-case-editor hidden">
+              <p class="eyebrow" id="manual-case-editor-title">Manual Test Case Editor</p>
+              <div class="form-grid">
+                <label class="field">
+                  <span>Story Folder</span>
+                  <input id="manual-case-story-folder" type="text" placeholder="PRJ_Story_1" />
+                </label>
+                <label class="field">
+                  <span>Case ID (optional for new)</span>
+                  <input id="manual-case-id" type="text" placeholder="PRJ_Story_1_TestCase_1" />
+                </label>
+                <label class="field field-wide">
+                  <span>Title</span>
+                  <input id="manual-case-title" type="text" placeholder="Verify cart item count updates" />
+                </label>
+                <label class="field">
+                  <span>Type</span>
+                  <input id="manual-case-type" type="text" placeholder="functional" />
+                </label>
+                <label class="field">
+                  <span>Priority</span>
+                  <input id="manual-case-priority" type="text" placeholder="high" />
+                </label>
+                <label class="field field-wide">
+                  <span>Expected Result</span>
+                  <textarea id="manual-case-expected" rows="3" placeholder="Item is added and cart count increments"></textarea>
+                </label>
+              </div>
+              <div class="actions actions-tight">
+                <button id="save-manual-case-btn" class="primary-btn" type="button">Save Manual Case</button>
+                <button id="cancel-manual-case-btn" class="secondary-btn" type="button">Cancel</button>
+              </div>
             </div>
             <p id="manual-cases-meta">Loading manual test cases...</p>
             <div id="manual-cases-view"><p>No manual test cases found.</p></div>
