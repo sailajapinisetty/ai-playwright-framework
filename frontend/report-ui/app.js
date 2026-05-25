@@ -228,6 +228,66 @@ function inferSmartFailureReason(item) {
   return `Unclassified failure pattern: ${raw.slice(0, 180)}${raw.length > 180 ? '...' : ''}`;
 }
 
+function inferSmartFailureFix(item) {
+  const raw = String(item?.failureCause || item?.outputTail || item?.validationSummary || '').toLowerCase();
+  if (!raw) {
+    return 'Re-run with trace enabled and collect console/network logs to identify root cause.';
+  }
+
+  if (raw.includes('unable to resolve locator') || raw.includes('locator')) {
+    return 'Update selectors to stable role/test-id locators and move selector logic into reusable page-object methods.';
+  }
+  if (raw.includes('timeout')) {
+    return 'Add explicit waits for page readiness and API completion; remove hard-coded timing assumptions.';
+  }
+  if (raw.includes('tohaveurl') || raw.includes('navigation') || raw.includes('net::')) {
+    return 'Validate APP_URL/environment availability and add navigation guards before assertions.';
+  }
+  if (raw.includes('expect(') || raw.includes('assert')) {
+    return 'Review assertion expectations against current product behavior and update test data/preconditions.';
+  }
+
+  return 'Review stack trace and output tail, then add targeted guard conditions and data setup for this flow.';
+}
+
+function inferFailureLevel(item) {
+  const priority = String(item?.priority || '').toLowerCase();
+  const raw = String(item?.failureCause || item?.outputTail || item?.validationSummary || '').toLowerCase();
+
+  if (priority === 'critical' || raw.includes('unreachable') || raw.includes('not found')) {
+    return 'Critical';
+  }
+  if (priority === 'high' || raw.includes('timeout') || raw.includes('navigation') || raw.includes('net::')) {
+    return 'High';
+  }
+  if (priority === 'medium' || raw.includes('locator') || raw.includes('assert') || raw.includes('expect(')) {
+    return 'Medium';
+  }
+  return 'Low';
+}
+
+function inferRiskCategory(item) {
+  const raw = String(item?.failureCause || item?.outputTail || item?.validationSummary || '').toLowerCase();
+
+  if (raw.includes('timeout') || raw.includes('wait') || raw.includes('flaky')) {
+    return 'Stability';
+  }
+  if (raw.includes('navigation') || raw.includes('net::') || raw.includes('unreachable')) {
+    return 'Environment';
+  }
+  if (raw.includes('locator') || raw.includes('selector')) {
+    return 'Selector';
+  }
+  if (raw.includes('assert') || raw.includes('expect(')) {
+    return 'Assertion';
+  }
+  if (raw.includes('test data') || raw.includes('invalid') || raw.includes('not found')) {
+    return 'Data';
+  }
+
+  return 'Functional';
+}
+
 function collectAllCases(report) {
   const all = [];
   for (const story of Array.isArray(report?.stories) ? report.stories : []) {
@@ -306,24 +366,47 @@ function computeQualityInsights(report, historyItems) {
     return hasPass && hasFail;
   });
 
-  const highRiskIssues = [];
+  const highRiskMap = new Map();
   for (const item of failedCases) {
     const priority = String(item.priority || '').toLowerCase();
-    if (priority === 'high' || priority === 'critical') {
-      highRiskIssues.push({
-        type: 'Failed high-priority test',
-        item,
-        detail: inferSmartFailureReason(item)
-      });
+    if (priority !== 'high' && priority !== 'critical') {
+      continue;
     }
-  }
-  for (const item of flakyCases) {
-    highRiskIssues.push({
-      type: 'Flaky behavior',
+
+    const key = `${String(item.storyId || '')}::${String(item.caseId || '')}`;
+    const category = inferRiskCategory(item);
+    const existing = highRiskMap.get(key) || {
       item,
-      detail: 'Case has both PASS and FAIL outcomes across runs. Stabilize selectors and waits before release gating.'
-    });
+      level: inferFailureLevel(item),
+      categories: new Set(),
+      signals: []
+    };
+
+    existing.categories.add(category);
+    existing.signals.push('High-priority test is currently failing and may block release confidence.');
+    highRiskMap.set(key, existing);
   }
+
+  for (const item of flakyCases) {
+    const key = `${String(item.storyId || '')}::${String(item.caseId || '')}`;
+    const existing = highRiskMap.get(key) || {
+      item,
+      level: inferFailureLevel(item),
+      categories: new Set(),
+      signals: []
+    };
+
+    existing.categories.add('Stability');
+    existing.signals.push('Observed both PASS and FAIL in run history, indicating flaky behavior.');
+    highRiskMap.set(key, existing);
+  }
+
+  const highRiskIssues = [...highRiskMap.values()].map((entry) => ({
+    item: entry.item,
+    level: entry.level,
+    category: [...entry.categories].join(', '),
+    summary: [...new Set(entry.signals)].join(' ')
+  }));
 
   const typeCounts = {
     functional: 0,
@@ -455,15 +538,16 @@ function renderPassedCases(passedCases) {
 
 function renderQualityInsights(report, historyItems) {
   const insights = computeQualityInsights(report, historyItems);
-  const smartFailureCards = insights.failedCases.length === 0
+  const smartFailureList = insights.failedCases.length === 0
     ? '<p>No failed tests in this selection.</p>'
-    : insights.failedCases.map((item) => `
-      <article class="insight-card">
-        <p class="eyebrow">${escapeHtml(item.storyTitle)} | ${escapeHtml(item.caseId)}</p>
-        <h4>${escapeHtml(item.title)}</h4>
-        <p>${escapeHtml(inferSmartFailureReason(item))}</p>
-      </article>
-    `).join('');
+    : `<ul class="list-block">${insights.failedCases.map((item) => `
+      <li>
+        <strong>${escapeHtml(item.caseId)} - ${escapeHtml(item.title)}</strong> (${escapeHtml(item.storyTitle)})<br/>
+        <strong>Level:</strong> ${escapeHtml(inferFailureLevel(item))}<br/>
+        <strong>Reason:</strong> ${escapeHtml(inferSmartFailureReason(item))}<br/>
+        <strong>Fix:</strong> ${escapeHtml(inferSmartFailureFix(item))}
+      </li>
+    `).join('')}</ul>`;
 
   const flakyList = insights.flakyCases.length === 0
     ? '<p>No flaky tests detected from available run history.</p>'
@@ -479,7 +563,13 @@ function renderQualityInsights(report, historyItems) {
 
   const riskList = insights.highRiskIssues.length === 0
     ? '<p>No high-risk issues detected for this report snapshot.</p>'
-    : `<ul class="list-block">${insights.highRiskIssues.slice(0, 12).map((entry) => `<li><strong>${escapeHtml(entry.type)}:</strong> ${escapeHtml(entry.item.caseId)} - ${escapeHtml(entry.detail)}</li>`).join('')}</ul>`;
+    : `<ul class="list-block">${insights.highRiskIssues.slice(0, 12).map((entry) => `
+      <li>
+        <strong>${escapeHtml(entry.item.caseId)} - ${escapeHtml(entry.item.title || '')}</strong> (${escapeHtml(entry.item.storyTitle || '')})<br/>
+        <strong>Level:</strong> ${escapeHtml(entry.level || 'Medium')} | <strong>Category:</strong> ${escapeHtml(entry.category || 'Functional')}<br/>
+        <strong>Risk Summary:</strong> ${escapeHtml(entry.summary || 'Potential high-impact regression risk detected.')}
+      </li>
+    `).join('')}</ul>`;
 
   const trends = insights.executionTrends;
   const trendRows = trends.points.length === 0
@@ -546,7 +636,7 @@ function renderQualityInsights(report, historyItems) {
 
     <article class="section-card">
       <p class="eyebrow">Failed Tests With Smart Reasons</p>
-      <div class="insight-grid">${smartFailureCards}</div>
+      ${smartFailureList}
     </article>
 
     <article class="section-card">
@@ -582,7 +672,6 @@ function renderReportDetail(report, historyItems = []) {
   const detailPanel = document.getElementById('detail-panel');
   const totalTests = displayCount(report?.totals?.tests);
   const totalAutomated = displayCount(report?.totals?.automated);
-  const totalAutomatedPassed = displayCount(report?.totals?.automatedRunPassed);
   const totalPassed = displayCount(report?.totals?.executionPassed);
   const totalFailed = displayCount(report?.totals?.executionFailed);
   detailPanel.innerHTML = `
@@ -591,7 +680,6 @@ function renderReportDetail(report, historyItems = []) {
       <div class="insight-grid">
         <article class="insight-card"><p class="eyebrow">Total Tests</p><h4>${escapeHtml(totalTests)}</h4></article>
         <article class="insight-card"><p class="eyebrow">Automated Tests</p><h4>${escapeHtml(totalAutomated)}</h4></article>
-        <article class="insight-card"><p class="eyebrow">Automated Passed</p><h4>${escapeHtml(totalAutomatedPassed)}</h4></article>
         <article class="insight-card"><p class="eyebrow">Passed Tests</p><h4>${escapeHtml(totalPassed)}</h4></article>
         <article class="insight-card"><p class="eyebrow">Failed Tests</p><h4>${escapeHtml(totalFailed)}</h4></article>
       </div>
@@ -604,7 +692,7 @@ function renderReportDetail(report, historyItems = []) {
       <p class="eyebrow">Failed Tests (Click To Debug)</p>
       ${renderFailedCases(failedCases)}
     </article>
-    <article class="section-card" id="debug-panel">
+    <article class="section-card hidden" id="debug-panel">
       <p class="eyebrow">Debug Panel</p>
       <p>Click a failed test to view failure cause and debug steps.</p>
     </article>
@@ -620,6 +708,12 @@ function renderReportDetail(report, historyItems = []) {
       renderDebugPanel(failedItem);
     });
   });
+
+  const debugPanel = document.getElementById('debug-panel')
+  const collapseDebugPanelBtn = document.getElementById('collapse-debug-panel-btn')
+  collapseDebugPanelBtn?.addEventListener('click', () => {
+    debugPanel?.classList.add('hidden')
+  })
 }
 
 function renderDebugPanel(item) {
@@ -629,12 +723,21 @@ function renderDebugPanel(item) {
   }
 
   debugPanel.innerHTML = `
-    <p class="eyebrow">Debug Panel</p>
+    <div class="panel-header-row">
+      <p class="eyebrow">Debug Panel</p>
+      <button type="button" id="collapse-debug-panel-btn" class="secondary-btn history-open-report-btn">Collapse</button>
+    </div>
     <h4>${escapeHtml(item.caseId)} - ${escapeHtml(item.title)}</h4>
     <p><strong>Failure Cause:</strong> ${escapeHtml(item.failureCause || item.validationSummary || 'Failure cause not captured.')}</p>
     <p><strong>Debug Command:</strong> ${escapeHtml(item.debugCommand || `npx playwright test ${item.scriptFiles?.[0] || ''} --headed --project=chromium`)}</p>
     <p><strong>Last Output:</strong> ${escapeHtml(item.outputTail || 'No terminal output captured.')}</p>
   `;
+
+  debugPanel.classList.remove('hidden');
+  const collapseDebugPanelBtn = document.getElementById('collapse-debug-panel-btn')
+  collapseDebugPanelBtn?.addEventListener('click', () => {
+    debugPanel.classList.add('hidden')
+  })
 }
 
 async function loadReport(runId = '') {
@@ -1095,9 +1198,12 @@ function renderManualCasesTable(items) {
     const source = String(item.source || 'manual').toLowerCase();
     const storyFolder = String(item.storyFolder || '');
     const caseId = String(item.caseId || '');
+    const scriptPath = String(item.scriptPath || '').trim();
     const actionHtml = source === 'manual'
       ? `<button type="button" class="mini-btn edit-manual-case-btn" data-story-folder="${escapeHtml(storyFolder)}" data-case-id="${escapeHtml(caseId)}">Edit</button>`
-      : '<span class="eyebrow">Auto</span>';
+      : (scriptPath
+        ? `<button type="button" class="mini-btn run-case-btn" data-script-path="${escapeHtml(scriptPath)}" data-case-id="${escapeHtml(caseId)}" data-title="${escapeHtml(String(item.title || ''))}">Run</button>`
+        : '<span class="eyebrow">Auto</span>');
 
     return `
     <tr>
@@ -2356,9 +2462,25 @@ async function initRunnerPage() {
     }
   });
 
-  manualCasesView?.addEventListener('click', (event) => {
+  manualCasesView?.addEventListener('click', async (event) => {
     const target = event.target;
     if (!(target instanceof HTMLElement)) {
+      return;
+    }
+
+    if (target.classList.contains('run-case-btn')) {
+      const scriptPath = String(target.getAttribute('data-script-path') || '').trim();
+      const caseId = String(target.getAttribute('data-case-id') || '').trim();
+      const caseTitle = String(target.getAttribute('data-title') || '').trim();
+
+      if (!scriptPath) {
+        runStatus.textContent = 'Unable to run: script path is missing for this test case.';
+        return;
+      }
+
+      const suiteName = `Single Case ${caseId || 'Run'} - ${new Date().toLocaleString()}`;
+      runStatus.textContent = `Running selected test case${caseTitle ? `: ${caseTitle}` : ''}...`;
+      await runRegressionWithSelection([scriptPath], suiteName);
       return;
     }
 
