@@ -1,0 +1,56 @@
+{
+  "storySource": "TEST_Story_1 (re-run)",
+  "totalManualTests": 5,
+  "coverage": {
+    "totalAutomatable": 2,
+    "covered": 0,
+    "missing": 2,
+    "coveragePercent": 0,
+    "coveredCases": [],
+    "missingScenarioTitles": [
+      "Verify system handles undefined or gibberish input gracefully",
+      "Verify system does not crash when receiving random alphanumeric gibberish input"
+    ]
+  },
+  "selectedAutomatableTests": [
+    {
+      "id": "TEST_Story_1_TestCase_1",
+      "title": "Verify system handles undefined or gibberish input gracefully",
+      "reason": "Inputting a string and asserting a validation message is a stable, deterministic UI interaction easily handled by Playwright."
+    },
+    {
+      "id": "TEST_Story_1_TestCase_2",
+      "title": "Verify system does not crash when receiving random alphanumeric gibberish input",
+      "reason": "Playwright can capture console errors and intercept network responses to assert no crash conditions occur when gibberish input is submitted."
+    }
+  ],
+  "selectedMissingTestsForGeneration": [
+    {
+      "id": "TEST_Story_1_TestCase_1",
+      "title": "Verify system handles undefined or gibberish input gracefully",
+      "reason": "Inputting a string and asserting a validation message is a stable, deterministic UI interaction easily handled by Playwright."
+    },
+    {
+      "id": "TEST_Story_1_TestCase_2",
+      "title": "Verify system does not crash when receiving random alphanumeric gibberish input",
+      "reason": "Playwright can capture console errors and intercept network responses to assert no crash conditions occur when gibberish input is submitted."
+    }
+  ],
+  "skippedManualOnlyTests": [
+    {
+      "id": "TEST_Story_1_TestCase_3",
+      "title": "Verify system sanitizes gibberish input to prevent injection attacks",
+      "reason": "Security sanitization validation often requires manual inspection of response payloads and server behavior; full security validation typically requires dedicated security tooling beyond Playwright's scope."
+    },
+    {
+      "id": "TEST_Story_1_TestCase_4",
+      "title": "Verify user receives a clear and user-friendly error message for unrecognized input",
+      "reason": "Usability and tone-of-voice validation of error messages require human judgment and cannot be reliably automated with Playwright alone."
+    },
+    {
+      "id": "TEST_Story_1_TestCase_5",
+      "title": "Verify accessibility of the error state triggered by gibberish input",
+      "reason": "Full accessibility validation including screen reader announcements requires manual testing with assistive technologies; automated tools can only partially cover ARIA attribute checks."
+    }
+  ]
+}

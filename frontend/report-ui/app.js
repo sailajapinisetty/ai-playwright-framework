@@ -5,6 +5,14 @@ function statusClass(value) {
   return 'warn';
 }
 
+function formatRunStatusLabel(value) {
+  const normalized = String(value || '').toUpperCase();
+  if (normalized === 'STOPPED') {
+    return 'Execution Interrupted';
+  }
+  return normalized || 'UNKNOWN';
+}
+
 const rawApiBaseUrl = String(
   window.__API_BASE_URL || window.localStorage.getItem('API_BASE_URL') || ''
 ).trim();
@@ -192,7 +200,7 @@ function renderFailedCases(failedCases) {
     return '<p>No failed automated tests found.</p>';
   }
 
-  return `<ul class="list-block">${failedCases.map((item) => `<li><button type="button" class="debug-btn" data-failed-key="${escapeHtml(item.failedKey)}">${escapeHtml(item.caseId)} - ${escapeHtml(item.title)} (${escapeHtml(item.storyTitle)})</button></li>`).join('')}</ul>`;
+  return `<ul class="list-block">${failedCases.map((item) => `<li>${escapeHtml(item.caseId)} - ${escapeHtml(item.title)} (${escapeHtml(item.storyTitle)})</li>`).join('')}</ul>`;
 }
 
 function collectFailedCases(report) {
@@ -591,16 +599,6 @@ function renderPassedCases(passedCases) {
 
 function renderQualityInsights(report, historyItems) {
   const insights = computeQualityInsights(report, historyItems);
-  const smartFailureList = insights.failedCases.length === 0
-    ? '<p>No failed tests in this selection.</p>'
-    : `<ul class="list-block">${insights.failedCases.map((item) => `
-      <li>
-        <strong>${escapeHtml(item.caseId)} - ${escapeHtml(item.title)}</strong> (${escapeHtml(item.storyTitle)})<br/>
-        <strong>Level:</strong> ${escapeHtml(inferFailureLevel(item))}<br/>
-        <strong>Reason:</strong> ${escapeHtml(inferSmartFailureReason(item))}<br/>
-        <strong>Fix:</strong> ${escapeHtml(inferSmartFailureFix(item))}
-      </li>
-    `).join('')}</ul>`;
 
   const flakyList = insights.flakyCases.length === 0
     ? '<p>No flaky tests detected from available run history.</p>'
@@ -687,11 +685,6 @@ function renderQualityInsights(report, historyItems) {
       </div>
     </article>
 
-    <article class="section-card" data-report-section="failed-smart-reasons" data-section-title="Failed Tests With Smart Reasons">
-      <p class="eyebrow">Failed Tests With Smart Reasons</p>
-      ${smartFailureList}
-    </article>
-
     <article class="section-card" data-report-section="flaky-tests" data-section-title="Flaky Tests">
       <p class="eyebrow">Flaky Tests</p>
       ${flakyList}
@@ -719,78 +712,59 @@ function renderQualityInsights(report, historyItems) {
   `;
 }
 
+function renderFailedSmartReasons(report, historyItems) {
+  const insights = computeQualityInsights(report, historyItems);
+  const smartFailureList = insights.failedCases.length === 0
+    ? '<p>No failed tests in this selection.</p>'
+    : `<ul class="list-block">${insights.failedCases.map((item) => `
+      <li>
+        <strong>${escapeHtml(item.caseId)} - ${escapeHtml(item.title)}</strong> (${escapeHtml(item.storyTitle)})<br/>
+        <strong>Level:</strong> ${escapeHtml(inferFailureLevel(item))}<br/>
+        <strong>Reason:</strong> ${escapeHtml(inferSmartFailureReason(item))}<br/>
+        <strong>Fix:</strong> ${escapeHtml(inferSmartFailureFix(item))}
+      </li>
+    `).join('')}</ul>`;
+
+  return `
+    <article class="section-card" data-report-section="failed-smart-reasons" data-section-title="Failed Tests With Smart Reasons">
+      <p class="eyebrow">Failed Tests With Smart Reasons</p>
+      ${smartFailureList}
+    </article>
+  `;
+}
+
 function renderReportDetail(report, historyItems = []) {
   const passedCases = collectPassedCases(report);
-  const failedCases = collectFailedCases(report);
   const detailPanel = document.getElementById('detail-panel');
   const totalTests = displayCount(report?.totals?.tests);
   const totalAutomated = displayCount(report?.totals?.automated);
-  const totalPassed = displayCount(report?.totals?.executionPassed);
-  const totalFailed = displayCount(report?.totals?.executionFailed);
+  const totalManual = displayCount(report?.totals?.manual);
+  const totalAutomatedPassed = displayCount(report?.totals?.automatedRunPassed);
+  const totalAutomatedFailed = displayCount(report?.totals?.automatedRunFailed);
+  const derivedNotRun = Math.max(
+    0,
+    Number(report?.totals?.tests || 0) - Number(report?.totals?.executionPassed || 0) - Number(report?.totals?.executionFailed || 0)
+  );
+  const totalNotRun = displayCount(report?.totals?.notRun ?? derivedNotRun);
   detailPanel.innerHTML = `
-    <article class="section-card" data-report-section="execution-snapshot" data-section-title="Execution Snapshot">
-      <p class="eyebrow">Execution Snapshot</p>
+    <article class="section-card" data-report-section="execution-snapshot" data-section-title="Automation Test Execution Report">
+      <p class="eyebrow">Automation Test Execution Report</p>
       <div class="insight-grid">
         <article class="insight-card"><p class="eyebrow">Total Tests</p><h4>${escapeHtml(totalTests)}</h4></article>
         <article class="insight-card"><p class="eyebrow">Automated Tests</p><h4>${escapeHtml(totalAutomated)}</h4></article>
-        <article class="insight-card"><p class="eyebrow">Passed Tests</p><h4>${escapeHtml(totalPassed)}</h4></article>
-        <article class="insight-card"><p class="eyebrow">Failed Tests</p><h4>${escapeHtml(totalFailed)}</h4></article>
+        <article class="insight-card"><p class="eyebrow">Manual Tests</p><h4>${escapeHtml(totalManual)}</h4></article>
+        <article class="insight-card"><p class="eyebrow">Automated Passed</p><h4>${escapeHtml(totalAutomatedPassed)}</h4></article>
+        <article class="insight-card"><p class="eyebrow">Automated Failed</p><h4>${escapeHtml(totalAutomatedFailed)}</h4></article>
+        <article class="insight-card"><p class="eyebrow">Not Run Count</p><h4>${escapeHtml(totalNotRun)}</h4></article>
       </div>
     </article>
     <article class="section-card" data-report-section="passed-tests" data-section-title="Passed Tests With Screenshots">
       <p class="eyebrow">Passed Tests With Screenshots</p>
       ${renderPassedCases(passedCases)}
     </article>
-    <article class="section-card" data-report-section="failed-tests" data-section-title="Failed Tests (Click To Debug)">
-      <p class="eyebrow">Failed Tests (Click To Debug)</p>
-      ${renderFailedCases(failedCases)}
-    </article>
-    <article class="section-card hidden" id="debug-panel">
-      <p class="eyebrow">Debug Panel</p>
-      <p>Click a failed test to view failure cause and debug steps.</p>
-    </article>
+    ${renderFailedSmartReasons(report, historyItems)}
     ${renderQualityInsights(report, historyItems)}
   `;
-
-  const failedCaseMap = new Map(failedCases.map((item) => [item.failedKey, item]));
-  const debugButtons = [...document.querySelectorAll('.debug-btn')];
-  debugButtons.forEach((button) => {
-    button.addEventListener('click', () => {
-      const failedKey = button.getAttribute('data-failed-key');
-      const failedItem = failedCaseMap.get(String(failedKey || ''));
-      renderDebugPanel(failedItem);
-    });
-  });
-
-  const debugPanel = document.getElementById('debug-panel')
-  const collapseDebugPanelBtn = document.getElementById('collapse-debug-panel-btn')
-  collapseDebugPanelBtn?.addEventListener('click', () => {
-    debugPanel?.classList.add('hidden')
-  })
-}
-
-function renderDebugPanel(item) {
-  const debugPanel = document.getElementById('debug-panel');
-  if (!debugPanel || !item) {
-    return;
-  }
-
-  debugPanel.innerHTML = `
-    <div class="panel-header-row">
-      <p class="eyebrow">Debug Panel</p>
-      <button type="button" id="collapse-debug-panel-btn" class="secondary-btn history-open-report-btn">Collapse</button>
-    </div>
-    <h4>${escapeHtml(item.caseId)} - ${escapeHtml(item.title)}</h4>
-    <p><strong>Failure Cause:</strong> ${escapeHtml(item.failureCause || item.validationSummary || 'Failure cause not captured.')}</p>
-    <p><strong>Debug Command:</strong> ${escapeHtml(item.debugCommand || `npx playwright test ${item.scriptFiles?.[0] || ''} --headed --project=chromium`)}</p>
-    <p><strong>Last Output:</strong> ${escapeHtml(item.outputTail || 'No terminal output captured.')}</p>
-  `;
-
-  debugPanel.classList.remove('hidden');
-  const collapseDebugPanelBtn = document.getElementById('collapse-debug-panel-btn')
-  collapseDebugPanelBtn?.addEventListener('click', () => {
-    debugPanel.classList.add('hidden')
-  })
 }
 
 async function loadReport(runId = '') {
@@ -806,8 +780,20 @@ async function loadReport(runId = '') {
     if (apiResponse.ok && apiType.includes('application/json')) {
       return await apiResponse.json();
     }
+
+    if (safeRunId && apiType.includes('application/json')) {
+      const payload = await apiResponse.json();
+      throw new Error(String(payload?.error || 'Report is unavailable for this run.'));
+    }
+
+    if (safeRunId) {
+      throw new Error('Report is unavailable for this run.');
+    }
   } catch {
-    // Fall through to static fallback.
+    if (safeRunId) {
+      throw new Error('Execution Interrupted. No report is available for this interrupted run.');
+    }
+    // Fall through to static fallback for non-run-scoped report page.
   }
 
   const staticResponse = await fetch(`./data/report-data.json?t=${cacheBust}`, { cache: 'no-store' });
@@ -828,6 +814,7 @@ function renderHistory(items) {
     const totals = item?.totals || { executed: 0, passed: 0, failed: 0 };
     const failedCount = Number(item?.totals?.failed || 0);
     const effectiveStatus = failedCount > 0 ? 'FAIL' : String(item.status || 'UNKNOWN');
+    const effectiveStatusLabel = formatRunStatusLabel(effectiveStatus);
     const statusClassName = statusClass(effectiveStatus);
     const runType = String(item?.runType || 'FULL').toUpperCase();
     const runTypeBadge = runType === 'REGRESSION'
@@ -837,6 +824,14 @@ function renderHistory(items) {
     const suiteLine = suiteName ? `<span class="history-run-id">Suite: ${escapeHtml(suiteName)}</span>` : '';
     const runId = String(item?.runId || '').trim();
     const runIdLine = runId ? `<span class="history-run-id">Run ID: ${escapeHtml(runId)}</span>` : '';
+    const runEnvironment = String(item?.urlEnvironment || '').trim().toUpperCase();
+    const appUrl = String(item?.appUrl || '').trim();
+    const environmentLine = runEnvironment
+      ? `<span class="history-run-id">Env: ${escapeHtml(runEnvironment)}</span>`
+      : '';
+    const appUrlLine = appUrl
+      ? `<span class="history-run-id">URL: ${escapeHtml(appUrl)}</span>`
+      : '';
     const canRerunSuite = runType === 'REGRESSION' && Array.isArray(item?.selectedScripts) && item.selectedScripts.length > 0;
     const rerunSuiteButton = canRerunSuite
       ? `<span class="secondary-btn history-open-report-btn rerun-suite-btn" data-run-id="${escapeHtml(item.runId)}">Re-run Suite</span>`
@@ -847,10 +842,12 @@ function renderHistory(items) {
           <strong>${escapeHtml(new Date(when).toLocaleString())}</strong>
           ${runIdLine}
           ${suiteLine}
+          ${environmentLine}
+          ${appUrlLine}
           <span class="history-summary">Executed ${escapeHtml(totals.executed || 0)}, Passed ${escapeHtml(totals.passed || 0)}, Failed ${escapeHtml(totals.failed || 0)}</span>
           <span class="history-status-row">
             ${runTypeBadge}
-            <span class="badge ${statusClassName}">${escapeHtml(effectiveStatus)}</span>
+            <span class="badge ${statusClassName}">${escapeHtml(effectiveStatusLabel)}</span>
             <span class="secondary-btn history-open-report-btn open-report-run-btn" data-run-id="${escapeHtml(item.runId)}">Open Report</span>
             ${rerunSuiteButton}
           </span>
@@ -866,6 +863,8 @@ function historySearchText(item) {
   const runType = String(item?.runType || 'FULL').toUpperCase();
   const storySource = String(item?.storySource || '');
   const storyFolder = String(item?.storyFolder || '');
+  const urlEnvironment = String(item?.urlEnvironment || '').toUpperCase();
+  const appUrl = String(item?.appUrl || '');
 
   return [
     String(item?.runId || ''),
@@ -873,6 +872,8 @@ function historySearchText(item) {
     runType,
     storySource,
     storyFolder,
+    urlEnvironment,
+    appUrl,
     when,
     new Date(when).toLocaleString()
   ].join(' ').toLowerCase();
@@ -1020,11 +1021,11 @@ function filterReportCases(report, filters = {}) {
   };
 }
 
-async function submitRun(appUrl, userStory, saveDefaultUrl, storyFolder = '') {
+async function submitRun(appUrl, userStory, saveDefaultUrl, storyFolder = '', urlEnvironment = '') {
   const response = await fetch(apiUrl('/api/run-tests'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ appUrl, userStory, saveDefaultUrl, storyFolder: storyFolder || undefined })
+    body: JSON.stringify({ appUrl, userStory, saveDefaultUrl, storyFolder: storyFolder || undefined, urlEnvironment: urlEnvironment || undefined })
   });
 
   const contentType = String(response.headers.get('content-type') || '').toLowerCase();
@@ -1044,11 +1045,32 @@ async function submitRun(appUrl, userStory, saveDefaultUrl, storyFolder = '') {
   );
 }
 
-async function submitRegressionRun(appUrl, saveDefaultUrl, selectedScripts = [], suiteName = '') {
+async function stopAutomationRun() {
+  const response = await fetch(apiUrl('/api/stop-run'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: '{}'
+  });
+
+  const payload = await response.json();
+  if (!response.ok) {
+    throw new Error(payload.error || 'Unable to stop the current run.');
+  }
+
+  return payload;
+}
+
+async function submitRegressionRun(appUrl, saveDefaultUrl, selectedScripts = [], suiteName = '', urlEnvironment = '') {
   const response = await fetch(apiUrl('/api/run-regression'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ appUrl, saveDefaultUrl, selectedScripts, suiteName })
+    body: JSON.stringify({
+      appUrl,
+      saveDefaultUrl,
+      selectedScripts,
+      suiteName,
+      urlEnvironment: urlEnvironment || undefined
+    })
   });
 
   const contentType = String(response.headers.get('content-type') || '').toLowerCase();
@@ -1072,7 +1094,7 @@ async function loadDefaultUrl() {
   const cacheBust = Date.now();
   const response = await fetch(apiUrl(`/api/default-url?t=${cacheBust}`), { cache: 'no-store' });
   if (!response.ok) {
-    return { appUrl: '', projectId: '', projectName: '', urlId: '' };
+    return { appUrl: '', projectId: '', projectName: '', urlId: '', urlEnvironment: '' };
   }
 
   const payload = await response.json();
@@ -1080,7 +1102,8 @@ async function loadDefaultUrl() {
     appUrl: String(payload.appUrl || '').trim(),
     projectId: String(payload.projectId || '').trim(),
     projectName: String(payload.projectName || '').trim(),
-    urlId: String(payload.urlId || '').trim()
+    urlId: String(payload.urlId || '').trim(),
+    urlEnvironment: String(payload.urlEnvironment || '').trim().toUpperCase()
   };
 }
 
@@ -1128,11 +1151,11 @@ async function selectProject(projectId) {
   return payload;
 }
 
-async function saveProjectUrl(projectId, label, url, isDefault = false) {
+async function saveProjectUrl(projectId, label, url, isDefault = false, environment = '') {
   const response = await fetch(apiUrl('/api/projects/urls'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ projectId, label, url, isDefault })
+    body: JSON.stringify({ projectId, label, url, isDefault, environment })
   });
 
   const payload = await response.json();
@@ -1410,20 +1433,23 @@ function renderManualCasesTable(items, selectedColumns = []) {
 
 async function initRunnerPage() {
   const runStatus = document.getElementById('run-status');
-  const appUrlInput = document.getElementById('app-url');
+  const storyEnvironmentSelect = document.getElementById('story-environment-select');
+  const regressionEnvironmentSelect = document.getElementById('regression-environment-select');
+  const testCaseEnvironmentSelect = document.getElementById('test-case-environment-select');
   const projectSelect = document.getElementById('project-select');
   const newProjectNameInput = document.getElementById('new-project-name');
   const createProjectBtn = document.getElementById('create-project-btn');
-  const projectUrlSelect = document.getElementById('project-url-select');
-  const projectUrlLabelInput = document.getElementById('project-url-label');
+  const projectUrlEnvironmentSelect = document.getElementById('project-url-environment');
+  const projectUrlInput = document.getElementById('project-url-input');
   const saveProjectUrlBtn = document.getElementById('save-project-url-btn');
   const storyInputGroup = document.getElementById('story-input-group');
   const closeStoryInputsBtn = document.getElementById('close-story-inputs-btn');
   const addStoryBtn = document.getElementById('add-story-btn');
   const fileInput = document.getElementById('user-story-file');
   const storyInput = document.getElementById('user-story-input');
-  const saveDefaultUrlInput = document.getElementById('save-default-url');
   const runBtn = document.getElementById('run-tests-btn');
+  const stopRunBtn = document.getElementById('stop-run-btn');
+  const stopRunBottomBtn = document.getElementById('stop-run-bottom-btn');
   const runRegressionBtn = document.getElementById('run-regression-btn');
   const showReportBtn = document.getElementById('show-report-btn');
   const testCasesBtn = document.getElementById('test-cases-btn');
@@ -1510,7 +1536,7 @@ async function initRunnerPage() {
       return { key: 'error', level: 1, label: 'Critical' };
     }
 
-    if (/\b(warn|warning|please|required|retry|not generated yet|unavailable|cancel)\b/.test(text)) {
+    if (/\b(warn|warning|please|required|retry|not generated yet|unavailable|cancel|stop|stopped|interrupt)\b/.test(text)) {
       return { key: 'warning', level: 2, label: 'Warning' };
     }
 
@@ -1579,10 +1605,17 @@ async function initRunnerPage() {
 
   wireRunStatusNotifications();
 
-  async function runRegressionWithSelection(selectedScripts, suiteName) {
-    const appUrl = appUrlInput.value.trim();
+  async function runRegressionWithSelection(selectedScripts, suiteName, selectedEnvironment = '') {
+    const runTarget = resolveRunTargetForSelectedEnvironment(selectedEnvironment, true);
+    const appUrl = String(runTarget?.appUrl || '').trim();
+    const urlEnvironment = String(runTarget?.environment || '').trim().toUpperCase();
+    if (runTarget?.error) {
+      runStatus.textContent = runTarget.error;
+      return;
+    }
+
     if (!appUrl) {
-      runStatus.textContent = 'Please enter application URL.';
+      runStatus.textContent = 'No URL resolved for selected environment.';
       return;
     }
 
@@ -1599,26 +1632,37 @@ async function initRunnerPage() {
     }
 
     setRunButtonsBusy(true);
+    setStopRunVisible(true);
     showReportBtn.disabled = true;
     runStatus.textContent = `Running suite "${safeSuiteName}" with ${selectedScripts.length} selected test case(s). Please wait...`;
 
     try {
-      const runResponse = await submitRegressionRun(appUrl, Boolean(saveDefaultUrlInput?.checked), selectedScripts, safeSuiteName);
+      const runResponse = await submitRegressionRun(appUrl, false, selectedScripts, safeSuiteName, urlEnvironment);
       const runOutcome = String(runResponse?.run?.status || '').toUpperCase();
       const runId = String(runResponse?.run?.runId || '').trim();
       latestStoryFolderForCases = '';
 
-      runStatus.textContent = runOutcome === 'PASS'
-        ? `Regression suite "${safeSuiteName}" complete. Opening report...`
-        : `Regression suite "${safeSuiteName}" completed with failures. Opening report...`;
+      if (runOutcome === 'STOPPED') {
+        runStatus.textContent = `Execution interrupted for suite "${safeSuiteName}".`;
+        runLockedAfterSuccess = false;
+        setRunButtonsBusy(false);
+        showReportBtn.disabled = true;
+        hideRegressionSelectionPanel();
+        await refreshHistory();
+        await refreshManualCasesAvailability();
+      } else {
+        runStatus.textContent = runOutcome === 'PASS'
+          ? `Regression suite "${safeSuiteName}" complete. Opening report...`
+          : `Regression suite "${safeSuiteName}" completed with failures. Opening report...`;
 
-      runLockedAfterSuccess = false;
-      setRunButtonsBusy(false);
-      showReportBtn.disabled = false;
-      hideRegressionSelectionPanel();
-      await refreshHistory();
-      await refreshManualCasesAvailability();
-      window.location.href = toReportUrl(runId);
+        runLockedAfterSuccess = false;
+        setRunButtonsBusy(false);
+        showReportBtn.disabled = false;
+        hideRegressionSelectionPanel();
+        await refreshHistory();
+        await refreshManualCasesAvailability();
+        window.location.href = toReportUrl(runId);
+      }
     } catch (error) {
       runStatus.textContent = `Regression run failed: ${error.message}`;
       runLockedAfterSuccess = false;
@@ -1626,6 +1670,7 @@ async function initRunnerPage() {
       await refreshHistory();
       await refreshManualCasesAvailability();
     } finally {
+      setStopRunVisible(false);
       applyApiHealth(await checkApiHealth());
     }
   }
@@ -1697,7 +1742,17 @@ async function initRunnerPage() {
     const safeStoryFolder = String(storyFolder || '').trim();
     const items = Array.isArray(latestProjectStoriesPayload?.items) ? latestProjectStoriesPayload.items : [];
     const matched = items.find((item) => String(item?.storyFolder || '').trim() === safeStoryFolder);
-    return String(matched?.content || '').trim();
+    const storyContent = String(matched?.content || '').trim();
+    const storySource = String(matched?.source || '').trim().toLowerCase();
+    const hasSavedStorySource = storySource.includes('user-story.txt')
+      || storySource.includes('user_story.txt')
+      || storySource.startsWith('user-stories/');
+
+    if (!storyContent || !hasSavedStorySource) {
+      return '';
+    }
+
+    return storyContent;
   }
 
   function findLatestRunIdForStory(storyFolder) {
@@ -1896,56 +1951,103 @@ async function initRunnerPage() {
     return projects.find((project) => String(project?.id || '') === selectedId) || null;
   }
 
+  function updateProjectUrlSaveFieldState() {
+    if (!projectUrlInput || !projectUrlEnvironmentSelect) {
+      return;
+    }
+
+    const hasProject = Boolean(getSelectedProject());
+    projectUrlInput.disabled = !hasProject;
+    projectUrlEnvironmentSelect.disabled = !hasProject;
+  }
+
+  function normalizeUrlEnvironmentLabel(entry) {
+    const explicitEnvironment = String(entry?.environment || '').trim().toUpperCase();
+    if (['QA', 'UAT', 'PROD'].includes(explicitEnvironment)) {
+      return explicitEnvironment;
+    }
+
+    const labelEnvironment = String(entry?.label || '').trim().toUpperCase();
+    if (['QA', 'UAT', 'PROD'].includes(labelEnvironment)) {
+      return labelEnvironment;
+    }
+
+    return '';
+  }
+
+  function syncProjectUrlInputForSelectedEnvironment() {
+    if (!projectUrlInput || !projectUrlEnvironmentSelect) {
+      return;
+    }
+
+    const selectedProject = getSelectedProject();
+    if (!selectedProject) {
+      projectUrlInput.value = '';
+      return;
+    }
+
+    const selectedEnvironment = String(projectUrlEnvironmentSelect.value || '').trim().toUpperCase();
+    if (!selectedEnvironment) {
+      projectUrlInput.value = '';
+      return;
+    }
+
+    const urls = Array.isArray(selectedProject?.urls) ? selectedProject.urls : [];
+    const matched = urls.find((entry) => normalizeUrlEnvironmentLabel(entry) === selectedEnvironment);
+    projectUrlInput.value = matched ? String(matched?.url || '').trim() : '';
+  }
+
+  function resolveRunTargetForSelectedEnvironment(selectedEnvironmentRaw = '', requireEnvironment = false) {
+    const selectedProject = getSelectedProject();
+    const selectedEnvironment = String(selectedEnvironmentRaw || '').trim().toUpperCase();
+
+    if (!selectedProject) {
+      return {
+        appUrl: '',
+        environment: '',
+        error: 'Select a project before running tests.'
+      };
+    }
+
+    if (!selectedEnvironment) {
+      return {
+        appUrl: '',
+        environment: '',
+        error: 'Choose run environment (QA/UAT/Prod) before running tests.'
+      };
+    }
+
+    const urls = Array.isArray(selectedProject?.urls) ? selectedProject.urls : [];
+    const matched = urls.find((entry) => normalizeUrlEnvironmentLabel(entry) === selectedEnvironment);
+    if (!matched || !String(matched?.url || '').trim()) {
+      return {
+        appUrl: '',
+        environment: selectedEnvironment,
+        error: `No URL saved for ${selectedEnvironment}. Save an environment URL first.`
+      };
+    }
+
+    const matchedUrl = String(matched.url || '').trim();
+
+    return {
+      appUrl: matchedUrl,
+      environment: selectedEnvironment,
+      error: ''
+    };
+  }
+
+  function normalizeRunEnvironment(value) {
+    const selectedEnvironment = String(value || '').trim().toUpperCase();
+    return ['QA', 'UAT', 'PROD'].includes(selectedEnvironment) ? selectedEnvironment : '';
+  }
+
   async function renderProjectStories() {
     const selectedProject = getSelectedProject();
 
     if (!selectedProject) {
-      projectStoriesMeta.textContent = 'Loading stories...';
-      projectStoriesView.innerHTML = '<p>Loading...</p>';
-      try {
-        const payload = await loadProjectStories('');
-        latestProjectStoriesPayload = payload;
-        const items = Array.isArray(payload?.items) ? payload.items : [];
-        if (items.length === 0) {
-          projectStoriesMeta.textContent = 'No stories found yet.';
-          projectStoriesView.innerHTML = '<p>No stories found.</p>';
-          return;
-        }
-
-        projectStoriesMeta.textContent = `All stories: ${items.length} stor${items.length === 1 ? 'y' : 'ies'} found.`;
-        projectStoriesView.innerHTML = items.map((item) => {
-          const text = String(item?.content || '').trim() || 'Story content is not available for this story.';
-          const source = String(item?.source || '').trim();
-          const storyFolder = String(item?.storyFolder || '').trim();
-          const storyPoints = Number(item?.storyPoints || 0);
-          const pointLabel = String(item?.storyPointEstimate?.storyPointLabel || '').trim();
-          const reasoning = String(item?.storyPointEstimate?.reasoning || '').trim();
-          const latestStoryRunId = findLatestRunIdForStory(storyFolder);
-          const pointBadge = storyPoints > 0
-            ? `<p class="story-source"><strong>Story Points: ${escapeHtml(storyPoints)}</strong>${pointLabel ? ` — ${escapeHtml(pointLabel)}` : ''}${reasoning ? `<br><span style="font-size:12px;opacity:.8">${escapeHtml(reasoning)}</span>` : ''}</p>`
-            : '';
-          return `
-            <article class="story-content-card">
-              <p class="eyebrow">${escapeHtml(storyFolder || 'story')}</p>
-              <p class="story-id-line">Story ID: ${escapeHtml(storyFolder || 'N/A')}</p>
-              ${pointBadge}
-              ${source ? `<p class="story-source">Source: ${escapeHtml(source)}</p>` : ''}
-              <pre class="story-content-text">${escapeHtml(text)}</pre>
-              <div class="actions story-actions">
-                <button type="button" class="secondary-btn story-run-tests-btn" data-story-folder="${escapeHtml(storyFolder)}">Run Story Testing</button>
-                <button type="button" class="secondary-btn story-test-cases-btn" data-story-folder="${escapeHtml(storyFolder)}">Test Cases</button>
-                <button type="button" class="secondary-btn story-edit-btn" data-story-folder="${escapeHtml(storyFolder)}">Edit Story</button>
-                <button type="button" class="secondary-btn story-estimate-btn" data-story-folder="${escapeHtml(storyFolder)}">Estimate Story Points</button>
-                <button type="button" class="secondary-btn story-archive-btn" data-story-folder="${escapeHtml(storyFolder)}">Archive Story</button>
-                <button type="button" class="secondary-btn story-show-report-btn" data-run-id="${escapeHtml(latestStoryRunId)}" ${latestStoryRunId ? '' : 'disabled'}>Show Report</button>
-              </div>
-            </article>
-          `;
-        }).join('');
-      } catch (error) {
-        projectStoriesMeta.textContent = 'Unable to load stories.';
-        projectStoriesView.innerHTML = `<p>${escapeHtml(error.message)}</p>`;
-      }
+      latestProjectStoriesPayload = { items: [], storyCount: 0, generatedAt: new Date().toISOString() };
+      projectStoriesMeta.textContent = 'Select a project to view related stories.';
+      projectStoriesView.innerHTML = '<p>No project selected.</p>';
       return;
     }
 
@@ -1970,15 +2072,25 @@ async function initRunnerPage() {
         const storyPoints = Number(item?.storyPoints || 0);
         const pointLabel = String(item?.storyPointEstimate?.storyPointLabel || '').trim();
         const reasoning = String(item?.storyPointEstimate?.reasoning || '').trim();
+        const escalationSuggestion = String(item?.storyPointEstimate?.escalationSuggestion || '').trim();
+        const needsDiscussion = Boolean(item?.storyPointEstimate?.needsDiscussion);
+        const lastRunAppUrl = String(item?.lastRunAppUrl || '').trim();
+        const lastRunUrlEnvironment = String(item?.lastRunUrlEnvironment || '').trim().toUpperCase();
+        const lastRunAt = String(item?.lastRunAt || '').trim();
         const latestStoryRunId = findLatestRunIdForStory(storyFolder);
-        const pointBadge = storyPoints > 0
-          ? `<p class="story-source"><strong>Story Points: ${escapeHtml(storyPoints)}</strong>${pointLabel ? ` — ${escapeHtml(pointLabel)}` : ''}${reasoning ? `<br><span style="font-size:12px;opacity:.8">${escapeHtml(reasoning)}</span>` : ''}</p>`
+        const hasPointEstimate = Boolean(item?.storyPointEstimate) || storyPoints === 0;
+        const pointBadge = hasPointEstimate
+          ? `<p class="story-source"><strong>Story Points: ${escapeHtml(storyPoints)}</strong>${pointLabel ? ` — ${escapeHtml(pointLabel)}` : ''}${reasoning ? `<br><span style="font-size:12px;opacity:.8">${escapeHtml(reasoning)}</span>` : ''}${needsDiscussion && escalationSuggestion ? `<br><span style="font-size:12px;opacity:.8"><strong>Suggestion:</strong> ${escapeHtml(escalationSuggestion)}</span>` : ''}</p>`
+          : '';
+        const lastRunUrlBadge = lastRunAppUrl
+          ? `<p class="story-source"><strong>Last Run URL:</strong> ${escapeHtml(lastRunAppUrl)}${lastRunUrlEnvironment ? ` <span class="badge">${escapeHtml(lastRunUrlEnvironment)}</span>` : ''}${lastRunAt ? `<br><span style="font-size:12px;opacity:.8">Saved: ${escapeHtml(new Date(lastRunAt).toLocaleString())}</span>` : ''}</p>`
           : '';
         return `
           <article class="story-content-card">
             <p class="eyebrow">${escapeHtml(storyFolder || 'story')}</p>
             <p class="story-id-line">Story ID: ${escapeHtml(storyFolder || 'N/A')}</p>
             ${pointBadge}
+            ${lastRunUrlBadge}
             ${source ? `<p class="story-source">Source: ${escapeHtml(source)}</p>` : ''}
             <pre class="story-content-text">${escapeHtml(text)}</pre>
             <div class="actions story-actions">
@@ -2011,22 +2123,60 @@ async function initRunnerPage() {
     }
 
     const selectedProject = getSelectedProject();
-    const urls = Array.isArray(selectedProject?.urls) ? selectedProject.urls : [];
-    if (projectUrlSelect) {
-      const urlOptions = ['<option value="">No saved URLs</option>', ...urls.map((entry) => {
-        const suffix = entry.isDefault ? ' (default)' : '';
-        return `<option value="${escapeHtml(entry.id)}">${escapeHtml(entry.label || entry.url)}${escapeHtml(suffix)}</option>`;
-      })];
-      projectUrlSelect.innerHTML = urlOptions.join('');
-      projectUrlSelect.disabled = !selectedProject || urls.length === 0;
+
+    if (projectUrlEnvironmentSelect) {
+      projectUrlEnvironmentSelect.disabled = !selectedProject;
+      if (!selectedProject) {
+        projectUrlEnvironmentSelect.value = '';
+      }
+    }
+
+    if (storyEnvironmentSelect) {
+      storyEnvironmentSelect.disabled = !selectedProject;
+      if (!selectedProject) {
+        storyEnvironmentSelect.value = '';
+      }
+    }
+
+    if (regressionEnvironmentSelect) {
+      regressionEnvironmentSelect.disabled = !selectedProject;
+      if (!selectedProject) {
+        regressionEnvironmentSelect.value = '';
+      }
+    }
+
+    if (testCaseEnvironmentSelect) {
+      testCaseEnvironmentSelect.disabled = !selectedProject;
+      if (!selectedProject) {
+        testCaseEnvironmentSelect.value = '';
+      }
+    }
+
+    if (projectUrlInput) {
+      projectUrlInput.disabled = !selectedProject;
     }
 
     if (saveProjectUrlBtn) {
       saveProjectUrlBtn.disabled = !selectedProject;
     }
 
+    updateProjectUrlSaveFieldState();
+    syncProjectUrlInputForSelectedEnvironment();
+
     if (showStoriesBtn) {
-      showStoriesBtn.disabled = false;
+      showStoriesBtn.disabled = !selectedProject;
+    }
+
+    if (testCasesBtn) {
+      testCasesBtn.disabled = !selectedProject || !manualCasesAvailable;
+    }
+
+    if (downloadWordBtn) {
+      downloadWordBtn.disabled = !selectedProject || !manualCasesAvailable;
+    }
+
+    if (downloadExcelBtn) {
+      downloadExcelBtn.disabled = !selectedProject || !manualCasesAvailable;
     }
 
     if (projectStoriesPanel && !projectStoriesPanel.classList.contains('hidden')) {
@@ -2063,10 +2213,64 @@ async function initRunnerPage() {
 
   runBtn.disabled = true;
   runRegressionBtn.disabled = true;
+  stopRunBtn?.setAttribute('hidden', 'hidden');
+  if (stopRunBtn) {
+    stopRunBtn.disabled = true;
+  }
+  stopRunBottomBtn?.setAttribute('hidden', 'hidden');
+  if (stopRunBottomBtn) {
+    stopRunBottomBtn.disabled = true;
+  }
 
   function setRunButtonsBusy(isBusy) {
     runBtn.disabled = isBusy;
     runRegressionBtn.disabled = isBusy;
+  }
+
+  function setStopRunVisible(isVisible) {
+    const stopButtons = [stopRunBtn, stopRunBottomBtn].filter(Boolean);
+    if (stopButtons.length === 0) {
+      return;
+    }
+
+    if (isVisible) {
+      stopButtons.forEach((button) => {
+        button.removeAttribute('hidden');
+        button.disabled = false;
+        button.textContent = button === stopRunBottomBtn ? 'End Test Run' : 'Stop Run';
+      });
+      return;
+    }
+
+    stopButtons.forEach((button) => {
+      button.setAttribute('hidden', 'hidden');
+      button.disabled = true;
+      button.textContent = button === stopRunBottomBtn ? 'End Test Run' : 'Stop Run';
+    });
+  }
+
+  async function handleStopRunRequest(triggerButton) {
+    if (!triggerButton || triggerButton.disabled) {
+      return;
+    }
+
+    const stopButtons = [stopRunBtn, stopRunBottomBtn].filter(Boolean);
+    stopButtons.forEach((button) => {
+      button.disabled = true;
+      button.textContent = button === stopRunBottomBtn ? 'Ending…' : 'Stopping…';
+    });
+    runStatus.textContent = 'Stopping the current automation run...';
+
+    try {
+      await stopAutomationRun();
+      runStatus.textContent = 'Stop request sent. Waiting for the current run to finish shutting down...';
+    } catch (error) {
+      runStatus.textContent = `Unable to stop the current run: ${error.message}`;
+      stopButtons.forEach((button) => {
+        button.disabled = false;
+        button.textContent = button === stopRunBottomBtn ? 'End Test Run' : 'Stop Run';
+      });
+    }
   }
 
   function applyApiHealth(isHealthy) {
@@ -2121,7 +2325,7 @@ async function initRunnerPage() {
         const matchedRun = allHistoryItems.find((entry) => String(entry?.runId || '') === String(runId));
         const selectedScripts = Array.isArray(matchedRun?.selectedScripts) ? matchedRun.selectedScripts : [];
         const suiteName = String(matchedRun?.suiteName || '').trim() || 'Regression Suite';
-        await runRegressionWithSelection(selectedScripts, suiteName);
+        await runRegressionWithSelection(selectedScripts, suiteName, String(regressionEnvironmentSelect?.value || '').trim().toUpperCase());
       });
     });
   }
@@ -2136,11 +2340,18 @@ async function initRunnerPage() {
   }
 
   async function runStoryFromContent(storyContent, storyFolderLabel = '', existingStoryFolder = '') {
-    const appUrl = appUrlInput.value.trim();
+    const runTarget = resolveRunTargetForSelectedEnvironment(String(storyEnvironmentSelect?.value || '').trim().toUpperCase(), true);
+    const appUrl = String(runTarget?.appUrl || '').trim();
     const userStory = String(storyContent || '').trim();
+    const urlEnvironment = String(runTarget?.environment || normalizeRunEnvironment(storyEnvironmentSelect?.value)).trim();
+
+    if (runTarget?.error) {
+      runStatus.textContent = runTarget.error;
+      return;
+    }
 
     if (!appUrl) {
-      runStatus.textContent = 'Please enter application URL.';
+      runStatus.textContent = 'No URL resolved for selected environment.';
       return;
     }
 
@@ -2150,6 +2361,7 @@ async function initRunnerPage() {
     }
 
     setRunButtonsBusy(true);
+    setStopRunVisible(true);
     showReportBtn.disabled = true;
     latestStoryFolderForCases = '';
     runStatus.textContent = storyFolderLabel
@@ -2157,21 +2369,27 @@ async function initRunnerPage() {
       : 'Running story tests. Please wait...';
 
     try {
-      const runResponse = await submitRun(appUrl, userStory, Boolean(saveDefaultUrlInput?.checked), existingStoryFolder);
+      const runResponse = await submitRun(appUrl, userStory, false, existingStoryFolder, urlEnvironment);
       const runOutcome = String(runResponse?.run?.status || '').toUpperCase();
       latestStoryFolderForCases = String(runResponse?.run?.storyFolder || '').trim();
 
-      if (runOutcome === 'FAIL' || runOutcome === 'ERROR') {
+      if (runOutcome === 'STOPPED') {
+        runStatus.textContent = 'Execution interrupted before completion.';
+        runLockedAfterSuccess = false;
+        setRunButtonsBusy(false);
+        showReportBtn.disabled = true;
+      } else if (runOutcome === 'FAIL' || runOutcome === 'ERROR') {
         runStatus.textContent = 'Story run completed with failed tests. Open report/history for details.';
         runLockedAfterSuccess = false;
         setRunButtonsBusy(false);
+        showReportBtn.disabled = false;
       } else {
         runStatus.textContent = 'Story run complete. You can open report now.';
         runLockedAfterSuccess = true;
         setRunButtonsBusy(true);
+        showReportBtn.disabled = false;
       }
 
-      showReportBtn.disabled = false;
       await refreshHistory();
       manualCasesLoaded = false;
       latestManualCasesPayload = null;
@@ -2183,11 +2401,13 @@ async function initRunnerPage() {
       runStatus.textContent = `Story run failed: ${error.message}`;
       runLockedAfterSuccess = false;
       setRunButtonsBusy(false);
+      setStopRunVisible(false);
       await refreshHistory();
       manualCasesLoaded = false;
       latestManualCasesPayload = null;
       await refreshManualCasesAvailability();
     } finally {
+      setStopRunVisible(false);
       applyApiHealth(await checkApiHealth());
     }
   }
@@ -2207,8 +2427,26 @@ async function initRunnerPage() {
   applyApiHealth(await checkApiHealth());
 
   async function refreshManualCasesAvailability() {
+    const selectedProjectId = String(projectsState?.selectedProjectId || '').trim();
+    if (!selectedProjectId) {
+      manualCasesAvailable = false;
+      latestManualCasesPayload = { items: [], storyCount: 0, totalCases: 0, generatedAt: new Date().toISOString() };
+      testCasesBtn.disabled = true;
+      downloadWordBtn.disabled = true;
+      downloadExcelBtn.disabled = true;
+      manualCasesLoaded = false;
+      manualCasesPanel.classList.add('hidden');
+      selectedManualCasesFilter = MANUAL_CASES_REGRESSION_FILTER;
+      manualCasesMeta.textContent = 'Select a project to view related test cases.';
+      manualCasesView.innerHTML = '<p>No project selected.</p>';
+      if (manualCasesStoryFilter) {
+        manualCasesStoryFilter.disabled = true;
+      }
+      return;
+    }
+
     try {
-      const payload = await loadManualTestCases(String(projectsState?.selectedProjectId || ''));
+      const payload = await loadManualTestCases(selectedProjectId);
       latestManualCasesPayload = payload;
       manualCasesAvailable = Number(payload?.totalCases || 0) > 0;
       testCasesBtn.disabled = !manualCasesAvailable;
@@ -2255,13 +2493,26 @@ async function initRunnerPage() {
     resetManualCasesCache();
     await refreshManualCasesAvailability();
   }
-  if (savedDefaultUrl?.appUrl && !appUrlInput.value.trim()) {
-    appUrlInput.value = savedDefaultUrl.appUrl;
+  const startupDefaultEnvironment = normalizeRunEnvironment(savedDefaultUrl?.urlEnvironment);
+  if (storyEnvironmentSelect) {
+    storyEnvironmentSelect.value = startupDefaultEnvironment;
   }
+  if (regressionEnvironmentSelect) {
+    regressionEnvironmentSelect.value = startupDefaultEnvironment;
+  }
+  if (testCaseEnvironmentSelect) {
+    testCaseEnvironmentSelect.value = startupDefaultEnvironment;
+  }
+  updateProjectUrlSaveFieldState();
 
   projectSelect?.addEventListener('change', async () => {
     const projectId = String(projectSelect.value || '').trim();
     if (!projectId) {
+      try {
+        await selectProject('');
+      } catch {
+        // Keep UI selection local if backend rejects clearing selected project.
+      }
       projectsState.selectedProjectId = '';
       latestStoryFolderForCases = '';
       renderProjectControls();
@@ -2279,8 +2530,15 @@ async function initRunnerPage() {
       latestStoryFolderForCases = '';
       await refreshProjectsState();
       const defaultInfo = await loadDefaultUrl();
-      if (defaultInfo?.appUrl) {
-        appUrlInput.value = defaultInfo.appUrl;
+      const selectionDefaultEnvironment = normalizeRunEnvironment(defaultInfo?.urlEnvironment);
+      if (storyEnvironmentSelect) {
+        storyEnvironmentSelect.value = selectionDefaultEnvironment;
+      }
+      if (regressionEnvironmentSelect) {
+        regressionEnvironmentSelect.value = selectionDefaultEnvironment;
+      }
+      if (testCaseEnvironmentSelect) {
+        testCaseEnvironmentSelect.value = selectionDefaultEnvironment;
       }
       await refreshHistory();
       resetManualCasesCache();
@@ -2292,6 +2550,10 @@ async function initRunnerPage() {
     } catch (error) {
       runStatus.textContent = `Unable to select project: ${error.message}`;
     }
+  });
+
+  projectUrlEnvironmentSelect?.addEventListener('change', () => {
+    syncProjectUrlInputForSelectedEnvironment();
   });
 
   createProjectBtn?.addEventListener('click', async () => {
@@ -2320,42 +2582,30 @@ async function initRunnerPage() {
     }
   });
 
-  projectUrlSelect?.addEventListener('change', () => {
-    const selectedProject = getSelectedProject();
-    const urlId = String(projectUrlSelect.value || '').trim();
-    if (!selectedProject || !urlId) {
-      return;
-    }
-
-    const urls = Array.isArray(selectedProject.urls) ? selectedProject.urls : [];
-    const selectedUrl = urls.find((entry) => String(entry?.id || '') === urlId);
-    if (selectedUrl?.url) {
-      appUrlInput.value = String(selectedUrl.url).trim();
-      runStatus.textContent = 'Project URL loaded into Application URL field.';
-    }
-  });
-
   saveProjectUrlBtn?.addEventListener('click', async () => {
     const selectedProject = getSelectedProject();
-    const appUrl = String(appUrlInput.value || '').trim();
-    const label = String(projectUrlLabelInput?.value || '').trim() || 'Saved URL';
+    const urlValue = String(projectUrlInput?.value || '').trim();
+    const environment = String(projectUrlEnvironmentSelect?.value || '').trim().toUpperCase();
 
     if (!selectedProject) {
       runStatus.textContent = 'Select a project first to save project URLs.';
       return;
     }
 
-    if (!appUrl) {
-      runStatus.textContent = 'Enter an Application URL before saving it to project.';
+    if (!urlValue) {
+      runStatus.textContent = 'Enter URL before saving.';
+      return;
+    }
+
+    if (!['QA', 'UAT', 'PROD'].includes(environment)) {
+      runStatus.textContent = 'Select environment (QA/UAT/Prod) before saving URL.';
       return;
     }
 
     try {
-      await saveProjectUrl(selectedProject.id, label, appUrl, false);
-      if (projectUrlLabelInput) {
-        projectUrlLabelInput.value = '';
-      }
+      await saveProjectUrl(selectedProject.id, environment, urlValue, false, environment);
       await refreshProjectsState();
+      syncProjectUrlInputForSelectedEnvironment();
       runStatus.textContent = 'Project URL saved.';
     } catch (error) {
       runStatus.textContent = `Unable to save project URL: ${error.message}`;
@@ -2435,11 +2685,17 @@ async function initRunnerPage() {
   });
 
   runBtn.addEventListener('click', async () => {
-    const appUrl = appUrlInput.value.trim();
+    const runTarget = resolveRunTargetForSelectedEnvironment(String(storyEnvironmentSelect?.value || '').trim().toUpperCase(), true);
+    const appUrl = String(runTarget?.appUrl || '').trim();
     const userStory = storyInput.value.trim();
 
+    if (runTarget?.error) {
+      runStatus.textContent = runTarget.error;
+      return;
+    }
+
     if (!appUrl) {
-      runStatus.textContent = 'Please enter application URL.';
+      runStatus.textContent = 'No URL resolved for selected environment.';
       return;
     }
 
@@ -2460,6 +2716,14 @@ async function initRunnerPage() {
     }
 
     await runStoryFromContent(userStory);
+  });
+
+  stopRunBtn?.addEventListener('click', async () => {
+    await handleStopRunRequest(stopRunBtn);
+  });
+
+  stopRunBottomBtn?.addEventListener('click', async () => {
+    await handleStopRunRequest(stopRunBottomBtn);
   });
 
   showReportBtn.addEventListener('click', () => {
@@ -2506,7 +2770,7 @@ async function initRunnerPage() {
   runSelectedRegressionBtn?.addEventListener('click', async () => {
     const selectedScripts = getSelectedRegressionScripts();
     const suiteName = String(regressionSuiteNameInput?.value || '').trim();
-    await runRegressionWithSelection(selectedScripts, suiteName);
+    await runRegressionWithSelection(selectedScripts, suiteName, String(regressionEnvironmentSelect?.value || '').trim().toUpperCase());
   });
 
   projectStoriesView?.addEventListener('click', async (event) => {
@@ -2544,7 +2808,10 @@ async function initRunnerPage() {
       storyInput.value = storyContent;
       storySaved = false;
       showStoryInputs();
-      storyInput?.focus();
+      storyInputGroup?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      window.requestAnimationFrame(() => {
+        storyInput?.focus();
+      });
       runStatus.textContent = `Editing story ${storyFolder}. Update text, then click Update Story.`;
       return;
     }
@@ -2573,6 +2840,12 @@ async function initRunnerPage() {
         return;
       }
 
+      const storyContent = getStoryContentFromPayload(storyFolder);
+      if (!storyContent) {
+        runStatus.textContent = 'Story content is unavailable for this story. Add or update story content before estimating.';
+        return;
+      }
+
       target.textContent = 'Estimating…';
       target.setAttribute('disabled', 'disabled');
       runStatus.textContent = `Estimating story points for ${storyFolder}…`;
@@ -2582,10 +2855,13 @@ async function initRunnerPage() {
         const pts = Number(result?.storyPoints || 0);
         const label = String(result?.storyPointLabel || String(pts)).trim();
         const reason = String(result?.reasoning || '').trim();
-        const source = String(result?.source || '').trim();
-        runStatus.textContent = pts > 0
-          ? `${storyFolder}: ${pts} point${pts === 1 ? '' : 's'} — ${label}${reason ? '. ' + reason : ''}`
-          : `Estimation complete for ${storyFolder}.`;
+        const suggestion = String(result?.escalationSuggestion || '').trim();
+        const needsDiscussion = Boolean(result?.needsDiscussion);
+        runStatus.textContent = needsDiscussion
+          ? `${storyFolder}: 0 points — ${label}${reason ? `. ${reason}` : ''}${suggestion ? ` ${suggestion}` : ''}`
+          : (pts > 0
+            ? `${storyFolder}: ${pts} point${pts === 1 ? '' : 's'} — ${label}${reason ? '. ' + reason : ''}`
+            : `Estimation complete for ${storyFolder}.`);
         // Re-render stories panel to reflect updated badge
         await renderProjectStories();
       } catch (error) {
@@ -2638,9 +2914,21 @@ async function initRunnerPage() {
   });
 
   runRegressionBtn.addEventListener('click', async () => {
-    const appUrl = appUrlInput.value.trim();
+    const selectedProject = getSelectedProject();
+    if (!selectedProject) {
+      runStatus.textContent = 'Select a project first to run a project-specific regression suite.';
+      return;
+    }
+
+    const runTarget = resolveRunTargetForSelectedEnvironment(String(regressionEnvironmentSelect?.value || '').trim().toUpperCase(), true);
+    const appUrl = String(runTarget?.appUrl || '').trim();
+    if (runTarget?.error) {
+      runStatus.textContent = runTarget.error;
+      return;
+    }
+
     if (!appUrl) {
-      runStatus.textContent = 'Please enter application URL.';
+      runStatus.textContent = 'No URL resolved for selected environment.';
       return;
     }
 
@@ -2850,7 +3138,7 @@ async function initRunnerPage() {
 
       const suiteName = `Single Case ${caseId || 'Run'} - ${new Date().toLocaleString()}`;
       runStatus.textContent = `Running selected test case${caseTitle ? `: ${caseTitle}` : ''}...`;
-      await runRegressionWithSelection([scriptPath], suiteName);
+      await runRegressionWithSelection([scriptPath], suiteName, String(testCaseEnvironmentSelect?.value || '').trim().toUpperCase());
       return;
     }
 
@@ -2958,6 +3246,9 @@ async function initReportPage() {
       const label = runType === 'REGRESSION' ? 'Selected REGRESSION run' : 'Selected run';
       const suiteSegment = suiteName ? ` | Suite: ${suiteName}` : '';
       generatedAtText = `${label}: ${new Date(selectedRun.finishedAt || selectedRun.startedAt).toLocaleString()}${suiteSegment} | Executed ${totals.executed || 0}, Passed ${totals.passed || 0}, Failed ${totals.failed || 0}`;
+      if (String(selectedRun.status || '').toUpperCase() === 'STOPPED') {
+        generatedAtText = `${label}: ${new Date(selectedRun.finishedAt || selectedRun.startedAt).toLocaleString()}${suiteSegment} | Execution Interrupted`;
+      }
     }
   }
 

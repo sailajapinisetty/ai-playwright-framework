@@ -1,0 +1,25 @@
+{
+  "savedAt": "2026-05-26T18:47:39.306Z",
+  "source": "UI input",
+  "storyFolder": "TEST_Story_1",
+  "mode": "update",
+  "storyPoints": 1,
+  "storyPointEstimate": {
+    "storyPoints": 1,
+    "storyPointLabel": "1 point  – half day",
+    "source": "ai",
+    "reasoning": "The user story contains no meaningful content, requiring minimal to no development effort, estimable at half a day at most.",
+    "estimatedAt": "2026-05-26T18:52:56.559Z"
+  },
+  "updatedAt": "2026-05-26T19:01:06.698Z",
+  "lastRunAppUrl": "https://sailajapinisetty.github.io/demo_app/",
+  "lastRunUrlEnvironment": "QA",
+  "lastRunAt": "2026-05-26T19:01:06.698Z",
+  "runUrlHistory": [
+    {
+      "appUrl": "https://sailajapinisetty.github.io/demo_app/",
+      "environment": "QA",
+      "recordedAt": "2026-05-26T19:01:06.698Z"
+    }
+  ]
+}
