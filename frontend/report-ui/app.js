@@ -1020,11 +1020,11 @@ function filterReportCases(report, filters = {}) {
   };
 }
 
-async function submitRun(appUrl, userStory, saveDefaultUrl) {
+async function submitRun(appUrl, userStory, saveDefaultUrl, storyFolder = '') {
   const response = await fetch(apiUrl('/api/run-tests'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ appUrl, userStory, saveDefaultUrl })
+    body: JSON.stringify({ appUrl, userStory, saveDefaultUrl, storyFolder: storyFolder || undefined })
   });
 
   const contentType = String(response.headers.get('content-type') || '').toLowerCase();
@@ -1173,6 +1173,36 @@ async function saveProjectStory(projectId, content, source = 'UI input', storyFo
   return payload;
 }
 
+async function estimateProjectStoryPoints(projectId, storyFolder) {
+  const response = await fetch(apiUrl('/api/project-stories/estimate'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ projectId, storyFolder })
+  });
+
+  const payload = await response.json();
+  if (!response.ok) {
+    throw new Error(payload.error || 'Unable to estimate story points.');
+  }
+
+  return payload;
+}
+
+async function archiveProjectStory(projectId, storyFolder) {
+  const response = await fetch(apiUrl('/api/project-stories/archive'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ projectId, storyFolder })
+  });
+
+  const payload = await response.json();
+  if (!response.ok) {
+    throw new Error(payload.error || 'Unable to archive story.');
+  }
+
+  return payload;
+}
+
 async function saveManualTestCase(projectId, storyFolder, testCase) {
   const response = await fetch(apiUrl('/api/manual-test-cases'), {
     method: 'POST',
@@ -1183,6 +1213,21 @@ async function saveManualTestCase(projectId, storyFolder, testCase) {
   const payload = await response.json();
   if (!response.ok) {
     throw new Error(payload.error || 'Unable to save manual test case.');
+  }
+
+  return payload;
+}
+
+async function archiveManualTestCase(projectId, storyFolder, caseId) {
+  const response = await fetch(apiUrl('/api/manual-test-cases/archive'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ projectId, storyFolder, caseId })
+  });
+
+  const payload = await response.json();
+  if (!response.ok) {
+    throw new Error(payload.error || 'Unable to archive test case.');
   }
 
   return payload;
@@ -1317,9 +1362,11 @@ function renderManualCasesTable(items, selectedColumns = []) {
     const caseId = String(item.caseId || '');
     const scriptPath = String(item.scriptPath || '').trim();
     const actionHtml = source === 'manual'
-      ? `<button type="button" class="mini-btn edit-manual-case-btn" data-story-folder="${escapeHtml(storyFolder)}" data-case-id="${escapeHtml(caseId)}">Edit</button>`
+      ? `<button type="button" class="mini-btn edit-manual-case-btn" data-story-folder="${escapeHtml(storyFolder)}" data-case-id="${escapeHtml(caseId)}">Edit</button>
+         <button type="button" class="mini-btn archive-manual-case-btn" data-story-folder="${escapeHtml(storyFolder)}" data-case-id="${escapeHtml(caseId)}">Archive</button>`
       : (scriptPath
-        ? `<button type="button" class="mini-btn run-case-btn" data-script-path="${escapeHtml(scriptPath)}" data-case-id="${escapeHtml(caseId)}" data-title="${escapeHtml(String(item.title || ''))}">Run</button>`
+        ? `<button type="button" class="mini-btn run-case-btn" data-script-path="${escapeHtml(scriptPath)}" data-case-id="${escapeHtml(caseId)}" data-title="${escapeHtml(String(item.title || ''))}">Run</button>
+           <button type="button" class="mini-btn archive-manual-case-btn" data-story-folder="${escapeHtml(storyFolder)}" data-case-id="${escapeHtml(caseId)}">Archive</button>`
         : '<span class="eyebrow">Auto</span>');
 
     const cells = {
@@ -1870,17 +1917,26 @@ async function initRunnerPage() {
           const text = String(item?.content || '').trim() || 'Story content is not available for this story.';
           const source = String(item?.source || '').trim();
           const storyFolder = String(item?.storyFolder || '').trim();
+          const storyPoints = Number(item?.storyPoints || 0);
+          const pointLabel = String(item?.storyPointEstimate?.storyPointLabel || '').trim();
+          const reasoning = String(item?.storyPointEstimate?.reasoning || '').trim();
           const latestStoryRunId = findLatestRunIdForStory(storyFolder);
+          const pointBadge = storyPoints > 0
+            ? `<p class="story-source"><strong>Story Points: ${escapeHtml(storyPoints)}</strong>${pointLabel ? ` — ${escapeHtml(pointLabel)}` : ''}${reasoning ? `<br><span style="font-size:12px;opacity:.8">${escapeHtml(reasoning)}</span>` : ''}</p>`
+            : '';
           return `
             <article class="story-content-card">
               <p class="eyebrow">${escapeHtml(storyFolder || 'story')}</p>
               <p class="story-id-line">Story ID: ${escapeHtml(storyFolder || 'N/A')}</p>
+              ${pointBadge}
               ${source ? `<p class="story-source">Source: ${escapeHtml(source)}</p>` : ''}
               <pre class="story-content-text">${escapeHtml(text)}</pre>
               <div class="actions story-actions">
                 <button type="button" class="secondary-btn story-run-tests-btn" data-story-folder="${escapeHtml(storyFolder)}">Run Story Testing</button>
                 <button type="button" class="secondary-btn story-test-cases-btn" data-story-folder="${escapeHtml(storyFolder)}">Test Cases</button>
                 <button type="button" class="secondary-btn story-edit-btn" data-story-folder="${escapeHtml(storyFolder)}">Edit Story</button>
+                <button type="button" class="secondary-btn story-estimate-btn" data-story-folder="${escapeHtml(storyFolder)}">Estimate Story Points</button>
+                <button type="button" class="secondary-btn story-archive-btn" data-story-folder="${escapeHtml(storyFolder)}">Archive Story</button>
                 <button type="button" class="secondary-btn story-show-report-btn" data-run-id="${escapeHtml(latestStoryRunId)}" ${latestStoryRunId ? '' : 'disabled'}>Show Report</button>
               </div>
             </article>
@@ -1911,17 +1967,26 @@ async function initRunnerPage() {
         const text = String(item?.content || '').trim() || 'Story content is not available for this story.';
         const source = String(item?.source || '').trim();
         const storyFolder = String(item?.storyFolder || '').trim();
+        const storyPoints = Number(item?.storyPoints || 0);
+        const pointLabel = String(item?.storyPointEstimate?.storyPointLabel || '').trim();
+        const reasoning = String(item?.storyPointEstimate?.reasoning || '').trim();
         const latestStoryRunId = findLatestRunIdForStory(storyFolder);
+        const pointBadge = storyPoints > 0
+          ? `<p class="story-source"><strong>Story Points: ${escapeHtml(storyPoints)}</strong>${pointLabel ? ` — ${escapeHtml(pointLabel)}` : ''}${reasoning ? `<br><span style="font-size:12px;opacity:.8">${escapeHtml(reasoning)}</span>` : ''}</p>`
+          : '';
         return `
           <article class="story-content-card">
             <p class="eyebrow">${escapeHtml(storyFolder || 'story')}</p>
             <p class="story-id-line">Story ID: ${escapeHtml(storyFolder || 'N/A')}</p>
+            ${pointBadge}
             ${source ? `<p class="story-source">Source: ${escapeHtml(source)}</p>` : ''}
             <pre class="story-content-text">${escapeHtml(text)}</pre>
             <div class="actions story-actions">
               <button type="button" class="secondary-btn story-run-tests-btn" data-story-folder="${escapeHtml(storyFolder)}">Run Story Testing</button>
               <button type="button" class="secondary-btn story-test-cases-btn" data-story-folder="${escapeHtml(storyFolder)}" ${latestStoryRunId ? '' : 'disabled'}>Test Cases</button>
               <button type="button" class="secondary-btn story-edit-btn" data-story-folder="${escapeHtml(storyFolder)}">Edit Story</button>
+              <button type="button" class="secondary-btn story-estimate-btn" data-story-folder="${escapeHtml(storyFolder)}">Estimate Story Points</button>
+              <button type="button" class="secondary-btn story-archive-btn" data-story-folder="${escapeHtml(storyFolder)}">Archive Story</button>
               <button type="button" class="secondary-btn story-show-report-btn" data-run-id="${escapeHtml(latestStoryRunId)}" ${latestStoryRunId ? '' : 'disabled'}>Show Report</button>
             </div>
           </article>
@@ -2070,7 +2135,7 @@ async function initRunnerPage() {
     }
   }
 
-  async function runStoryFromContent(storyContent, storyFolderLabel = '') {
+  async function runStoryFromContent(storyContent, storyFolderLabel = '', existingStoryFolder = '') {
     const appUrl = appUrlInput.value.trim();
     const userStory = String(storyContent || '').trim();
 
@@ -2092,7 +2157,7 @@ async function initRunnerPage() {
       : 'Running story tests. Please wait...';
 
     try {
-      const runResponse = await submitRun(appUrl, userStory, Boolean(saveDefaultUrlInput?.checked));
+      const runResponse = await submitRun(appUrl, userStory, Boolean(saveDefaultUrlInput?.checked), existingStoryFolder);
       const runOutcome = String(runResponse?.run?.status || '').toUpperCase();
       latestStoryFolderForCases = String(runResponse?.run?.storyFolder || '').trim();
 
@@ -2453,7 +2518,7 @@ async function initRunnerPage() {
     if (target.classList.contains('story-run-tests-btn')) {
       const storyFolder = String(target.getAttribute('data-story-folder') || '').trim();
       const storyContent = getStoryContentFromPayload(storyFolder);
-      await runStoryFromContent(storyContent, storyFolder);
+      await runStoryFromContent(storyContent, storyFolder, storyFolder);
       return;
     }
 
@@ -2492,6 +2557,83 @@ async function initRunnerPage() {
       }
 
       window.location.href = toReportUrl(runId);
+      return;
+    }
+
+    if (target.classList.contains('story-estimate-btn')) {
+      const selectedProject = getSelectedProject();
+      if (!selectedProject) {
+        runStatus.textContent = 'Select a project before estimating story points.';
+        return;
+      }
+
+      const storyFolder = String(target.getAttribute('data-story-folder') || '').trim();
+      if (!storyFolder) {
+        runStatus.textContent = 'Unable to estimate: missing story folder.';
+        return;
+      }
+
+      target.textContent = 'Estimating…';
+      target.setAttribute('disabled', 'disabled');
+      runStatus.textContent = `Estimating story points for ${storyFolder}…`;
+
+      try {
+        const result = await estimateProjectStoryPoints(selectedProject.id, storyFolder);
+        const pts = Number(result?.storyPoints || 0);
+        const label = String(result?.storyPointLabel || String(pts)).trim();
+        const reason = String(result?.reasoning || '').trim();
+        const source = String(result?.source || '').trim();
+        runStatus.textContent = pts > 0
+          ? `${storyFolder}: ${pts} point${pts === 1 ? '' : 's'} — ${label}${reason ? '. ' + reason : ''}`
+          : `Estimation complete for ${storyFolder}.`;
+        // Re-render stories panel to reflect updated badge
+        await renderProjectStories();
+      } catch (error) {
+        runStatus.textContent = `Unable to estimate story points: ${error.message}`;
+        target.textContent = 'Estimate Story Points';
+        target.removeAttribute('disabled');
+      }
+      return;
+    }
+
+    if (target.classList.contains('story-archive-btn')) {
+      const selectedProject = getSelectedProject();
+      if (!selectedProject) {
+        runStatus.textContent = 'Select a project before archiving a story.';
+        return;
+      }
+
+      const storyFolder = String(target.getAttribute('data-story-folder') || '').trim();
+      if (!storyFolder) {
+        runStatus.textContent = 'Unable to archive story: missing story folder.';
+        return;
+      }
+
+      target.setAttribute('disabled', 'disabled');
+      try {
+        await archiveProjectStory(selectedProject.id, storyFolder);
+        runStatus.textContent = `Story ${storyFolder} archived. It will be excluded from regression.`;
+        if (editingStoryFolder === storyFolder) {
+          hideStoryInputs();
+          if (storyInput) {
+            storyInput.value = '';
+          }
+          editingStoryFolder = '';
+          storySaved = false;
+        }
+        latestStoryFolderForCases = '';
+        await refreshProjectsState();
+        resetManualCasesCache();
+        await refreshManualCasesAvailability();
+        if (!manualCasesPanel.classList.contains('hidden')) {
+          await showManualCasesPanel();
+        }
+        await renderProjectStories();
+      } catch (error) {
+        runStatus.textContent = `Unable to archive story: ${error.message}`;
+      } finally {
+        target.removeAttribute('disabled');
+      }
     }
   });
 
@@ -2713,6 +2855,36 @@ async function initRunnerPage() {
     }
 
     if (!target.classList.contains('edit-manual-case-btn')) {
+      if (!target.classList.contains('archive-manual-case-btn')) {
+        return;
+      }
+
+      const selectedProject = getSelectedProject();
+      if (!selectedProject) {
+        runStatus.textContent = 'Select a project before archiving a test case.';
+        return;
+      }
+
+      const storyFolder = String(target.getAttribute('data-story-folder') || '').trim();
+      const caseId = String(target.getAttribute('data-case-id') || '').trim();
+      if (!storyFolder || !caseId) {
+        runStatus.textContent = 'Unable to archive test case: missing story folder or case id.';
+        return;
+      }
+
+      target.setAttribute('disabled', 'disabled');
+      try {
+        await archiveManualTestCase(selectedProject.id, storyFolder, caseId);
+        runStatus.textContent = `Archived test case ${caseId}. It will be excluded from regression.`;
+        latestStoryFolderForCases = storyFolder;
+        resetManualCasesCache();
+        await refreshManualCasesAvailability();
+        await showManualCasesPanel();
+      } catch (error) {
+        runStatus.textContent = `Unable to archive test case: ${error.message}`;
+      } finally {
+        target.removeAttribute('disabled');
+      }
       return;
     }
 

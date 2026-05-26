@@ -3,6 +3,8 @@ import fs from 'fs/promises';
 import path from 'path';
 import { spawn } from 'child_process';
 import { buildReportData } from './buildReportData.js';
+import { askClaude } from '../ai/claudeClient.js';
+import { config } from '../config.js';
 
 const rootDir = process.cwd();
 const reportUiDir = path.resolve(rootDir, '../frontend/report-ui');
@@ -237,6 +239,190 @@ function makeEntityId(prefix, value) {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '') || prefix;
   return `${prefix}_${base}_${Date.now()}`;
+}
+
+// Story point scale:
+//   1 = half day
+//   2 = full day (1 working day)
+//   3 = 2 working days
+const STORY_POINT_SCALE = [
+  { points: 1, label: '1 point  – half day' },
+  { points: 2, label: '2 points – full day' },
+  { points: 3, label: '3 points – 2 working days' }
+];
+
+function normalizeStoryPoints(value) {
+  const allowed = STORY_POINT_SCALE.map((entry) => entry.points);
+  const numeric = Number.parseInt(String(value || '').trim(), 10);
+  if (!Number.isFinite(numeric)) {
+    return 0;
+  }
+
+  if (allowed.includes(numeric)) {
+    return numeric;
+  }
+
+  // Clamp to scale instead of finding nearest – anything above 3 becomes 3.
+  if (numeric >= 3) return 3;
+  if (numeric <= 1) return 1;
+  return 2;
+}
+
+function estimateStoryPointsHeuristic(userStory) {
+  const text = String(userStory || '').trim();
+  if (!text) {
+    return 1;
+  }
+
+  const words = text.split(/\s+/).filter(Boolean).length;
+  const criteriaCount = (text.match(/\n\s*[-*\d.]+\s+/g) || []).length;
+  let complexityScore = 0;
+
+  if (words > 40) complexityScore += 1;
+  if (words > 90) complexityScore += 1;
+  if (criteriaCount >= 3) complexityScore += 1;
+  if (criteriaCount >= 6) complexityScore += 1;
+
+  if (/\b(payment|checkout|refund|invoice|billing)\b/i.test(text)) complexityScore += 1;
+  if (/\b(auth|login|oauth|permission|role|security)\b/i.test(text)) complexityScore += 1;
+  if (/\b(integration|api|webhook|sync|import|export)\b/i.test(text)) complexityScore += 1;
+  if (/\b(report|dashboard|analytics|filter|search|sort)\b/i.test(text)) complexityScore += 1;
+
+  // Map to 3-point scale: 1=half day, 2=full day, 3=2 working days
+  if (complexityScore <= 1) return 1;
+  if (complexityScore <= 3) return 2;
+  return 3;
+}
+
+function extractJsonObjectFromText(rawText) {
+  const text = String(rawText || '').trim();
+  if (!text) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    // Continue to relaxed extraction.
+  }
+
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  if (fenced?.[1]) {
+    try {
+      return JSON.parse(fenced[1]);
+    } catch {
+      // Continue.
+    }
+  }
+
+  const firstBrace = text.indexOf('{');
+  const lastBrace = text.lastIndexOf('}');
+  if (firstBrace >= 0 && lastBrace > firstBrace) {
+    const candidate = text.slice(firstBrace, lastBrace + 1);
+    try {
+      return JSON.parse(candidate);
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
+}
+
+const STORY_POINT_DEFINITIONS = [
+  '1 point  = half day of work',
+  '2 points = one full working day',
+  '3 points = two full working days'
+].join('\n');
+
+async function estimateStoryPoints({ userStory = '', storyFolder = '' } = {}) {
+  const heuristicPoints = estimateStoryPointsHeuristic(userStory);
+  const heuristicLabel = STORY_POINT_SCALE.find((entry) => entry.points === heuristicPoints)?.label || String(heuristicPoints);
+
+  if (!config.aiEnabled) {
+    return {
+      storyPoints: heuristicPoints,
+      storyPointLabel: heuristicLabel,
+      source: 'heuristic',
+      reasoning: 'AI not configured; estimated using local heuristic based on story scope.',
+      estimatedAt: new Date().toISOString(),
+      storyFolder: String(storyFolder || '').trim()
+    };
+  }
+
+  try {
+    const responseText = await askClaude({
+      system: [
+        'You are an agile story-point estimation agent.',
+        'Use ONLY this 3-point scale:',
+        STORY_POINT_DEFINITIONS,
+        'Analyse the user story and return ONLY strict JSON with two keys:',
+        '  storyPoints: integer (1, 2, or 3)',
+        '  reasoning: one concise sentence explaining your choice in terms of the scale above.'
+      ].join('\n'),
+      user: [
+        `Story folder: ${String(storyFolder || '').trim() || 'N/A'}`,
+        '\nUser story:',
+        String(userStory || '').trim() || '(empty)'
+      ].join('\n'),
+      maxTokens: 280
+    });
+
+    const parsed = extractJsonObjectFromText(responseText) || {};
+    const storyPoints = normalizeStoryPoints(parsed.storyPoints);
+    const safePoints = storyPoints || heuristicPoints;
+    const label = STORY_POINT_SCALE.find((entry) => entry.points === safePoints)?.label || String(safePoints);
+    const reasoning = String(parsed.reasoning || '').trim() || 'Estimated from story scope and acceptance criteria complexity.';
+
+    return {
+      storyPoints: safePoints,
+      storyPointLabel: label,
+      source: 'ai',
+      reasoning,
+      estimatedAt: new Date().toISOString(),
+      storyFolder: String(storyFolder || '').trim()
+    };
+  } catch {
+    return {
+      storyPoints: heuristicPoints,
+      storyPointLabel: heuristicLabel,
+      source: 'heuristic-fallback',
+      reasoning: 'AI estimation failed; fallback heuristic used.',
+      estimatedAt: new Date().toISOString(),
+      storyFolder: String(storyFolder || '').trim()
+    };
+  }
+}
+
+async function saveStoryPointEstimate({ projectId = '', storyFolder = '', estimate = null } = {}) {
+  const safeProjectId = String(projectId || '').trim();
+  const safeStoryFolder = String(storyFolder || '').trim();
+  if (!safeProjectId || !safeStoryFolder || !estimate) {
+    return;
+  }
+
+  const projectStoryDir = path.join(projectDataRootDir, safeProjectId, 'stories', safeStoryFolder);
+  await fs.mkdir(projectStoryDir, { recursive: true });
+
+  const metaPath = path.join(projectStoryDir, 'story-meta.json');
+  const existingMeta = await readJsonFileIfExists(metaPath, {});
+  const storyPoints = normalizeStoryPoints(estimate.storyPoints);
+
+  const nextMeta = {
+    ...existingMeta,
+    storyFolder: safeStoryFolder,
+    storyPoints,
+    storyPointEstimate: {
+      storyPoints,
+      storyPointLabel: String(estimate.storyPointLabel || String(storyPoints)),
+      source: String(estimate.source || 'heuristic'),
+      reasoning: String(estimate.reasoning || ''),
+      estimatedAt: String(estimate.estimatedAt || new Date().toISOString())
+    },
+    updatedAt: new Date().toISOString()
+  };
+
+  await fs.writeFile(metaPath, JSON.stringify(nextMeta, null, 2));
 }
 
 function getProjectDefaultUrl(project) {
@@ -588,6 +774,150 @@ async function saveProjectStory({ projectId = '', storyFolder = '', content = ''
   };
 }
 
+function archiveStatePath(projectId) {
+  return path.join(projectDataRootDir, String(projectId || '').trim(), 'archive-state.json');
+}
+
+function normalizeArchiveState(value) {
+  const rawStories = Array.isArray(value?.archivedStories) ? value.archivedStories : [];
+  const rawCases = Array.isArray(value?.archivedCases) ? value.archivedCases : [];
+  const archivedStories = [...new Set(rawStories.map((entry) => String(entry || '').trim()).filter(Boolean))].sort();
+  const archivedCases = [];
+  const seenCaseKeys = new Set();
+
+  for (const entry of rawCases) {
+    const storyFolder = String(entry?.storyFolder || '').trim();
+    const caseId = String(entry?.caseId || '').trim();
+    if (!storyFolder || !caseId) {
+      continue;
+    }
+
+    const key = `${storyFolder}::${caseId}`;
+    if (seenCaseKeys.has(key)) {
+      continue;
+    }
+
+    seenCaseKeys.add(key);
+    archivedCases.push({
+      storyFolder,
+      caseId,
+      archivedAt: String(entry?.archivedAt || '')
+    });
+  }
+
+  return { archivedStories, archivedCases };
+}
+
+async function readArchiveState(projectId) {
+  const safeProjectId = String(projectId || '').trim();
+  if (!safeProjectId) {
+    return { archivedStories: [], archivedCases: [] };
+  }
+
+  const raw = await readJsonFileIfExists(archiveStatePath(safeProjectId), {
+    archivedStories: [],
+    archivedCases: []
+  });
+  return normalizeArchiveState(raw);
+}
+
+async function writeArchiveState(projectId, archiveState) {
+  const safeProjectId = String(projectId || '').trim();
+  if (!safeProjectId) {
+    throw new Error('projectId is required.');
+  }
+
+  const nextState = normalizeArchiveState(archiveState);
+  const targetPath = archiveStatePath(safeProjectId);
+  await fs.mkdir(path.dirname(targetPath), { recursive: true });
+  await fs.writeFile(targetPath, JSON.stringify(nextState, null, 2));
+  return nextState;
+}
+
+function archivedCaseKey(storyFolder, caseId) {
+  return `${String(storyFolder || '').trim()}::${String(caseId || '').trim()}`;
+}
+
+function buildArchivedCaseSet(archiveState) {
+  const archivedCases = Array.isArray(archiveState?.archivedCases) ? archiveState.archivedCases : [];
+  return new Set(archivedCases.map((entry) => archivedCaseKey(entry?.storyFolder, entry?.caseId)).filter((entry) => entry !== '::'));
+}
+
+async function archiveProjectStory({ projectId = '', storyFolder = '' } = {}) {
+  const safeProjectId = String(projectId || '').trim();
+  const safeStoryFolder = String(storyFolder || '').trim();
+  if (!safeProjectId) {
+    throw new Error('projectId is required.');
+  }
+  if (!safeStoryFolder) {
+    throw new Error('storyFolder is required.');
+  }
+
+  const registry = await readProjectRegistry();
+  const project = registry.projects.find((entry) => entry.id === safeProjectId);
+  if (!project) {
+    throw new Error('Project not found.');
+  }
+
+  const archiveState = await readArchiveState(safeProjectId);
+  if (!archiveState.archivedStories.includes(safeStoryFolder)) {
+    archiveState.archivedStories.push(safeStoryFolder);
+    archiveState.archivedStories.sort();
+  }
+
+  const nextState = await writeArchiveState(safeProjectId, archiveState);
+  return {
+    projectId: safeProjectId,
+    storyFolder: safeStoryFolder,
+    archivedStories: nextState.archivedStories.length
+  };
+}
+
+async function archiveManualTestCase({ projectId = '', storyFolder = '', caseId = '' } = {}) {
+  const safeProjectId = String(projectId || '').trim();
+  const safeStoryFolder = String(storyFolder || '').trim();
+  const safeCaseId = String(caseId || '').trim();
+  if (!safeProjectId) {
+    throw new Error('projectId is required.');
+  }
+  if (!safeStoryFolder) {
+    throw new Error('storyFolder is required.');
+  }
+  if (!safeCaseId) {
+    throw new Error('caseId is required.');
+  }
+
+  const registry = await readProjectRegistry();
+  const project = registry.projects.find((entry) => entry.id === safeProjectId);
+  if (!project) {
+    throw new Error('Project not found.');
+  }
+
+  const archiveState = await readArchiveState(safeProjectId);
+  const archivedCases = Array.isArray(archiveState.archivedCases) ? archiveState.archivedCases : [];
+  const key = archivedCaseKey(safeStoryFolder, safeCaseId);
+  const exists = archivedCases.some((entry) => archivedCaseKey(entry?.storyFolder, entry?.caseId) === key);
+  if (!exists) {
+    archivedCases.push({
+      storyFolder: safeStoryFolder,
+      caseId: safeCaseId,
+      archivedAt: new Date().toISOString()
+    });
+  }
+
+  const nextState = await writeArchiveState(safeProjectId, {
+    ...archiveState,
+    archivedCases
+  });
+
+  return {
+    projectId: safeProjectId,
+    storyFolder: safeStoryFolder,
+    caseId: safeCaseId,
+    archivedCases: nextState.archivedCases.length
+  };
+}
+
 async function upsertManualTestCase({ projectId = '', storyFolder = '', testCase = {} } = {}) {
   const safeStoryFolder = String(storyFolder || '').trim();
   const safeProjectId = String(projectId || '').trim();
@@ -788,6 +1118,11 @@ async function readManualTestCases({ projectId = '' } = {}) {
   const automatedResultMap = buildAutomatedCaseResultMap(latestReportData);
   let storyFolders = await listDirectories(generatedTestsDir);
   const requestedProjectId = String(projectId || '').trim();
+  const archiveState = requestedProjectId
+    ? await readArchiveState(requestedProjectId)
+    : { archivedStories: [], archivedCases: [] };
+  const archivedStoriesSet = new Set(Array.isArray(archiveState?.archivedStories) ? archiveState.archivedStories : []);
+  const archivedCasesSet = buildArchivedCaseSet(archiveState);
 
   if (requestedProjectId) {
     const registry = await readProjectRegistry();
@@ -797,6 +1132,7 @@ async function readManualTestCases({ projectId = '' } = {}) {
       storyFolders = storyFolders.filter((folder) => allowedStoryFolders.has(folder));
     }
   }
+  storyFolders = storyFolders.filter((folder) => !archivedStoriesSet.has(folder));
   const items = [];
 
   for (const storyFolder of storyFolders) {
@@ -807,11 +1143,16 @@ async function readManualTestCases({ projectId = '' } = {}) {
     const storyTitle = String(manualCatalog?.storyTitle || storyFolder);
 
     for (const testCase of testCases) {
+      const caseId = String(testCase?.id || '').trim();
+      if (archivedCasesSet.has(archivedCaseKey(storyFolder, caseId))) {
+        continue;
+      }
+
       items.push({
         storyFolder,
         storyTitle,
         source: 'manual',
-        caseId: String(testCase?.id || ''),
+        caseId,
         title: String(testCase?.title || ''),
         description: String(testCase?.description || testCase?.title || ''),
         type: String(testCase?.type || ''),
@@ -831,6 +1172,9 @@ async function readManualTestCases({ projectId = '' } = {}) {
       const relativePath = path.relative(testCasesDir, scriptPath).replace(/\\/g, '/');
       const pathParts = relativePath.split('/');
       const caseId = String(pathParts[0] || '').trim() || 'unknown-case';
+      if (archivedCasesSet.has(archivedCaseKey(storyFolder, caseId))) {
+        continue;
+      }
       const fileName = String(pathParts[pathParts.length - 1] || '').trim();
       const prettyTitle = fileName
         .replace(/\.spec\.js$/i, '')
@@ -931,6 +1275,10 @@ async function readProjectStories({ projectId = '' } = {}) {
   const project = safeProjectId
     ? registry.projects.find((entry) => entry.id === safeProjectId)
     : null;
+  const archiveState = safeProjectId
+    ? await readArchiveState(safeProjectId)
+    : { archivedStories: [], archivedCases: [] };
+  const archivedStoriesSet = new Set(Array.isArray(archiveState?.archivedStories) ? archiveState.archivedStories : []);
 
   let storyFolders = Array.isArray(project?.storyFolders)
     ? project.storyFolders.map((entry) => String(entry || '').trim()).filter(Boolean)
@@ -939,6 +1287,7 @@ async function readProjectStories({ projectId = '' } = {}) {
   if (storyFolders.length === 0) {
     storyFolders = await listDirectories(generatedTestsDir);
   }
+  storyFolders = storyFolders.filter((storyFolder) => !archivedStoriesSet.has(storyFolder));
 
   const items = [];
   for (const storyFolder of storyFolders) {
@@ -966,10 +1315,21 @@ async function readProjectStories({ projectId = '' } = {}) {
       }
     }
 
+    let storyPoints = 0;
+    let storyPointEstimate = null;
+    if (safeProjectId) {
+      const projectStoryDir = path.join(projectDataRootDir, safeProjectId, 'stories', storyFolder);
+      const storyMeta = await readJsonFileIfExists(path.join(projectStoryDir, 'story-meta.json'), {});
+      storyPoints = normalizeStoryPoints(storyMeta?.storyPoints);
+      storyPointEstimate = storyMeta?.storyPointEstimate || null;
+    }
+
     items.push({
       storyFolder,
       content: storyContent,
-      source: storySource
+      source: storySource,
+      storyPoints,
+      storyPointEstimate
     });
   }
 
@@ -1316,7 +1676,7 @@ async function getNextStorySequenceNumber() {
   return maxNumber + 1;
 }
 
-async function runPipeline({ appUrl, userStory }) {
+async function runPipeline({ appUrl, userStory, existingStoryFolder = '' }) {
   if (isRunInProgress) {
     return { ok: false, status: 409, error: 'A test run is already in progress. Please wait for completion.' };
   }
@@ -1324,10 +1684,23 @@ async function runPipeline({ appUrl, userStory }) {
   isRunInProgress = true;
   const startedAt = new Date().toISOString();
   const projectInfo = await getSelectedProjectInfo();
-  const projectCode = normalizeProjectCode(projectInfo?.projectName || projectInfo?.projectId || 'PRJ');
-  const storyNumber = await getNextStorySequenceNumber();
-  const storySource = `Story ${storyNumber} (UI input)`;
-  const storyFolder = buildStoryName(projectCode, storyNumber);
+
+  // If an existing storyFolder is provided, parse its projectCode and storyNumber from it
+  // so we write results back to the same folder instead of creating a new one.
+  let projectCode, storyNumber, storySource, storyFolder;
+  const folderMatch = String(existingStoryFolder || '').match(/^(.+)_Story_(\d+)$/i);
+  if (folderMatch) {
+    projectCode = normalizeProjectCode(folderMatch[1]);
+    storyNumber = Number.parseInt(folderMatch[2], 10);
+    storyFolder = existingStoryFolder;
+    storySource = `${storyFolder} (re-run)`;
+  } else {
+    projectCode = normalizeProjectCode(projectInfo?.projectName || projectInfo?.projectId || 'PRJ');
+    storyNumber = await getNextStorySequenceNumber();
+    storyFolder = buildStoryName(projectCode, storyNumber);
+    storySource = `Story ${storyNumber} (UI input)`;
+  }
+
   const storyId = toSafeId(storyFolder);
 
   return new Promise((resolve) => {
@@ -1390,6 +1763,12 @@ async function runPipeline({ appUrl, userStory }) {
         buildError = error;
       }
       const totals = await readLatestReportTotals(storyFolder);
+      const storyPointEstimate = await estimateStoryPoints({ userStory, storyFolder });
+      await saveStoryPointEstimate({
+        projectId: String(projectInfo?.projectId || ''),
+        storyFolder,
+        estimate: storyPointEstimate
+      });
 
       isRunInProgress = false;
       const finishedAt = new Date().toISOString();
@@ -1405,6 +1784,8 @@ async function runPipeline({ appUrl, userStory }) {
         status: code === 0 ? 'PASS' : 'FAIL',
         exitCode: Number(code),
         outputTail: output.trim(),
+        storyPoints: Number(storyPointEstimate?.storyPoints || 0),
+        storyPointEstimate,
         totals
       };
 
@@ -1820,6 +2201,71 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
+  if (req.method === 'POST' && url.pathname === '/api/project-stories/estimate') {
+    try {
+      const body = await readJsonBody(req);
+      const projectId = String(body.projectId || '').trim();
+      const storyFolder = String(body.storyFolder || '').trim();
+
+      if (!projectId) {
+        writeJson(req, res, 400, { error: 'projectId is required.' });
+        return;
+      }
+      if (!storyFolder) {
+        writeJson(req, res, 400, { error: 'storyFolder is required.' });
+        return;
+      }
+
+      const registry = await readProjectRegistry();
+      const project = registry.projects.find((entry) => entry.id === projectId);
+      if (!project) {
+        writeJson(req, res, 404, { error: 'Project not found.' });
+        return;
+      }
+
+      // Read story content from project-data or generated_tests
+      const storyText = await readStoryTextForFolder({ projectId, storyFolder });
+      const userStory = String(storyText?.content || '').trim();
+
+      const estimate = await estimateStoryPoints({ userStory, storyFolder });
+      await saveStoryPointEstimate({ projectId, storyFolder, estimate });
+
+      writeJson(req, res, 200, { storyFolder, ...estimate });
+      return;
+    } catch (error) {
+      const message = String(error?.message || 'Unable to estimate story points.');
+      const statusCode = message.includes('not found') ? 404 : 500;
+      writeJson(req, res, statusCode, { error: message });
+      return;
+    }
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/project-stories/archive') {
+    try {
+      const body = await readJsonBody(req);
+      const projectId = String(body.projectId || '').trim();
+      const storyFolder = String(body.storyFolder || '').trim();
+
+      if (!projectId) {
+        writeJson(req, res, 400, { error: 'projectId is required.' });
+        return;
+      }
+      if (!storyFolder) {
+        writeJson(req, res, 400, { error: 'storyFolder is required.' });
+        return;
+      }
+
+      const archived = await archiveProjectStory({ projectId, storyFolder });
+      writeJson(req, res, 200, { message: 'Story archived.', ...archived });
+      return;
+    } catch (error) {
+      const message = String(error?.message || 'Unable to archive story.');
+      const statusCode = message.includes('not found') ? 404 : 400;
+      writeJson(req, res, statusCode, { error: message });
+      return;
+    }
+  }
+
   if (req.method === 'POST' && url.pathname === '/api/manual-test-cases') {
     try {
       const body = await readJsonBody(req);
@@ -1832,6 +2278,37 @@ const server = http.createServer(async (req, res) => {
       return;
     } catch (error) {
       const message = String(error?.message || 'Unable to save manual test case.');
+      const statusCode = message.includes('not found') ? 404 : 400;
+      writeJson(req, res, statusCode, { error: message });
+      return;
+    }
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/manual-test-cases/archive') {
+    try {
+      const body = await readJsonBody(req);
+      const projectId = String(body.projectId || '').trim();
+      const storyFolder = String(body.storyFolder || '').trim();
+      const caseId = String(body.caseId || '').trim();
+
+      if (!projectId) {
+        writeJson(req, res, 400, { error: 'projectId is required.' });
+        return;
+      }
+      if (!storyFolder) {
+        writeJson(req, res, 400, { error: 'storyFolder is required.' });
+        return;
+      }
+      if (!caseId) {
+        writeJson(req, res, 400, { error: 'caseId is required.' });
+        return;
+      }
+
+      const archived = await archiveManualTestCase({ projectId, storyFolder, caseId });
+      writeJson(req, res, 200, { message: 'Manual test case archived.', ...archived });
+      return;
+    } catch (error) {
+      const message = String(error?.message || 'Unable to archive manual test case.');
       const statusCode = message.includes('not found') ? 404 : 400;
       writeJson(req, res, statusCode, { error: message });
       return;
@@ -1904,6 +2381,7 @@ const server = http.createServer(async (req, res) => {
       const appUrl = String(body.appUrl || '').trim();
       const userStory = String(body.userStory || '').trim();
       const saveDefaultUrl = Boolean(body.saveDefaultUrl);
+      const existingStoryFolder = String(body.storyFolder || '').trim();
 
       if (!appUrl) {
         const failureEntry = await appendPrecheckFailure({
@@ -1936,7 +2414,7 @@ const server = http.createServer(async (req, res) => {
         await saveDefaultUrlToEnvFile(appUrl);
       }
 
-      const runResult = await runPipeline({ appUrl, userStory });
+      const runResult = await runPipeline({ appUrl, userStory, existingStoryFolder });
       if (!runResult.ok) {
         writeJson(req, res, runResult.status, { error: runResult.error || 'Run failed', run: runResult.entry });
         return;
@@ -1996,7 +2474,27 @@ const server = http.createServer(async (req, res) => {
         await saveDefaultUrlToEnvFile(appUrl);
       }
 
-      const runResult = await runRegressionPipeline({ appUrl, selectedScripts, suiteName });
+      const selectedProjectInfo = await getSelectedProjectInfo();
+      const selectedProjectId = String(selectedProjectInfo?.projectId || '').trim();
+      let effectiveSelectedScripts = selectedScripts;
+
+      if (selectedProjectId && selectedScripts.length > 0) {
+        const allowedPayload = await readManualTestCases({ projectId: selectedProjectId });
+        const allowedScriptSet = new Set(
+          (Array.isArray(allowedPayload?.items) ? allowedPayload.items : [])
+            .filter((item) => String(item?.source || '').toLowerCase() === 'automated')
+            .map((item) => String(item?.scriptPath || '').trim().replace(/\\/g, '/'))
+            .filter(Boolean)
+        );
+        effectiveSelectedScripts = selectedScripts.filter((scriptPath) => allowedScriptSet.has(scriptPath));
+      }
+
+      if (selectedScripts.length > 0 && effectiveSelectedScripts.length === 0) {
+        writeJson(req, res, 400, { error: 'All selected regression scripts are archived or unavailable.' });
+        return;
+      }
+
+      const runResult = await runRegressionPipeline({ appUrl, selectedScripts: effectiveSelectedScripts, suiteName });
       if (!runResult.ok) {
         writeJson(req, res, runResult.status, { error: runResult.error || 'Regression run failed', run: runResult.entry });
         return;
