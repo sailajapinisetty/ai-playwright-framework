@@ -25,7 +25,10 @@
         "smoke",
         "regression",
         "ui"
-      ]
+      ],
+      "description": "Verify product list is displayed on landing page for a guest user",
+      "actualResult": "",
+      "status": "Fail"
     },
     {
       "id": "APPSTORE_Story_1_TestCase_2",
