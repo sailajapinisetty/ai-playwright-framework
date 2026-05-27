@@ -70,6 +70,107 @@ AGENT_MODE=false
 AGENT_MAX_ATTEMPTS=3
 SELF_HEALING_ENABLED=true
 
+## MCP Setup (Optional)
+
+This repo now includes a workspace MCP configuration at `.vscode/mcp.json`.
+
+Configured MCP servers:
+
+- `playwright` via `@playwright/mcp`
+- `filesystem` via `@modelcontextprotocol/server-filesystem` (scoped to this repo root)
+- `github` via `@modelcontextprotocol/server-github`
+
+If you want to use the GitHub MCP server, set this in `.env`:
+
+GITHUB_PERSONAL_ACCESS_TOKEN=your_github_pat
+
+Notes:
+
+- The MCP commands use `npx -y`, so packages are resolved automatically.
+- If your MCP client does not read `.env` automatically, export `GITHUB_PERSONAL_ACCESS_TOKEN` in your shell before launching the client.
+
+### Quick MCP Workflow
+
+Use this quick flow in your MCP-enabled chat client after opening this workspace.
+
+1. Verify MCP servers are connected.
+2. Ask Playwright MCP to inspect or reproduce a UI behavior.
+3. Ask filesystem MCP to read/edit generated test files.
+4. Ask GitHub MCP to open issue/PR context and summarize changes.
+
+Example prompts:
+
+- "Use Playwright MCP to open http://localhost:4173 and verify the Run Tests button is visible."
+- "Use filesystem MCP to list files under backend/generated_tests and summarize the latest spec file."
+- "Use filesystem MCP to update one flaky selector in the newest generated test and explain the change."
+- "Use GitHub MCP to summarize open PRs for this repo and list which ones touch Playwright tests."
+
+Recommended prompt style:
+
+- Start with: "Use <server-name> MCP to ..."
+- Include exact path/URL when possible.
+- Ask for a final summary with changed files and why.
+
+### Project MCP Playbook
+
+Use this sequence for daily work in this repository.
+
+1. Generate tests
+
+Prompt:
+
+"Use filesystem MCP to read user stories in user-stories/, then run the framework CLI flow and summarize which new files were created under backend/generated_tests/."
+
+2. Run tests
+
+Prompt:
+
+"Use Playwright MCP to verify the app at http://localhost:4173 is reachable, then use filesystem MCP to summarize the latest Playwright run output from backend/playwright-report/."
+
+3. Debug a failure
+
+Prompt:
+
+"Use filesystem MCP to find the newest failed spec under backend/generated_tests/, identify the failing step from test output, and explain likely root causes in priority order."
+
+4. Patch flaky selector
+
+Prompt:
+
+"Use filesystem MCP to update the failing selector in the target spec file, keep the change minimal, and show a short diff plus rationale."
+
+5. Prepare PR summary
+
+Prompt:
+
+"Use GitHub MCP to draft a PR summary for this branch with sections: what changed, why, test evidence, and risk/rollback notes."
+
+Tips for this project:
+
+- Ask MCP to target story-specific folders first under backend/generated_tests/TEST_Story_*/test-cases/.
+- Request exact file paths in every response so edits are easy to review.
+- Prefer minimal selector changes over broad refactors when stabilizing generated tests.
+
+### One-Shot MCP Mega Prompt
+
+Use this single prompt to run the full flow in one request:
+
+"Use the configured MCP servers in this workspace to do an end-to-end Playwright workflow for this project.
+
+Steps:
+1) Use filesystem MCP to inspect user-stories/ and identify the target story file.
+2) Run the framework CLI flow to generate tests, then summarize new files under backend/generated_tests/.
+3) Use Playwright MCP to verify http://localhost:4173 is reachable and the main Run Tests action is visible.
+4) Collect latest run evidence from backend/playwright-report/ and test-results/.
+5) If there is a failure, locate the newest failed spec, apply a minimal selector fix, and provide a concise diff.
+6) Re-run validation steps and report pass/fail status.
+7) Use GitHub MCP to draft a PR summary with sections: what changed, why, test evidence, risk/rollback.
+
+Output requirements:
+- Always include exact file paths touched.
+- Keep code edits minimal and focused.
+- End with a short checklist of completed steps and any remaining manual action."
+
 ## Run
 
 npm start
