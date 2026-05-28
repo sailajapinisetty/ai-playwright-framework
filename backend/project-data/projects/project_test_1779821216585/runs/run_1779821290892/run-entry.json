@@ -1,0 +1,29 @@
+{
+  "runId": "run_1779821290892",
+  "startedAt": "2026-05-26T18:48:10.892Z",
+  "finishedAt": "2026-05-26T18:50:40.052Z",
+  "runType": "FULL",
+  "appUrl": "https://sailajapinisetty.github.io/demo_app/",
+  "urlEnvironment": "QA",
+  "storyFolder": "TEST_Story_1",
+  "storySource": "TEST_Story_1 (re-run)",
+  "projectId": "project_test_1779821216585",
+  "projectName": "test",
+  "status": "PASS",
+  "exitCode": 0,
+  "outputTail": "Enter plain English test scenario: \n1.1) Generating complete manual test cases with acceptance criteria (TEST_Story_1 (re-run))...\nSaved manual tests: generated_tests/TEST_Story_1/manual-test-cases.json\nSaved manual tests markdown: generated_tests/TEST_Story_1/manual-test-cases.md\nSaved automation selection: generated_tests/TEST_Story_1/automation-selection.json\nCoverage for TEST_Story_1 (re-run): 0% (0/2).\n\n2.1) Generating Playwright scripts for 2 missing test gap(s)...\n\nAgent attempt 1/2 for TEST_Story_1_TestCase_1...\nGenerated script: /Users/sailaja.pinisetty/ai-playwright-framework/backend/generated_tests/TEST_Story_1/test-cases/TEST_Story_1_TestCase_1/test_story_1_verify_graceful_handling_of_gibberish_input.spec.js\nSyntaxError: /Users/sailaja.pinisetty/ai-playwright-framework/backend/generated_tests/TEST_Story_1/test-cases/TEST_Story_1_TestCase_1/test_story_1_verify_graceful_handling_of_gibberish_input.spec.js: Unexpected token, expected \",\" (3:51)\n\n  1 | import { test } from '../../../../playwright-tests/framework/fixtures/testFixtures.js';\n  2 |\n> 3 | test('Verify graceful handling of gibberish input 'af sdfjksldaf' @ai @regression @story-1 @case-1 @type-negative @priority-high', async ({ app }, testInfo) => {\n    |                                                    ^\n  4 |   try {\n  5 |     await app.gotoTarget('/demo_app/');\n  6 |\n\n   at TEST_Story_1/test-cases/TEST_Story_1_TestCase_1/test_story_1_verify_graceful_handling_of_gibberish_input.spec.js:3\n\n  1 | import { test } from '../../../../playwright-tests/framework/fixtures/testFixtures.js';\n  2 |\n> 3 | test('Verify graceful handling of gibberish input 'af sdfjksldaf' @ai @regression @story-1 @case-1 @type-negative @priority-high', async ({ app }, testInfo) => {\n    |                                                   ^\n  4 |   try {\n  5 |     await app.gotoTarget('/demo_app/');\n  6 |\n\nError: No tests found.\nMake sure that arguments are regular expressions matching test files.\nYou may need to escape symbols like \"$\" or \"*\" and quote the arguments.\n\n\u001b[1A\u001b[2KSelf-healing active: updating script and retrying TEST_Story_1_TestCase_1.\nAgent execution FAIL for TEST_Story_1_TestCase_1 on attempt 1.\n\nAgent attempt 2/2 for TEST_Story_1_TestCase_1...\nGenerated script: /Users/sailaja.pinisetty/ai-playwright-framework/backend/generated_tests/TEST_Story_1/test-cases/TEST_Story_1_TestCase_1/test_story_1_verify_graceful_handling_of_gibberish_input.spec.js\n\nRunning 2 tests using 2 workers\n\n\u001b[1A\u001b[2K[1/2] [chromium] › generated_tests/TEST_Story_1/test-cases/TEST_Story_1_TestCase_1/test_story_1_verify_graceful_handling_of_gibberish_input.spec.js:3:1 › Verify graceful handling of gibberish input @ai @regression @story-1 @case-1 @type-negative @priority-high\n\u001b[1A\u001b[2K[2/2] [webkit] › generated_tests/TEST_Story_1/test-cases/TEST_Story_1_TestCase_1/test_story_1_verify_graceful_handling_of_gibberish_input.spec.js:3:1 › Verify graceful handling of gibberish input @ai @regression @story-1 @case-1 @type-negative @priority-high\n\u001b[1A\u001b[2K  2 passed (5.8s)\nAgent execution PASS for TEST_Story_1_TestCase_1 on attempt 2.\n\nAgent attempt 1/2 for TEST_Story_1_TestCase_2...\nGenerated script: /Users/sailaja.pinisetty/ai-playwright-framework/backend/generated_tests/TEST_Story_1/test-cases/TEST_Story_1_TestCase_2/test_story_1_verify_system_does_not_crash_when.spec.js\n\nRunning 2 tests using 2 workers\n\n\u001b[1A\u001b[2K[1/2] [webkit] › generated_tests/TEST_Story_1/test-cases/TEST_Story_1_TestCase_2/test_story_1_verify_system_does_not_crash_when.spec.js:3:1 › Verify system does not crash when receiving random alphanumeric gibberish input @ai @regression @story-1 @case-2 @type-error-handling @priority-high\n\u001b[1A\u001b[2K[2/2] [chromium] › generated_tests/TEST_Story_1/test-cases/TEST_Story_1_TestCase_2/test_story_1_verify_system_does_not_crash_when.spec.js:3:1 › Verify system does not crash when receiving random alphanumeric gibberish input @ai @regression @story-1 @case-2 @type-error-handling @priority-high\n\u001b[1A\u001b[2K  2 passed (4.9s)\nAgent execution PASS for TEST_Story_1_TestCase_2 on attempt 1.\nSaved multi-agent summary: generated_tests/TEST_Story_1/multi-agent-summary.json\nSaved multi-agent dashboard: generated_tests/TEST_Story_1/multi-agent-dashboard.md\n\nAgent mode execution summary: PASS\n\nFlow complete: User Story -> Manual Test Cases -> Automation Selection -> Agent Loop (Generate -> Run -> Refine)",
+  "storyPoints": 1,
+  "storyPointEstimate": {
+    "storyPoints": 1,
+    "storyPointLabel": "1 point  – half day",
+    "source": "ai",
+    "reasoning": "The user story contains no meaningful content, requiring minimal to no actual work effort.",
+    "estimatedAt": "2026-05-26T18:50:42.471Z",
+    "storyFolder": "TEST_Story_1"
+  },
+  "totals": {
+    "executed": 2,
+    "passed": 2,
+    "failed": 0
+  }
+}

@@ -4,6 +4,12 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Test Intelligence</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
@@ -19,10 +25,27 @@
       </aside>
       <main class="main">
         <section class="hero" id="main-page">
-          <div>
-            <p class="eyebrow">Execution Workspace</p>
-            <h2>Create stories, run suites, and review outcomes</h2>
-            <p id="run-status">Set the application URL, add a user story, and start execution.</p>
+          <div class="hero-top-row">
+            <div class="hero-intro">
+              <p class="eyebrow">Execution Workspace</p>
+              <h2>AI-Powered Test Execution</h2>
+              <p class="hero-subtitle">Generate complete test assets from user stories, launch suites, and track quality signals in one operational hub.</p>
+              <p id="run-status">Set the application URL, add a user story, and start execution.</p>
+            </div>
+            <div class="hero-badges" aria-hidden="true">
+              <div class="hero-badge-card">
+                <span class="hero-badge-value">AI</span>
+                <span class="hero-badge-label">Assisted Planning</span>
+              </div>
+              <div class="hero-badge-card">
+                <span class="hero-badge-value">E2E</span>
+                <span class="hero-badge-label">Playwright Coverage</span>
+              </div>
+              <div class="hero-badge-card">
+                <span class="hero-badge-value">Live</span>
+                <span class="hero-badge-label">Run Intelligence</span>
+              </div>
+            </div>
           </div>
           <div class="project-controls">
             <label class="field">
@@ -39,46 +62,20 @@
               </div>
             </label>
             <label class="field">
-              <span>Saved Project URLs</span>
-              <select id="project-url-select">
-                <option value="">No URLs saved</option>
-              </select>
-            </label>
-            <label class="field">
-              <span>Save Current URL</span>
+              <span>Add Env and URL</span>
               <div class="inline-row">
-                <input id="project-url-label" type="text" placeholder="QA / Prod / Staging" />
-                <button id="save-project-url-btn" class="secondary-btn" type="button">Save URL</button>
+                <select id="project-url-environment" aria-label="URL Environment">
+                  <option value="">Environment</option>
+                  <option value="QA">QA</option>
+                  <option value="UAT">UAT</option>
+                  <option value="PROD">Prod</option>
+                </select>
+                <input id="project-url-input" type="url" placeholder="https://example.com" />
+                <button id="save-project-url-btn" class="secondary-btn" type="button">Save</button>
               </div>
             </label>
-          </div>
-          <div class="form-grid">
-            <label class="field">
-              <span>Application URL</span>
-              <input id="app-url" type="url" placeholder="https://example.com" />
-              <label class="field-check">
-                <input id="save-default-url" type="checkbox" />
-                <span>Set as default URL</span>
-              </label>
-            </label>
-            <div id="story-input-group" class="story-input-group field-wide hidden">
-              <div class="story-input-header field-wide">
-                <span>User Story Input</span>
-                <button id="close-story-inputs-btn" class="secondary-btn" type="button">Close</button>
-              </div>
-              <label class="field">
-                <span>Upload User Story (.txt)</span>
-                <input id="user-story-file" type="file" accept=".txt" />
-              </label>
-              <label class="field field-wide">
-                <span>User Story Text</span>
-                <textarea id="user-story-input" rows="7" placeholder="Paste user story text here..."></textarea>
-              </label>
-            </div>
           </div>
           <div class="actions">
-            <button id="add-story-btn" class="primary-btn" type="button">Add User Story</button>
-            <button id="run-tests-btn" class="primary-btn hidden" type="button">Run Story Testing</button>
             <button id="run-regression-btn" class="primary-btn" type="button">Run Regression Suite</button>
              <button id="show-report-btn" class="secondary-btn hidden" type="button" disabled>Open Report</button>
             <button id="test-cases-btn" class="secondary-btn" type="button" disabled>Test Case Library</button>
@@ -95,6 +92,15 @@
             <span>Regression Suite Name</span>
             <input id="regression-suite-name" type="text" placeholder="Smoke Suite - Checkout" />
           </label>
+          <label class="field">
+            <span>Regression Environment</span>
+            <select id="regression-environment-select">
+              <option value="">Select environment</option>
+              <option value="QA">QA</option>
+              <option value="UAT">UAT</option>
+              <option value="PROD">Prod</option>
+            </select>
+          </label>
           <p id="regression-selection-meta">Select the test cases to include in this regression suite.</p>
           <div id="regression-selection-view"><p>No regression test cases available.</p></div>
           <div class="actions">
@@ -109,6 +115,35 @@
             <button id="project-stories-toggle-btn" class="secondary-btn story-panel-toggle-btn" type="button">v</button>
           </div>
           <div id="project-stories-content" class="hidden">
+            <div class="actions actions-tight">
+              <button id="add-story-btn" class="primary-btn" type="button">Add User Story</button>
+            </div>
+            <div id="story-input-group" class="story-input-group field-wide hidden">
+              <div class="story-input-header field-wide">
+                <span>User Story Input</span>
+                <button id="close-story-inputs-btn" class="secondary-btn" type="button">Close</button>
+              </div>
+              <label class="field">
+                <span>Upload User Story (.txt)</span>
+                <input id="user-story-file" type="file" accept=".txt" />
+              </label>
+              <label class="field field-wide">
+                <span>User Story Text</span>
+                <textarea id="user-story-input" rows="7" placeholder="Paste user story text here..."></textarea>
+              </label>
+            </div>
+            <label class="field story-environment-field">
+              <span>Story Testing Environment</span>
+              <select id="story-environment-select">
+                <option value="">Select environment</option>
+                <option value="QA">QA</option>
+                <option value="UAT">UAT</option>
+                <option value="PROD">Prod</option>
+              </select>
+            </label>
+            <div class="actions actions-tight">
+              <button id="run-tests-btn" class="primary-btn hidden" type="button">Run Story Testing</button>
+            </div>
             <p id="project-stories-meta">Select a project to view stories.</p>
             <div id="project-stories-view"><p>No stories found.</p></div>
           </div>
@@ -127,6 +162,15 @@
           </div>
           <div id="manual-cases-content" class="hidden">
             <div class="cases-filters">
+              <label class="field">
+                <span>Test Case Environment</span>
+                <select id="test-case-environment-select">
+                  <option value="">Select environment</option>
+                  <option value="QA">QA</option>
+                  <option value="UAT">UAT</option>
+                  <option value="PROD">Prod</option>
+                </select>
+              </label>
               <label class="field">
                 <span>Test Case View</span>
                 <select id="manual-cases-story-filter">
@@ -217,6 +261,12 @@
             </div>
             <p id="history-meta">Showing latest 5 runs.</p>
             <div id="history-list"><p>No runs yet.</p></div>
+          </div>
+        </section>
+
+        <section class="section-card" id="end-run-panel">
+          <div class="actions">
+            <button id="stop-run-bottom-btn" class="secondary-btn" type="button" hidden>End Test Run</button>
           </div>
         </section>
       </main>

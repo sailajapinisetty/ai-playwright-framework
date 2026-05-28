@@ -191,6 +191,9 @@ export async function buildReportData() {
     const executionPassed = cases.filter((item) => item.executionStatus === 'PASS').length;
     const executionFailed = cases.filter((item) => item.executionStatus === 'FAIL').length;
     const notRun = cases.filter((item) => item.executionStatus === 'NOT_RUN').length;
+    const totalManualTests = Number(automationSelection.totalManualTests || 0);
+    const totalAutomatable = Number(automationSelection.coverage?.totalAutomatable || 0);
+    const nonAutomatableManual = Math.max(0, totalManualTests - totalAutomatable);
 
     stories.push({
       id: storyFolder,
@@ -200,10 +203,10 @@ export async function buildReportData() {
       overallStatus: String(multiAgentSummary?.overallStatus || (executionFailed > 0 ? 'PARTIAL_FAIL' : 'UNKNOWN')),
       generatedAt: String(multiAgentSummary?.generatedAt || ''),
       totals: {
-        tests: Number(automationSelection.totalManualTests || 0),
-        manual: Number(automationSelection.totalManualTests || 0),
-        automated: Number(automationSelection.coverage?.totalAutomatable || 0),
-        automatable: Number(automationSelection.coverage?.totalAutomatable || 0),
+        tests: totalManualTests,
+        manual: nonAutomatableManual,
+        automated: totalAutomatable,
+        automatable: totalAutomatable,
         covered: Number(automationSelection.coverage?.covered || 0),
         missing: Number(automationSelection.coverage?.missing || 0),
         automatedRunPassed: executionPassed,

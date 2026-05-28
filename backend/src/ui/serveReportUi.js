@@ -3,6 +3,8 @@ import fs from 'fs/promises';
 import path from 'path';
 import { spawn } from 'child_process';
 import { buildReportData } from './buildReportData.js';
+import { askClaude } from '../ai/claudeClient.js';
+import { config } from '../config.js';
 
 const rootDir = process.cwd();
 const reportUiDir = path.resolve(rootDir, '../frontend/report-ui');
@@ -13,6 +15,7 @@ const projectRegistryPath = path.join(reportUiDir, 'data', 'projects-registry.js
 const sharedReportDataPath = path.join(reportUiDir, 'data', 'report-data.json');
 const projectDataRootDir = path.join(rootDir, 'project-data', 'projects');
 let isRunInProgress = false;
+let activeRun = null;
 const defaultCorsOrigins = [
   'http://localhost:4173',
   'http://127.0.0.1:4173',
@@ -57,6 +60,52 @@ function buildCorsHeaders(req) {
   };
 }
 
+function sendStopSignal(proc, signal = 'SIGTERM') {
+  if (!proc || proc.exitCode !== null || proc.signalCode !== null) {
+    return false;
+  }
+
+  try {
+    if (process.platform !== 'win32' && Number.isFinite(proc.pid)) {
+      process.kill(-proc.pid, signal);
+    } else {
+      proc.kill(signal);
+    }
+    return true;
+  } catch {
+    try {
+      proc.kill(signal);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+}
+
+async function stopActiveRun() {
+  if (!isRunInProgress || !activeRun) {
+    return { ok: false, status: 409, error: 'No automation run is currently in progress.' };
+  }
+
+  activeRun.stopRequested = true;
+
+  if (activeRun.proc) {
+    sendStopSignal(activeRun.proc, 'SIGTERM');
+    setTimeout(() => {
+      if (activeRun?.proc && activeRun.proc.exitCode === null && activeRun.proc.signalCode === null) {
+        sendStopSignal(activeRun.proc, 'SIGKILL');
+      }
+    }, 2000).unref?.();
+  }
+
+  return {
+    ok: true,
+    status: 200,
+    message: 'Stop request sent to the current automation run.',
+    runId: String(activeRun.runId || '')
+  };
+}
+
 function writeJson(req, res, statusCode, payload) {
   res.writeHead(statusCode, {
     ...buildCorsHeaders(req),
@@ -75,6 +124,25 @@ function isHttpUrl(value) {
   } catch {
     return false;
   }
+}
+
+function normalizeUrlEnvironment(value) {
+  const normalized = String(value || '').trim().toUpperCase();
+  return ['QA', 'UAT', 'PROD'].includes(normalized) ? normalized : '';
+}
+
+function inferUrlEnvironmentFromLabel(label) {
+  const normalized = String(label || '').trim().toUpperCase();
+  if (normalized === 'QA' || normalized.startsWith('QA ')) {
+    return 'QA';
+  }
+  if (normalized === 'UAT' || normalized.startsWith('UAT ')) {
+    return 'UAT';
+  }
+  if (normalized === 'PROD' || normalized.startsWith('PROD ')) {
+    return 'PROD';
+  }
+  return '';
 }
 
 async function validateUrlReachability(appUrl) {
@@ -239,6 +307,263 @@ function makeEntityId(prefix, value) {
   return `${prefix}_${base}_${Date.now()}`;
 }
 
+// Story point scale:
+//   1 = half day
+//   2 = full day (1 working day)
+//   3 = 2 working days
+const STORY_POINT_SCALE = [
+  { points: 0, label: '0 points – may need discussion' },
+  { points: 1, label: '1 point  – half day' },
+  { points: 2, label: '2 points – full day' },
+  { points: 3, label: '3 points – 2 working days' }
+];
+
+function normalizeStoryPoints(value) {
+  const allowed = STORY_POINT_SCALE.map((entry) => entry.points);
+  const numeric = Number.parseInt(String(value || '').trim(), 10);
+  if (!Number.isFinite(numeric)) {
+    return 0;
+  }
+
+  if (allowed.includes(numeric)) {
+    return numeric;
+  }
+
+  // Clamp to scale instead of finding nearest – anything above 3 becomes 3.
+  if (numeric >= 3) return 3;
+  if (numeric <= 0) return 0;
+  if (numeric <= 1) return 1;
+  return 2;
+}
+
+function evaluateStoryForDiscussion(userStory) {
+  const text = String(userStory || '').trim();
+  if (!text) {
+    return {
+      needsDiscussion: true,
+      reasoning: 'Story content is unavailable or empty, so it cannot be estimated accurately.',
+      escalationSuggestion: 'Escalate this story to the user dashboard and ask for the business goal, user action, expected outcome, and acceptance criteria.'
+    };
+  }
+
+  const words = text.split(/\s+/).filter(Boolean);
+  const normalized = text.toLowerCase();
+  const fillerOnly = /^(test|testing|random|dummy|sample|none|na|n\/a|abc|xyz|hello|irrelevant|asdf|qwerty|123)+([\s,.-]+(test|testing|random|dummy|sample|none|na|n\/a|abc|xyz|hello|irrelevant|asdf|qwerty|123))*$/i.test(text);
+  const uniqueWords = new Set(words.map((word) => word.toLowerCase().replace(/[^a-z0-9]/g, '')).filter(Boolean));
+  const hasActionSignal = /\b(user|customer|admin|system|buyer|seller|manager|agent|dashboard|report|create|update|delete|view|submit|search|filter|login|checkout|upload|download|save|configure|approve|reject|notify|validate)\b/i.test(text);
+
+  if (fillerOnly || words.length < 5 || uniqueWords.size < 4 || !hasActionSignal) {
+    return {
+      needsDiscussion: true,
+      reasoning: 'Story content appears irrelevant, unclear, inappropriate, or not actionable enough to estimate accurately.',
+      escalationSuggestion: 'Escalate this story to the user dashboard for clarification. Ask the user to provide the business context, user role, desired action, expected result, and acceptance criteria.'
+    };
+  }
+
+  if (normalized.includes('inappropriate') || normalized.includes('irrelevant')) {
+    return {
+      needsDiscussion: true,
+      reasoning: 'Story content is marked as irrelevant or inappropriate and should be clarified before estimation.',
+      escalationSuggestion: 'Escalate this story to the user dashboard and request a meaningful replacement story with clear intent and testable outcomes.'
+    };
+  }
+
+  return {
+    needsDiscussion: false,
+    reasoning: '',
+    escalationSuggestion: ''
+  };
+}
+
+function estimateStoryPointsHeuristic(userStory) {
+  const text = String(userStory || '').trim();
+  if (!text) {
+    return 1;
+  }
+
+  const words = text.split(/\s+/).filter(Boolean).length;
+  const criteriaCount = (text.match(/\n\s*[-*\d.]+\s+/g) || []).length;
+  let complexityScore = 0;
+
+  if (words > 40) complexityScore += 1;
+  if (words > 90) complexityScore += 1;
+  if (criteriaCount >= 3) complexityScore += 1;
+  if (criteriaCount >= 6) complexityScore += 1;
+
+  if (/\b(payment|checkout|refund|invoice|billing)\b/i.test(text)) complexityScore += 1;
+  if (/\b(auth|login|oauth|permission|role|security)\b/i.test(text)) complexityScore += 1;
+  if (/\b(integration|api|webhook|sync|import|export)\b/i.test(text)) complexityScore += 1;
+  if (/\b(report|dashboard|analytics|filter|search|sort)\b/i.test(text)) complexityScore += 1;
+
+  // Map to 3-point scale: 1=half day, 2=full day, 3=2 working days
+  if (complexityScore <= 1) return 1;
+  if (complexityScore <= 3) return 2;
+  return 3;
+}
+
+function extractJsonObjectFromText(rawText) {
+  const text = String(rawText || '').trim();
+  if (!text) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    // Continue to relaxed extraction.
+  }
+
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  if (fenced?.[1]) {
+    try {
+      return JSON.parse(fenced[1]);
+    } catch {
+      // Continue.
+    }
+  }
+
+  const firstBrace = text.indexOf('{');
+  const lastBrace = text.lastIndexOf('}');
+  if (firstBrace >= 0 && lastBrace > firstBrace) {
+    const candidate = text.slice(firstBrace, lastBrace + 1);
+    try {
+      return JSON.parse(candidate);
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
+}
+
+const STORY_POINT_DEFINITIONS = [
+  '0 points = story is unclear, irrelevant, inappropriate, or needs discussion before estimation',
+  '1 point  = half day of work',
+  '2 points = one full working day',
+  '3 points = two full working days'
+].join('\n');
+
+async function estimateStoryPoints({ userStory = '', storyFolder = '' } = {}) {
+  const discussionCheck = evaluateStoryForDiscussion(userStory);
+  if (discussionCheck.needsDiscussion) {
+    return {
+      storyPoints: 0,
+      storyPointLabel: '0 points – may need discussion',
+      source: 'quality-gate',
+      reasoning: discussionCheck.reasoning,
+      escalationSuggestion: discussionCheck.escalationSuggestion,
+      needsDiscussion: true,
+      estimatedAt: new Date().toISOString(),
+      storyFolder: String(storyFolder || '').trim()
+    };
+  }
+
+  const heuristicPoints = estimateStoryPointsHeuristic(userStory);
+  const heuristicLabel = STORY_POINT_SCALE.find((entry) => entry.points === heuristicPoints)?.label || String(heuristicPoints);
+
+  if (!config.aiEnabled) {
+    return {
+      storyPoints: heuristicPoints,
+      storyPointLabel: heuristicLabel,
+      source: 'heuristic',
+      reasoning: 'AI not configured; estimated using local heuristic based on story scope.',
+      escalationSuggestion: '',
+      needsDiscussion: false,
+      estimatedAt: new Date().toISOString(),
+      storyFolder: String(storyFolder || '').trim()
+    };
+  }
+
+  try {
+    const responseText = await askClaude({
+      system: [
+        'You are an agile story-point estimation agent.',
+        'Use ONLY this scale:',
+        STORY_POINT_DEFINITIONS,
+        'If the story is irrelevant, inappropriate, meaningless, or not actionable, return storyPoints 0 and mark it as needing discussion.',
+        'Analyse the user story and return ONLY strict JSON with four keys:',
+        '  storyPoints: integer (0, 1, 2, or 3)',
+        '  reasoning: one concise sentence explaining your choice in terms of the scale above.',
+        '  needsDiscussion: boolean',
+        '  escalationSuggestion: one concise sentence suggesting what clarification should be requested if needsDiscussion is true.'
+      ].join('\n'),
+      user: [
+        `Story folder: ${String(storyFolder || '').trim() || 'N/A'}`,
+        '\nUser story:',
+        String(userStory || '').trim() || '(empty)'
+      ].join('\n'),
+      maxTokens: 280
+    });
+
+    const parsed = extractJsonObjectFromText(responseText) || {};
+    const storyPoints = normalizeStoryPoints(parsed.storyPoints);
+    const needsDiscussion = Boolean(parsed.needsDiscussion) || storyPoints === 0;
+    const safePoints = needsDiscussion ? 0 : (storyPoints || heuristicPoints);
+    const label = STORY_POINT_SCALE.find((entry) => entry.points === safePoints)?.label || String(safePoints);
+    const reasoning = String(parsed.reasoning || '').trim() || (needsDiscussion
+      ? 'Story content needs discussion before it can be estimated accurately.'
+      : 'Estimated from story scope and acceptance criteria complexity.');
+    const escalationSuggestion = needsDiscussion
+      ? (String(parsed.escalationSuggestion || '').trim() || 'Escalate this story to the user dashboard and request clearer business context, action, expected outcome, and acceptance criteria.')
+      : '';
+
+    return {
+      storyPoints: safePoints,
+      storyPointLabel: label,
+      source: 'ai',
+      reasoning,
+      escalationSuggestion,
+      needsDiscussion,
+      estimatedAt: new Date().toISOString(),
+      storyFolder: String(storyFolder || '').trim()
+    };
+  } catch {
+    return {
+      storyPoints: heuristicPoints,
+      storyPointLabel: heuristicLabel,
+      source: 'heuristic-fallback',
+      reasoning: 'AI estimation failed; fallback heuristic used.',
+      escalationSuggestion: '',
+      needsDiscussion: false,
+      estimatedAt: new Date().toISOString(),
+      storyFolder: String(storyFolder || '').trim()
+    };
+  }
+}
+
+async function saveStoryPointEstimate({ projectId = '', storyFolder = '', estimate = null } = {}) {
+  const safeProjectId = String(projectId || '').trim();
+  const safeStoryFolder = String(storyFolder || '').trim();
+  if (!safeProjectId || !safeStoryFolder || !estimate) {
+    return;
+  }
+
+  const projectStoryDir = path.join(projectDataRootDir, safeProjectId, 'stories', safeStoryFolder);
+  await fs.mkdir(projectStoryDir, { recursive: true });
+
+  const metaPath = path.join(projectStoryDir, 'story-meta.json');
+  const existingMeta = await readJsonFileIfExists(metaPath, {});
+  const storyPoints = normalizeStoryPoints(estimate.storyPoints);
+
+  const nextMeta = {
+    ...existingMeta,
+    storyFolder: safeStoryFolder,
+    storyPoints,
+    storyPointEstimate: {
+      storyPoints,
+      storyPointLabel: String(estimate.storyPointLabel || String(storyPoints)),
+      source: String(estimate.source || 'heuristic'),
+      reasoning: String(estimate.reasoning || ''),
+      escalationSuggestion: String(estimate.escalationSuggestion || ''),
+      needsDiscussion: Boolean(estimate.needsDiscussion),
+      estimatedAt: String(estimate.estimatedAt || new Date().toISOString())
+    },
+    updatedAt: new Date().toISOString()
+  };
+
+  await fs.writeFile(metaPath, JSON.stringify(nextMeta, null, 2));
+}
+
 function getProjectDefaultUrl(project) {
   const urls = Array.isArray(project?.urls) ? project.urls : [];
   const explicitDefault = urls.find((entry) => entry.isDefault && isHttpUrl(entry.url));
@@ -273,7 +598,7 @@ async function getSelectedProjectInfo() {
   };
 }
 
-async function saveDefaultUrlForSelectedProject(appUrl) {
+async function saveDefaultUrlForSelectedProject(appUrl, urlEnvironment = '') {
   const sanitized = String(appUrl || '').trim();
   if (!sanitized || !isHttpUrl(sanitized)) {
     return null;
@@ -286,6 +611,7 @@ async function saveDefaultUrlForSelectedProject(appUrl) {
   }
 
   const now = new Date().toISOString();
+  const normalizedEnvironment = normalizeUrlEnvironment(urlEnvironment);
   let savedUrl = null;
 
   registry.projects = registry.projects.map((project) => {
@@ -300,6 +626,7 @@ async function saveDefaultUrlForSelectedProject(appUrl) {
     if (existing) {
       const updated = {
         ...existing,
+        environment: normalizedEnvironment || normalizeUrlEnvironment(existing.environment) || inferUrlEnvironmentFromLabel(existing.label),
         isDefault: true,
         updatedAt: now
       };
@@ -314,8 +641,9 @@ async function saveDefaultUrlForSelectedProject(appUrl) {
 
     const created = {
       id: makeEntityId('url', sanitized),
-      label: 'Default URL',
+      label: normalizedEnvironment || 'Default URL',
       url: sanitized,
+      environment: normalizedEnvironment,
       isDefault: true,
       createdAt: now,
       updatedAt: now
@@ -588,6 +916,209 @@ async function saveProjectStory({ projectId = '', storyFolder = '', content = ''
   };
 }
 
+async function saveStoryRunUrl({ projectId = '', storyFolder = '', appUrl = '', urlEnvironment = '' } = {}) {
+  const safeProjectId = String(projectId || '').trim();
+  const safeStoryFolder = String(storyFolder || '').trim();
+  const safeAppUrl = String(appUrl || '').trim();
+  if (!safeProjectId || !safeStoryFolder || !isHttpUrl(safeAppUrl)) {
+    return;
+  }
+
+  const normalizedEnvironment = normalizeUrlEnvironment(urlEnvironment);
+  const projectStoryDir = path.join(projectDataRootDir, safeProjectId, 'stories', safeStoryFolder);
+  await fs.mkdir(projectStoryDir, { recursive: true });
+
+  const metaPath = path.join(projectStoryDir, 'story-meta.json');
+  const existingMeta = await readJsonFileIfExists(metaPath, {});
+  const now = new Date().toISOString();
+
+  const runUrlHistory = Array.isArray(existingMeta?.runUrlHistory)
+    ? existingMeta.runUrlHistory
+        .map((entry) => ({
+          appUrl: String(entry?.appUrl || '').trim(),
+          environment: normalizeUrlEnvironment(entry?.environment),
+          recordedAt: String(entry?.recordedAt || '').trim()
+        }))
+        .filter((entry) => isHttpUrl(entry.appUrl))
+    : [];
+
+  runUrlHistory.unshift({
+    appUrl: safeAppUrl,
+    environment: normalizedEnvironment,
+    recordedAt: now
+  });
+
+  const dedupedHistory = [];
+  const seen = new Set();
+  for (const entry of runUrlHistory) {
+    const key = `${entry.appUrl}::${entry.environment}`;
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    dedupedHistory.push(entry);
+    if (dedupedHistory.length >= 20) {
+      break;
+    }
+  }
+
+  const nextMeta = {
+    ...existingMeta,
+    storyFolder: safeStoryFolder,
+    lastRunAppUrl: safeAppUrl,
+    lastRunUrlEnvironment: normalizedEnvironment,
+    lastRunAt: now,
+    runUrlHistory: dedupedHistory,
+    updatedAt: now
+  };
+
+  await fs.writeFile(metaPath, JSON.stringify(nextMeta, null, 2));
+}
+
+function archiveStatePath(projectId) {
+  return path.join(projectDataRootDir, String(projectId || '').trim(), 'archive-state.json');
+}
+
+function normalizeArchiveState(value) {
+  const rawStories = Array.isArray(value?.archivedStories) ? value.archivedStories : [];
+  const rawCases = Array.isArray(value?.archivedCases) ? value.archivedCases : [];
+  const archivedStories = [...new Set(rawStories.map((entry) => String(entry || '').trim()).filter(Boolean))].sort();
+  const archivedCases = [];
+  const seenCaseKeys = new Set();
+
+  for (const entry of rawCases) {
+    const storyFolder = String(entry?.storyFolder || '').trim();
+    const caseId = String(entry?.caseId || '').trim();
+    if (!storyFolder || !caseId) {
+      continue;
+    }
+
+    const key = `${storyFolder}::${caseId}`;
+    if (seenCaseKeys.has(key)) {
+      continue;
+    }
+
+    seenCaseKeys.add(key);
+    archivedCases.push({
+      storyFolder,
+      caseId,
+      archivedAt: String(entry?.archivedAt || '')
+    });
+  }
+
+  return { archivedStories, archivedCases };
+}
+
+async function readArchiveState(projectId) {
+  const safeProjectId = String(projectId || '').trim();
+  if (!safeProjectId) {
+    return { archivedStories: [], archivedCases: [] };
+  }
+
+  const raw = await readJsonFileIfExists(archiveStatePath(safeProjectId), {
+    archivedStories: [],
+    archivedCases: []
+  });
+  return normalizeArchiveState(raw);
+}
+
+async function writeArchiveState(projectId, archiveState) {
+  const safeProjectId = String(projectId || '').trim();
+  if (!safeProjectId) {
+    throw new Error('projectId is required.');
+  }
+
+  const nextState = normalizeArchiveState(archiveState);
+  const targetPath = archiveStatePath(safeProjectId);
+  await fs.mkdir(path.dirname(targetPath), { recursive: true });
+  await fs.writeFile(targetPath, JSON.stringify(nextState, null, 2));
+  return nextState;
+}
+
+function archivedCaseKey(storyFolder, caseId) {
+  return `${String(storyFolder || '').trim()}::${String(caseId || '').trim()}`;
+}
+
+function buildArchivedCaseSet(archiveState) {
+  const archivedCases = Array.isArray(archiveState?.archivedCases) ? archiveState.archivedCases : [];
+  return new Set(archivedCases.map((entry) => archivedCaseKey(entry?.storyFolder, entry?.caseId)).filter((entry) => entry !== '::'));
+}
+
+async function archiveProjectStory({ projectId = '', storyFolder = '' } = {}) {
+  const safeProjectId = String(projectId || '').trim();
+  const safeStoryFolder = String(storyFolder || '').trim();
+  if (!safeProjectId) {
+    throw new Error('projectId is required.');
+  }
+  if (!safeStoryFolder) {
+    throw new Error('storyFolder is required.');
+  }
+
+  const registry = await readProjectRegistry();
+  const project = registry.projects.find((entry) => entry.id === safeProjectId);
+  if (!project) {
+    throw new Error('Project not found.');
+  }
+
+  const archiveState = await readArchiveState(safeProjectId);
+  if (!archiveState.archivedStories.includes(safeStoryFolder)) {
+    archiveState.archivedStories.push(safeStoryFolder);
+    archiveState.archivedStories.sort();
+  }
+
+  const nextState = await writeArchiveState(safeProjectId, archiveState);
+  return {
+    projectId: safeProjectId,
+    storyFolder: safeStoryFolder,
+    archivedStories: nextState.archivedStories.length
+  };
+}
+
+async function archiveManualTestCase({ projectId = '', storyFolder = '', caseId = '' } = {}) {
+  const safeProjectId = String(projectId || '').trim();
+  const safeStoryFolder = String(storyFolder || '').trim();
+  const safeCaseId = String(caseId || '').trim();
+  if (!safeProjectId) {
+    throw new Error('projectId is required.');
+  }
+  if (!safeStoryFolder) {
+    throw new Error('storyFolder is required.');
+  }
+  if (!safeCaseId) {
+    throw new Error('caseId is required.');
+  }
+
+  const registry = await readProjectRegistry();
+  const project = registry.projects.find((entry) => entry.id === safeProjectId);
+  if (!project) {
+    throw new Error('Project not found.');
+  }
+
+  const archiveState = await readArchiveState(safeProjectId);
+  const archivedCases = Array.isArray(archiveState.archivedCases) ? archiveState.archivedCases : [];
+  const key = archivedCaseKey(safeStoryFolder, safeCaseId);
+  const exists = archivedCases.some((entry) => archivedCaseKey(entry?.storyFolder, entry?.caseId) === key);
+  if (!exists) {
+    archivedCases.push({
+      storyFolder: safeStoryFolder,
+      caseId: safeCaseId,
+      archivedAt: new Date().toISOString()
+    });
+  }
+
+  const nextState = await writeArchiveState(safeProjectId, {
+    ...archiveState,
+    archivedCases
+  });
+
+  return {
+    projectId: safeProjectId,
+    storyFolder: safeStoryFolder,
+    caseId: safeCaseId,
+    archivedCases: nextState.archivedCases.length
+  };
+}
+
 async function upsertManualTestCase({ projectId = '', storyFolder = '', testCase = {} } = {}) {
   const safeStoryFolder = String(storyFolder || '').trim();
   const safeProjectId = String(projectId || '').trim();
@@ -786,17 +1317,25 @@ async function readManualTestCases({ projectId = '' } = {}) {
   const generatedTestsDir = path.join(rootDir, 'generated_tests');
   const latestReportData = await readJsonFileIfExists(sharedReportDataPath, null);
   const automatedResultMap = buildAutomatedCaseResultMap(latestReportData);
-  let storyFolders = await listDirectories(generatedTestsDir);
   const requestedProjectId = String(projectId || '').trim();
+  let storyFolders = await listDirectories(generatedTestsDir);
+  const archiveState = requestedProjectId
+    ? await readArchiveState(requestedProjectId)
+    : { archivedStories: [], archivedCases: [] };
+  const archivedStoriesSet = new Set(Array.isArray(archiveState?.archivedStories) ? archiveState.archivedStories : []);
+  const archivedCasesSet = buildArchivedCaseSet(archiveState);
 
   if (requestedProjectId) {
     const registry = await readProjectRegistry();
     const project = registry.projects.find((entry) => entry.id === requestedProjectId);
-    const allowedStoryFolders = new Set(Array.isArray(project?.storyFolders) ? project.storyFolders : []);
-    if (allowedStoryFolders.size > 0) {
-      storyFolders = storyFolders.filter((folder) => allowedStoryFolders.has(folder));
-    }
+    const allowedStoryFolders = Array.isArray(project?.storyFolders)
+      ? project.storyFolders.map((entry) => String(entry || '').trim()).filter(Boolean)
+      : [];
+    // For a selected project, show only explicitly mapped stories. If none are mapped yet,
+    // keep the list empty instead of leaking stories from other projects.
+    storyFolders = storyFolders.filter((folder) => allowedStoryFolders.includes(folder));
   }
+  storyFolders = storyFolders.filter((folder) => !archivedStoriesSet.has(folder));
   const items = [];
 
   for (const storyFolder of storyFolders) {
@@ -806,12 +1345,45 @@ async function readManualTestCases({ projectId = '' } = {}) {
     const testCases = Array.isArray(manualCatalog?.testCases) ? manualCatalog.testCases : [];
     const storyTitle = String(manualCatalog?.storyTitle || storyFolder);
 
+    const automatableCaseIds = new Set(
+      testCases
+        .filter((entry) => Boolean(entry?.automationCandidate))
+        .map((entry) => String(entry?.id || '').trim())
+        .filter(Boolean)
+    );
+
+    const testCasesDir = path.join(storyDir, 'test-cases');
+    const scriptFiles = await listFilesRecursive(testCasesDir, '.spec.js');
+    const automatedScriptByCaseId = new Map();
+    for (const scriptPath of scriptFiles) {
+      const relativePath = path.relative(testCasesDir, scriptPath).replace(/\\/g, '/');
+      const pathParts = relativePath.split('/');
+      const caseId = String(pathParts[0] || '').trim();
+      if (!caseId) {
+        continue;
+      }
+      automatableCaseIds.add(caseId);
+      const list = automatedScriptByCaseId.get(caseId) || [];
+      list.push(relativePath);
+      automatedScriptByCaseId.set(caseId, list);
+    }
+
     for (const testCase of testCases) {
+      const caseId = String(testCase?.id || '').trim();
+      if (archivedCasesSet.has(archivedCaseKey(storyFolder, caseId))) {
+        continue;
+      }
+
+      // Keep lists exclusive: automatable/automated cases should appear only in automated list.
+      if (automatableCaseIds.has(caseId)) {
+        continue;
+      }
+
       items.push({
         storyFolder,
         storyTitle,
         source: 'manual',
-        caseId: String(testCase?.id || ''),
+        caseId,
         title: String(testCase?.title || ''),
         description: String(testCase?.description || testCase?.title || ''),
         type: String(testCase?.type || ''),
@@ -825,13 +1397,14 @@ async function readManualTestCases({ projectId = '' } = {}) {
       });
     }
 
-    const testCasesDir = path.join(storyDir, 'test-cases');
-    const scriptFiles = await listFilesRecursive(testCasesDir, '.spec.js');
-    for (const scriptPath of scriptFiles) {
-      const relativePath = path.relative(testCasesDir, scriptPath).replace(/\\/g, '/');
-      const pathParts = relativePath.split('/');
-      const caseId = String(pathParts[0] || '').trim() || 'unknown-case';
-      const fileName = String(pathParts[pathParts.length - 1] || '').trim();
+    for (const [caseId, caseScripts] of automatedScriptByCaseId.entries()) {
+      if (archivedCasesSet.has(archivedCaseKey(storyFolder, caseId))) {
+        continue;
+      }
+      const firstScript = String(caseScripts?.[0] || '').trim();
+      const fileName = firstScript
+        ? String(firstScript.split('/').at(-1) || '').trim()
+        : `${caseId}.spec.js`;
       const prettyTitle = fileName
         .replace(/\.spec\.js$/i, '')
         .replace(/_/g, ' ')
@@ -856,8 +1429,42 @@ async function readManualTestCases({ projectId = '' } = {}) {
         expectedResult: String(linkedManualCase?.expectedResult || ''),
         actualResult: String(resultEntry.actualResult || ''),
         status: String(resultEntry.status || 'Not Run'),
-        automationReason: relativePath,
-        scriptPath: `generated_tests/${storyFolder}/test-cases/${relativePath}`
+        automationReason: firstScript || String(linkedManualCase?.automationReason || ''),
+        scriptPath: firstScript ? `generated_tests/${storyFolder}/test-cases/${firstScript}` : ''
+      });
+    }
+
+    // Include automatable cases in automated list even before script generation, so they do not reappear as manual duplicates.
+    for (const caseId of automatableCaseIds) {
+      if (automatedScriptByCaseId.has(caseId)) {
+        continue;
+      }
+      if (archivedCasesSet.has(archivedCaseKey(storyFolder, caseId))) {
+        continue;
+      }
+
+      const resultEntry = automatedResultMap.get(`${storyFolder}::${caseId}`) || {
+        status: 'Not Run',
+        actualResult: 'Automated execution not completed yet.'
+      };
+      const linkedManualCase = testCases.find((entry) => String(entry?.id || '').trim() === caseId) || null;
+
+      items.push({
+        storyFolder,
+        storyTitle,
+        source: 'automated',
+        caseId,
+        title: String(linkedManualCase?.title || caseId),
+        description: String(linkedManualCase?.description || linkedManualCase?.title || caseId),
+        type: 'automated-script',
+        priority: '',
+        preconditions: Array.isArray(linkedManualCase?.preconditions) ? linkedManualCase.preconditions : [],
+        steps: Array.isArray(linkedManualCase?.steps) ? linkedManualCase.steps : [],
+        expectedResult: String(linkedManualCase?.expectedResult || ''),
+        actualResult: String(resultEntry.actualResult || ''),
+        status: String(resultEntry.status || 'Not Run'),
+        automationReason: String(linkedManualCase?.automationReason || 'Marked as automatable'),
+        scriptPath: ''
       });
     }
   }
@@ -924,6 +1531,28 @@ async function readStoryTextForFolder({ projectId = '', storyFolder = '' } = {})
   return { content: '', source: '' };
 }
 
+async function readSavedUserStoryContent({ projectId = '', storyFolder = '' } = {}) {
+  const safeProjectId = String(projectId || '').trim();
+  const safeStoryFolder = String(storyFolder || '').trim();
+  if (!safeProjectId || !safeStoryFolder) {
+    return '';
+  }
+
+  const projectStoryDir = path.join(projectDataRootDir, safeProjectId, 'stories', safeStoryFolder);
+  const storyFileCandidates = ['user-story.txt', 'user_story.txt'];
+  for (const fileName of storyFileCandidates) {
+    const filePath = path.join(projectStoryDir, fileName);
+    if (await pathExists(filePath)) {
+      const content = String(await fs.readFile(filePath, 'utf8')).trim();
+      if (content) {
+        return content;
+      }
+    }
+  }
+
+  return '';
+}
+
 async function readProjectStories({ projectId = '' } = {}) {
   const safeProjectId = String(projectId || '').trim();
   const generatedTestsDir = path.join(rootDir, 'generated_tests');
@@ -931,14 +1560,19 @@ async function readProjectStories({ projectId = '' } = {}) {
   const project = safeProjectId
     ? registry.projects.find((entry) => entry.id === safeProjectId)
     : null;
+  const archiveState = safeProjectId
+    ? await readArchiveState(safeProjectId)
+    : { archivedStories: [], archivedCases: [] };
+  const archivedStoriesSet = new Set(Array.isArray(archiveState?.archivedStories) ? archiveState.archivedStories : []);
 
   let storyFolders = Array.isArray(project?.storyFolders)
     ? project.storyFolders.map((entry) => String(entry || '').trim()).filter(Boolean)
     : [];
 
-  if (storyFolders.length === 0) {
+  if (!safeProjectId && storyFolders.length === 0) {
     storyFolders = await listDirectories(generatedTestsDir);
   }
+  storyFolders = storyFolders.filter((storyFolder) => !archivedStoriesSet.has(storyFolder));
 
   const items = [];
   for (const storyFolder of storyFolders) {
@@ -966,10 +1600,30 @@ async function readProjectStories({ projectId = '' } = {}) {
       }
     }
 
+    let storyPoints = 0;
+    let storyPointEstimate = null;
+    let lastRunAppUrl = '';
+    let lastRunUrlEnvironment = '';
+    let lastRunAt = '';
+    if (safeProjectId) {
+      const projectStoryDir = path.join(projectDataRootDir, safeProjectId, 'stories', storyFolder);
+      const storyMeta = await readJsonFileIfExists(path.join(projectStoryDir, 'story-meta.json'), {});
+      storyPoints = normalizeStoryPoints(storyMeta?.storyPoints);
+      storyPointEstimate = storyMeta?.storyPointEstimate || null;
+      lastRunAppUrl = isHttpUrl(storyMeta?.lastRunAppUrl) ? String(storyMeta.lastRunAppUrl).trim() : '';
+      lastRunUrlEnvironment = normalizeUrlEnvironment(storyMeta?.lastRunUrlEnvironment);
+      lastRunAt = String(storyMeta?.lastRunAt || '').trim();
+    }
+
     items.push({
       storyFolder,
       content: storyContent,
-      source: storySource
+      source: storySource,
+      storyPoints,
+      storyPointEstimate,
+      lastRunAppUrl,
+      lastRunUrlEnvironment,
+      lastRunAt
     });
   }
 
@@ -1129,11 +1783,10 @@ async function readRunScopedReportData(runId) {
       return runReport;
     }
   }
-
-  return await readJsonFileIfExists(sharedReportDataPath, null);
+  return null;
 }
 
-async function appendPrecheckFailure({ reason, appUrl, userStory, runType = 'FULL' }) {
+async function appendPrecheckFailure({ reason, appUrl, userStory, runType = 'FULL', urlEnvironment = '' }) {
   const now = new Date().toISOString();
   const projectInfo = await getSelectedProjectInfo();
   const entry = {
@@ -1145,6 +1798,7 @@ async function appendPrecheckFailure({ reason, appUrl, userStory, runType = 'FUL
     exitCode: -1,
     outputTail: String(reason || 'Precheck failed'),
     appUrl: String(appUrl || ''),
+    urlEnvironment: normalizeUrlEnvironment(urlEnvironment),
     userStoryPreview: String(userStory || '').slice(0, 200),
     projectId: String(projectInfo?.projectId || ''),
     projectName: String(projectInfo?.projectName || ''),
@@ -1240,7 +1894,8 @@ async function readDefaultUrl() {
         appUrl: defaultUrlEntry.url,
         projectId: selectedProject.id,
         projectName: selectedProject.name,
-        urlId: defaultUrlEntry.id
+        urlId: defaultUrlEntry.id,
+        urlEnvironment: normalizeUrlEnvironment(defaultUrlEntry.environment) || inferUrlEnvironmentFromLabel(defaultUrlEntry.label)
       };
     }
   }
@@ -1249,7 +1904,8 @@ async function readDefaultUrl() {
     appUrl: await readDefaultUrlFromEnvFile(),
     projectId: String(selectedProject?.id || ''),
     projectName: String(selectedProject?.name || ''),
-    urlId: ''
+    urlId: '',
+    urlEnvironment: ''
   };
 }
 
@@ -1316,7 +1972,7 @@ async function getNextStorySequenceNumber() {
   return maxNumber + 1;
 }
 
-async function runPipeline({ appUrl, userStory }) {
+async function runPipeline({ appUrl, userStory, existingStoryFolder = '', urlEnvironment = '' }) {
   if (isRunInProgress) {
     return { ok: false, status: 409, error: 'A test run is already in progress. Please wait for completion.' };
   }
@@ -1324,16 +1980,46 @@ async function runPipeline({ appUrl, userStory }) {
   isRunInProgress = true;
   const startedAt = new Date().toISOString();
   const projectInfo = await getSelectedProjectInfo();
-  const projectCode = normalizeProjectCode(projectInfo?.projectName || projectInfo?.projectId || 'PRJ');
-  const storyNumber = await getNextStorySequenceNumber();
-  const storySource = `Story ${storyNumber} (UI input)`;
-  const storyFolder = buildStoryName(projectCode, storyNumber);
+  const normalizedRunEnvironment = normalizeUrlEnvironment(urlEnvironment);
+
+  // If an existing storyFolder is provided, parse its projectCode and storyNumber from it
+  // so we write results back to the same folder instead of creating a new one.
+  let projectCode;
+  let storyNumber;
+  let storySource;
+  let storyFolder;
+  const folderMatch = String(existingStoryFolder || '').match(/^(.+)_Story_(\d+)$/i);
+  if (folderMatch) {
+    projectCode = normalizeProjectCode(folderMatch[1]);
+    storyNumber = Number.parseInt(folderMatch[2], 10);
+    storyFolder = existingStoryFolder;
+    storySource = `${storyFolder} (re-run)`;
+  } else {
+    projectCode = normalizeProjectCode(projectInfo?.projectName || projectInfo?.projectId || 'PRJ');
+    storyNumber = await getNextStorySequenceNumber();
+    storyFolder = buildStoryName(projectCode, storyNumber);
+    storySource = `Story ${storyNumber} (UI input)`;
+  }
+
   const storyId = toSafeId(storyFolder);
+  const runId = `run_${Date.now()}`;
+  activeRun = {
+    runId,
+    startedAt,
+    projectInfo,
+    projectCode,
+    storyNumber,
+    storyFolder,
+    storySource,
+    appUrl,
+    userStory,
+    stopRequested: false,
+    proc: null
+  };
 
   return new Promise((resolve) => {
     let output = '';
     const maxChars = 30_000;
-    const runId = `run_${Date.now()}`;
 
     function append(text) {
       output += text;
@@ -1354,20 +2040,31 @@ async function runPipeline({ appUrl, userStory }) {
     const proc = spawn('node', ['src/index.js'], {
       cwd: rootDir,
       env,
-      stdio: ['pipe', 'pipe', 'pipe']
+      stdio: ['pipe', 'pipe', 'pipe'],
+      detached: process.platform !== 'win32'
     });
+
+    if (activeRun && activeRun.runId === runId) {
+      activeRun.proc = proc;
+      if (activeRun.stopRequested) {
+        sendStopSignal(proc, 'SIGTERM');
+      }
+    }
 
     proc.stdout.on('data', (data) => append(String(data)));
     proc.stderr.on('data', (data) => append(String(data)));
 
     proc.on('error', async (error) => {
       isRunInProgress = false;
+      activeRun = null;
       const finishedAt = new Date().toISOString();
       const entry = {
         runId,
         startedAt,
         finishedAt,
         runType: 'FULL',
+        appUrl: String(appUrl || '').trim(),
+        urlEnvironment: normalizedRunEnvironment,
         storyFolder,
         storySource,
         projectId: String(projectInfo?.projectId || ''),
@@ -1383,37 +2080,62 @@ async function runPipeline({ appUrl, userStory }) {
     });
 
     proc.on('close', async (code) => {
+      const wasStopped = Boolean(activeRun?.runId === runId && activeRun?.stopRequested);
       let buildError = null;
-      try {
-        await buildReportData();
-      } catch (error) {
-        buildError = error;
-      }
-      const totals = await readLatestReportTotals(storyFolder);
 
       isRunInProgress = false;
+      activeRun = null;
       const finishedAt = new Date().toISOString();
+      let totals = { executed: 0, passed: 0, failed: 0 };
+      let storyPointEstimate = null;
+
+      if (!wasStopped) {
+        try {
+          await buildReportData();
+        } catch (error) {
+          buildError = error;
+        }
+        totals = await readLatestReportTotals(storyFolder);
+        storyPointEstimate = await estimateStoryPoints({ userStory, storyFolder });
+        await saveStoryPointEstimate({
+          projectId: String(projectInfo?.projectId || ''),
+          storyFolder,
+          estimate: storyPointEstimate
+        });
+      }
+
       const entry = {
         runId,
         startedAt,
         finishedAt,
         runType: 'FULL',
+        appUrl: String(appUrl || '').trim(),
+        urlEnvironment: normalizedRunEnvironment,
         storyFolder,
         storySource,
         projectId: String(projectInfo?.projectId || ''),
         projectName: String(projectInfo?.projectName || ''),
-        status: code === 0 ? 'PASS' : 'FAIL',
-        exitCode: Number(code),
+        status: wasStopped ? 'STOPPED' : (code === 0 ? 'PASS' : 'FAIL'),
+        exitCode: typeof code === 'number' ? Number(code) : -1,
         outputTail: output.trim(),
+        storyPoints: Number(storyPointEstimate?.storyPoints || 0),
+        storyPointEstimate,
         totals
       };
 
       await appendRunHistory(entry);
-      await trackProjectStoryFolder(entry.projectId, storyFolder);
-      await persistProjectRunArtifacts({ runEntry: entry, includeStoryFolder: storyFolder });
+      if (!wasStopped) {
+        await trackProjectStoryFolder(entry.projectId, storyFolder);
+        await persistProjectRunArtifacts({ runEntry: entry, includeStoryFolder: storyFolder });
+      }
 
       if (buildError) {
         resolve({ ok: false, status: 500, error: buildError.message, entry });
+        return;
+      }
+
+      if (wasStopped) {
+        resolve({ ok: true, status: 200, entry });
         return;
       }
 
@@ -1438,7 +2160,7 @@ function normalizeRegressionScripts(selectedScripts) {
   return [...new Set(normalized)];
 }
 
-async function runRegressionPipeline({ appUrl, selectedScripts = [], suiteName = '' }) {
+async function runRegressionPipeline({ appUrl, selectedScripts = [], suiteName = '', urlEnvironment = '' }) {
   if (isRunInProgress) {
     return { ok: false, status: 409, error: 'A test run is already in progress. Please wait for completion.' };
   }
@@ -1446,6 +2168,7 @@ async function runRegressionPipeline({ appUrl, selectedScripts = [], suiteName =
   isRunInProgress = true;
   const startedAt = new Date().toISOString();
   const projectInfo = await getSelectedProjectInfo();
+  const normalizedRunEnvironment = normalizeUrlEnvironment(urlEnvironment);
 
   return new Promise((resolve) => {
     let output = '';
@@ -1480,17 +2203,37 @@ async function runRegressionPipeline({ appUrl, selectedScripts = [], suiteName =
       shell: true
     });
 
+    activeRun = {
+      runId,
+      startedAt,
+      projectInfo,
+      appUrl,
+      userStory: '',
+      stopRequested: false,
+      proc,
+      runType: 'REGRESSION',
+      suiteName: safeSuiteName,
+      selectedScripts: safeSelectedScripts
+    };
+
+    if (activeRun.stopRequested) {
+      sendStopSignal(proc, 'SIGTERM');
+    }
+
     proc.stdout.on('data', (data) => append(String(data)));
     proc.stderr.on('data', (data) => append(String(data)));
 
     proc.on('error', async (error) => {
       isRunInProgress = false;
+      activeRun = null;
       const finishedAt = new Date().toISOString();
       const entry = {
         runId,
         startedAt,
         finishedAt,
         runType: 'REGRESSION',
+        appUrl: String(appUrl || '').trim(),
+        urlEnvironment: normalizedRunEnvironment,
         suiteName: safeSuiteName,
         selectedScripts: safeSelectedScripts,
         projectId: String(projectInfo?.projectId || ''),
@@ -1506,33 +2249,42 @@ async function runRegressionPipeline({ appUrl, selectedScripts = [], suiteName =
     });
 
     proc.on('close', async (code) => {
+      const wasStopped = Boolean(activeRun?.runId === runId && activeRun?.stopRequested);
       let buildError = null;
-      try {
-        await buildReportData();
-      } catch (error) {
-        buildError = error;
+      if (!wasStopped) {
+        try {
+          await buildReportData();
+        } catch (error) {
+          buildError = error;
+        }
       }
 
       isRunInProgress = false;
+      activeRun = null;
       const finishedAt = new Date().toISOString();
-      const parsedTotals = parseRegressionTotals(output);
-      const fallbackTotals = await readLatestReportTotals();
-      const totals = parsedTotals.executed > 0 ? {
-        executed: parsedTotals.executed,
-        passed: parsedTotals.passed,
-        failed: parsedTotals.failed
-      } : fallbackTotals;
+      let totals = { executed: 0, passed: 0, failed: 0 };
+      if (!wasStopped) {
+        const parsedTotals = parseRegressionTotals(output);
+        const fallbackTotals = await readLatestReportTotals();
+        totals = parsedTotals.executed > 0 ? {
+          executed: parsedTotals.executed,
+          passed: parsedTotals.passed,
+          failed: parsedTotals.failed
+        } : fallbackTotals;
+      }
 
       const entry = {
         runId,
         startedAt,
         finishedAt,
         runType: 'REGRESSION',
+        appUrl: String(appUrl || '').trim(),
+        urlEnvironment: normalizedRunEnvironment,
         suiteName: safeSuiteName,
         selectedScripts: safeSelectedScripts,
         projectId: String(projectInfo?.projectId || ''),
         projectName: String(projectInfo?.projectName || ''),
-        status: code === 0 ? 'PASS' : 'FAIL',
+        status: wasStopped ? 'STOPPED' : (code === 0 ? 'PASS' : 'FAIL'),
         exitCode: Number(code),
         outputTail: output.trim(),
         totals
@@ -1588,6 +2340,15 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === 'GET' && url.pathname === '/api/report-data') {
     const runId = String(url.searchParams.get('runId') || '').trim();
+    if (runId) {
+      const history = await readRunHistory();
+      const runEntry = history.find((entry) => String(entry?.runId || '').trim() === runId);
+      if (String(runEntry?.status || '').trim().toUpperCase() === 'STOPPED') {
+        writeJson(req, res, 409, { error: 'Execution Interrupted. No report is available for this interrupted run.' });
+        return;
+      }
+    }
+
     const reportData = await readRunScopedReportData(runId);
     if (!reportData) {
       writeJson(req, res, 404, { error: 'Report data not found.' });
@@ -1649,7 +2410,10 @@ const server = http.createServer(async (req, res) => {
       const body = await readJsonBody(req);
       const projectId = String(body.projectId || '').trim();
       if (!projectId) {
-        writeJson(req, res, 400, { error: 'projectId is required.' });
+        const registry = await readProjectRegistry();
+        registry.selectedProjectId = '';
+        await writeProjectRegistry(registry);
+        writeJson(req, res, 200, { selectedProjectId: '' });
         return;
       }
 
@@ -1697,6 +2461,7 @@ const server = http.createServer(async (req, res) => {
       const urlValue = String(body.url || '').trim();
       const label = String(body.label || '').trim() || 'Saved URL';
       const isDefault = Boolean(body.isDefault);
+      const environment = normalizeUrlEnvironment(body.environment) || inferUrlEnvironmentFromLabel(label);
 
       if (!projectId) {
         writeJson(req, res, 400, { error: 'projectId is required.' });
@@ -1731,6 +2496,7 @@ const server = http.createServer(async (req, res) => {
           const updated = {
             ...existing,
             label,
+            environment,
             isDefault: isDefault ? true : Boolean(existing.isDefault),
             updatedAt: now
           };
@@ -1746,6 +2512,7 @@ const server = http.createServer(async (req, res) => {
           id: makeEntityId('url', label),
           label,
           url: urlValue,
+          environment,
           isDefault,
           createdAt: now,
           updatedAt: now
@@ -1820,6 +2587,75 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
+  if (req.method === 'POST' && url.pathname === '/api/project-stories/estimate') {
+    try {
+      const body = await readJsonBody(req);
+      const projectId = String(body.projectId || '').trim();
+      const storyFolder = String(body.storyFolder || '').trim();
+
+      if (!projectId) {
+        writeJson(req, res, 400, { error: 'projectId is required.' });
+        return;
+      }
+      if (!storyFolder) {
+        writeJson(req, res, 400, { error: 'storyFolder is required.' });
+        return;
+      }
+
+      const registry = await readProjectRegistry();
+      const project = registry.projects.find((entry) => entry.id === projectId);
+      if (!project) {
+        writeJson(req, res, 404, { error: 'Project not found.' });
+        return;
+      }
+
+      // Read story content from project-data or generated_tests
+      const storyText = await readStoryTextForFolder({ projectId, storyFolder });
+      const userStory = String(storyText?.content || '').trim();
+      if (!userStory) {
+        writeJson(req, res, 400, { error: 'Story content is unavailable. Add story content before estimating story points.' });
+        return;
+      }
+
+      const estimate = await estimateStoryPoints({ userStory, storyFolder });
+      await saveStoryPointEstimate({ projectId, storyFolder, estimate });
+
+      writeJson(req, res, 200, { storyFolder, ...estimate });
+      return;
+    } catch (error) {
+      const message = String(error?.message || 'Unable to estimate story points.');
+      const statusCode = message.includes('not found') ? 404 : 500;
+      writeJson(req, res, statusCode, { error: message });
+      return;
+    }
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/project-stories/archive') {
+    try {
+      const body = await readJsonBody(req);
+      const projectId = String(body.projectId || '').trim();
+      const storyFolder = String(body.storyFolder || '').trim();
+
+      if (!projectId) {
+        writeJson(req, res, 400, { error: 'projectId is required.' });
+        return;
+      }
+      if (!storyFolder) {
+        writeJson(req, res, 400, { error: 'storyFolder is required.' });
+        return;
+      }
+
+      const archived = await archiveProjectStory({ projectId, storyFolder });
+      writeJson(req, res, 200, { message: 'Story archived.', ...archived });
+      return;
+    } catch (error) {
+      const message = String(error?.message || 'Unable to archive story.');
+      const statusCode = message.includes('not found') ? 404 : 400;
+      writeJson(req, res, statusCode, { error: message });
+      return;
+    }
+  }
+
   if (req.method === 'POST' && url.pathname === '/api/manual-test-cases') {
     try {
       const body = await readJsonBody(req);
@@ -1832,6 +2668,37 @@ const server = http.createServer(async (req, res) => {
       return;
     } catch (error) {
       const message = String(error?.message || 'Unable to save manual test case.');
+      const statusCode = message.includes('not found') ? 404 : 400;
+      writeJson(req, res, statusCode, { error: message });
+      return;
+    }
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/manual-test-cases/archive') {
+    try {
+      const body = await readJsonBody(req);
+      const projectId = String(body.projectId || '').trim();
+      const storyFolder = String(body.storyFolder || '').trim();
+      const caseId = String(body.caseId || '').trim();
+
+      if (!projectId) {
+        writeJson(req, res, 400, { error: 'projectId is required.' });
+        return;
+      }
+      if (!storyFolder) {
+        writeJson(req, res, 400, { error: 'storyFolder is required.' });
+        return;
+      }
+      if (!caseId) {
+        writeJson(req, res, 400, { error: 'caseId is required.' });
+        return;
+      }
+
+      const archived = await archiveManualTestCase({ projectId, storyFolder, caseId });
+      writeJson(req, res, 200, { message: 'Manual test case archived.', ...archived });
+      return;
+    } catch (error) {
+      const message = String(error?.message || 'Unable to archive manual test case.');
       const statusCode = message.includes('not found') ? 404 : 400;
       writeJson(req, res, statusCode, { error: message });
       return;
@@ -1879,18 +2746,31 @@ const server = http.createServer(async (req, res) => {
     try {
       const body = await readJsonBody(req);
       const appUrl = String(body.appUrl || '').trim();
+      const urlEnvironment = normalizeUrlEnvironment(body.urlEnvironment);
       if (!appUrl) {
         writeJson(req, res, 400, { error: 'appUrl is required.' });
         return;
       }
 
-      const savedProjectUrl = await saveDefaultUrlForSelectedProject(appUrl);
+      const savedProjectUrl = await saveDefaultUrlForSelectedProject(appUrl, urlEnvironment);
       await saveDefaultUrlToEnvFile(appUrl);
       writeJson(req, res, 200, {
         appUrl,
+        urlEnvironment,
         savedToProject: Boolean(savedProjectUrl),
         projectUrlId: String(savedProjectUrl?.id || '')
       });
+      return;
+    } catch (error) {
+      writeJson(req, res, 500, { error: error.message });
+      return;
+    }
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/stop-run') {
+    try {
+      const result = await stopActiveRun();
+      writeJson(req, res, result.status, result);
       return;
     } catch (error) {
       writeJson(req, res, 500, { error: error.message });
@@ -1904,12 +2784,15 @@ const server = http.createServer(async (req, res) => {
       const appUrl = String(body.appUrl || '').trim();
       const userStory = String(body.userStory || '').trim();
       const saveDefaultUrl = Boolean(body.saveDefaultUrl);
+      const existingStoryFolder = String(body.storyFolder || '').trim();
+      const urlEnvironment = normalizeUrlEnvironment(body.urlEnvironment);
 
       if (!appUrl) {
         const failureEntry = await appendPrecheckFailure({
           reason: 'appUrl is required.',
           appUrl,
-          userStory
+          userStory,
+          urlEnvironment
         });
         writeJson(req, res, 400, { error: 'appUrl is required.', run: failureEntry });
         return;
@@ -1920,7 +2803,8 @@ const server = http.createServer(async (req, res) => {
         const failureEntry = await appendPrecheckFailure({
           reason: urlValidation.message,
           appUrl,
-          userStory
+          userStory,
+          urlEnvironment
         });
         writeJson(req, res, 400, { error: urlValidation.message, run: failureEntry });
         return;
@@ -1931,15 +2815,41 @@ const server = http.createServer(async (req, res) => {
         return;
       }
 
+      if (existingStoryFolder) {
+        const selectedProjectInfo = await getSelectedProjectInfo();
+        const selectedProjectId = String(selectedProjectInfo?.projectId || '').trim();
+        const savedStoryContent = selectedProjectId
+          ? await readSavedUserStoryContent({ projectId: selectedProjectId, storyFolder: existingStoryFolder })
+          : '';
+        if (!savedStoryContent) {
+          writeJson(req, res, 400, {
+            error: 'Story content is unavailable for this story. Save a valid user story before running tests.'
+          });
+          return;
+        }
+      }
+
       if (saveDefaultUrl) {
-        await saveDefaultUrlForSelectedProject(appUrl);
+        await saveDefaultUrlForSelectedProject(appUrl, urlEnvironment);
         await saveDefaultUrlToEnvFile(appUrl);
       }
 
-      const runResult = await runPipeline({ appUrl, userStory });
+      const runResult = await runPipeline({ appUrl, userStory, existingStoryFolder, urlEnvironment });
       if (!runResult.ok) {
         writeJson(req, res, runResult.status, { error: runResult.error || 'Run failed', run: runResult.entry });
         return;
+      }
+
+      const selectedProjectInfo = await getSelectedProjectInfo();
+      const selectedProjectId = String(selectedProjectInfo?.projectId || '').trim();
+      const completedStoryFolder = String(runResult?.entry?.storyFolder || existingStoryFolder || '').trim();
+      if (selectedProjectId && completedStoryFolder) {
+        await saveStoryRunUrl({
+          projectId: selectedProjectId,
+          storyFolder: completedStoryFolder,
+          appUrl,
+          urlEnvironment
+        });
       }
 
       writeJson(req, res, 200, { message: 'Run completed', run: runResult.entry });
@@ -1954,6 +2864,7 @@ const server = http.createServer(async (req, res) => {
     try {
       const body = await readJsonBody(req);
       const appUrl = String(body.appUrl || '').trim();
+      const urlEnvironment = normalizeUrlEnvironment(body.urlEnvironment);
       const saveDefaultUrl = Boolean(body.saveDefaultUrl);
       const selectedScripts = normalizeRegressionScripts(body.selectedScripts);
       const suiteName = String(body.suiteName || '').trim();
@@ -1973,7 +2884,8 @@ const server = http.createServer(async (req, res) => {
           reason: 'appUrl is required.',
           appUrl,
           userStory: '',
-          runType: 'REGRESSION'
+          runType: 'REGRESSION',
+          urlEnvironment
         });
         writeJson(req, res, 400, { error: 'appUrl is required.', run: failureEntry });
         return;
@@ -1985,18 +2897,39 @@ const server = http.createServer(async (req, res) => {
           reason: urlValidation.message,
           appUrl,
           userStory: '',
-          runType: 'REGRESSION'
+          runType: 'REGRESSION',
+          urlEnvironment
         });
         writeJson(req, res, 400, { error: urlValidation.message, run: failureEntry });
         return;
       }
 
       if (saveDefaultUrl) {
-        await saveDefaultUrlForSelectedProject(appUrl);
+        await saveDefaultUrlForSelectedProject(appUrl, urlEnvironment);
         await saveDefaultUrlToEnvFile(appUrl);
       }
 
-      const runResult = await runRegressionPipeline({ appUrl, selectedScripts, suiteName });
+      const selectedProjectInfo = await getSelectedProjectInfo();
+      const selectedProjectId = String(selectedProjectInfo?.projectId || '').trim();
+      let effectiveSelectedScripts = selectedScripts;
+
+      if (selectedProjectId && selectedScripts.length > 0) {
+        const allowedPayload = await readManualTestCases({ projectId: selectedProjectId });
+        const allowedScriptSet = new Set(
+          (Array.isArray(allowedPayload?.items) ? allowedPayload.items : [])
+            .filter((item) => String(item?.source || '').toLowerCase() === 'automated')
+            .map((item) => String(item?.scriptPath || '').trim().replace(/\\/g, '/'))
+            .filter(Boolean)
+        );
+        effectiveSelectedScripts = selectedScripts.filter((scriptPath) => allowedScriptSet.has(scriptPath));
+      }
+
+      if (selectedScripts.length > 0 && effectiveSelectedScripts.length === 0) {
+        writeJson(req, res, 400, { error: 'All selected regression scripts are archived or unavailable.' });
+        return;
+      }
+
+      const runResult = await runRegressionPipeline({ appUrl, selectedScripts: effectiveSelectedScripts, suiteName, urlEnvironment });
       if (!runResult.ok) {
         writeJson(req, res, runResult.status, { error: runResult.error || 'Regression run failed', run: runResult.entry });
         return;

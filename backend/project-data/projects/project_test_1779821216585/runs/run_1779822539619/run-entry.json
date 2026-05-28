@@ -1,0 +1,23 @@
+{
+  "runId": "run_1779822539619",
+  "startedAt": "2026-05-26T19:08:59.619Z",
+  "finishedAt": "2026-05-26T19:09:07.443Z",
+  "runType": "REGRESSION",
+  "appUrl": "https://sailajapinisetty.github.io/demo_app/",
+  "urlEnvironment": "QA",
+  "suiteName": "Regression Suite 5/26/2026, 3:03:43 PM",
+  "selectedScripts": [
+    "generated_tests/TEST_Story_1/test-cases/TEST_Story_1_TestCase_1/test_story_1_verify_graceful_handling_of_gibberish_input.spec.js",
+    "generated_tests/TEST_Story_1/test-cases/TEST_Story_1_TestCase_2/test_story_1_verify_system_does_not_crash_when.spec.js"
+  ],
+  "projectId": "project_test_1779821216585",
+  "projectName": "test",
+  "status": "PASS",
+  "exitCode": 0,
+  "outputTail": "Running 4 tests using 4 workers\n\n\u001b[1A\u001b[2K[1/4] [chromium] › generated_tests/TEST_Story_1/test-cases/TEST_Story_1_TestCase_1/test_story_1_verify_graceful_handling_of_gibberish_input.spec.js:3:1 › Verify graceful handling of gibberish input @ai @regression @story-1 @case-1 @type-negative @priority-high\n\u001b[1A\u001b[2K[2/4] [webkit] › generated_tests/TEST_Story_1/test-cases/TEST_Story_1_TestCase_2/test_story_1_verify_system_does_not_crash_when.spec.js:3:1 › Verify system does not crash when receiving random alphanumeric gibberish input @ai @regression @story-1 @case-2 @type-error-handling @priority-high\n\u001b[1A\u001b[2K[3/4] [webkit] › generated_tests/TEST_Story_1/test-cases/TEST_Story_1_TestCase_1/test_story_1_verify_graceful_handling_of_gibberish_input.spec.js:3:1 › Verify graceful handling of gibberish input @ai @regression @story-1 @case-1 @type-negative @priority-high\n\u001b[1A\u001b[2K[4/4] [chromium] › generated_tests/TEST_Story_1/test-cases/TEST_Story_1_TestCase_2/test_story_1_verify_system_does_not_crash_when.spec.js:3:1 › Verify system does not crash when receiving random alphanumeric gibberish input @ai @regression @story-1 @case-2 @type-error-handling @priority-high\n\u001b[1A\u001b[2K  4 passed (7.1s)",
+  "totals": {
+    "executed": 4,
+    "passed": 4,
+    "failed": 0
+  }
+}
