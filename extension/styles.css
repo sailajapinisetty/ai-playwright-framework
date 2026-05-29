@@ -1,0 +1,27 @@
+/* Copied from frontend/report-ui/styles.css (trimmed if necessary) */
+/* Full stylesheet preserved for appearance in the extension popup */
+:root {
+  --bg: #09131f;
+  --surface: rgba(16, 28, 41, 0.78);
+  --surface-strong: rgba(27, 44, 61, 0.94);
+  --ink: #e6edf6;
+  --muted: #9bb0c8;
+  --accent: #2dc2ef;
+  --accent-strong: #008ad4;
+  --accent-soft: rgba(45, 194, 239, 0.16);
+  --success: #4ec596;
+  --warn: #f3b663;
+  --danger: #ef6a72;
+  --shadow: 0 24px 56px rgba(3, 10, 19, 0.36);
+  --radius: 22px;
+  --line: rgba(230, 237, 246, 0.14);
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; font-family: "Plus Jakarta Sans", "Segoe UI", sans-serif; color: var(--ink); min-height: 100vh; background: linear-gradient(145deg, #08111d 0%, #0b1625 48%, #091b2d 100%); }
+.shell { display: grid; grid-template-columns: 240px 1fr; min-height: 360px; }
+.sidebar { padding: 20px; background: linear-gradient(180deg, rgba(9, 23, 36, 0.94) 0%, rgba(7, 17, 29, 0.88) 100%); border-right: 1px solid var(--line); }
+.main { padding: 18px; }
+.hero, .section-card { background: var(--surface); padding: 18px; border-radius: 14px; border: 1px solid var(--line); }
+.eyebrow { margin: 0 0 8px; text-transform: uppercase; font-size: 11px; font-weight: 700; color: inherit; opacity: 0.74; }
+.history-item { padding: 8px; border-radius: 8px; border: 1px solid rgba(168,190,213,0.12); background: rgba(8,29,48,0.56); margin-bottom: 8px; }

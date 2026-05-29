@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Test Intelligence</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <!-- UI copied from frontend/report-ui/index.html (adapted for extension) -->
+    <div class="shell">
+      <aside class="sidebar">
+        <div>
+          <p class="eyebrow">AI Playwright Framework</p>
+          <h1>Test Intelligence</h1>
+          <p class="sidebar-copy">Turn user stories into automated tests, actionable reports, and trusted run history.</p>
+        </div>
+        <div class="sidebar-stats" id="global-stats"></div>
+        <div class="sidebar-footer">Data source: generated test artifacts</div>
+      </aside>
+      <main class="main">
+        <!-- main content omitted for brevity; popup uses the same DOM as the full UI -->
+        <section class="hero" id="main-page">
+          <div class="hero-top-row">
+            <div class="hero-intro">
+              <p class="eyebrow">Execution Workspace</p>
+              <h2>AI-Powered Test Execution</h2>
+              <p class="hero-subtitle">Generate complete test assets from user stories, launch suites, and track quality signals in one operational hub.</p>
+              <p id="run-status">Set the application URL, add a user story, and start execution.</p>
+            </div>
+          </div>
+        </section>
+        <section class="section-card" id="history-panel">
+          <div class="panel-header-row">
+            <p class="eyebrow">Execution History</p>
+          </div>
+          <div id="history-panel-content">
+            <div id="history-list"><p>No runs yet.</p></div>
+          </div>
+        </section>
+      </main>
+    </div>
+    <script>
+      window.__API_BASE_URL = window.__API_BASE_URL || '';
+    </script>
+    <script src="popup.js"></script>
+  </body>
+</html>
