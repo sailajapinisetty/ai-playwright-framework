@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Test Intelligence</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <!-- Full app index copied from frontend/report-ui/index.html -->
+    <div class="shell">
+      <aside class="sidebar">
+        <div>
+          <p class="eyebrow">AI Playwright Framework</p>
+          <h1>Test Intelligence</h1>
+          <p class="sidebar-copy">Turn user stories into automated tests, actionable reports, and trusted run history.</p>
+        </div>
+        <div class="sidebar-stats" id="global-stats"></div>
+        <div class="sidebar-footer">Data source: generated test artifacts</div>
+      </aside>
+      <main class="main">
+        <section class="hero" id="main-page">
+          <div class="hero-top-row">
+            <div class="hero-intro">
+              <p class="eyebrow">Execution Workspace</p>
+              <h2>AI-Powered Test Execution</h2>
+              <p class="hero-subtitle">Generate complete test assets from user stories, launch suites, and track quality signals in one operational hub.</p>
+              <p id="run-status">Set the application URL, add a user story, and start execution.</p>
+            </div>
+          </div>
+          <div class="project-controls">
+            <label class="field">
+              <span>Project</span>
+              <select id="project-select">
+                <option value="">Select a project</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Create Project</span>
+              <div class="inline-row">
+                <input id="new-project-name" type="text" placeholder="My Project" />
+                <button id="create-project-btn" class="secondary-btn" type="button">Create</button>
+              </div>
+            </label>
+            <label class="field">
+              <span>Add Env and URL</span>
+              <div class="inline-row">
+                <select id="project-url-environment" aria-label="URL Environment">
+                  <option value="">Environment</option>
+                  <option value="QA">QA</option>
+                  <option value="UAT">UAT</option>
+                  <option value="PROD">Prod</option>
+                </select>
+                <input id="project-url-input" type="url" placeholder="https://example.com" />
+                <button id="save-project-url-btn" class="secondary-btn" type="button">Save</button>
+              </div>
+            </label>
+          </div>
+          <div class="actions">
+            <button id="run-regression-btn" class="primary-btn" type="button">Run Regression Suite</button>
+             <button id="show-report-btn" class="secondary-btn hidden" type="button" disabled>Open Report</button>
+            <button id="test-cases-btn" class="secondary-btn" type="button" disabled>Test Case Library</button>
+            <button id="show-stories-btn" class="secondary-btn" type="button" disabled>Project Stories</button>
+          </div>
+        </section>
+        <!-- Other sections are rendered by app.js when needed -->
+        <section class="section-card" id="history-panel">
+          <div class="panel-header-row">
+            <p class="eyebrow">Execution History</p>
+            <button id="history-panel-toggle-btn" class="secondary-btn story-panel-toggle-btn hidden" type="button">v</button>
+          </div>
+          <div id="history-panel-content">
+            <div class="history-controls">
+              <input id="history-filter-input" type="search" placeholder="Filter by run ID, status, story, suite, or type" />
+              <button id="history-filter-clear-btn" class="secondary-btn" type="button">Clear</button>
+            </div>
+            <p id="history-meta">Showing latest 5 runs.</p>
+            <div id="history-list"><p>No runs yet.</p></div>
+          </div>
+        </section>
+      </main>
+    </div>
+    <script>
+      window.__API_BASE_URL = window.__API_BASE_URL || '';
+    </script>
+    <script src="./app.js" type="module"></script>
+  </body>
+</html>

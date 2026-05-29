@@ -1,0 +1,27 @@
+{
+  "selectedProjectId": "project_t_1779997209629",
+  "projects": [
+    {
+      "id": "project_t_1779997209629",
+      "name": "t",
+      "description": "",
+      "createdAt": "2026-05-28T19:40:09.629Z",
+      "updatedAt": "2026-05-29T19:23:11.556Z",
+      "storyFolders": [
+        "TEST_Story_1",
+        "T_Story_2",
+        "T_Story_3"
+      ],
+      "urls": [
+        {
+          "id": "url_qa_1779997214013",
+          "label": "QA",
+          "url": "https://sailajapinisetty.github.io/demo_app/",
+          "isDefault": false,
+          "createdAt": "2026-05-28T19:40:14.013Z",
+          "updatedAt": "2026-05-28T19:40:14.013Z"
+        }
+      ]
+    }
+  ]
+}

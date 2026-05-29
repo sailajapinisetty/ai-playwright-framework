@@ -1,0 +1,33 @@
+[
+  {
+    "runId": "run_1779997982706",
+    "startedAt": "2026-05-28T19:53:02.706Z",
+    "finishedAt": "2026-05-28T19:54:02.669Z",
+    "runType": "FULL",
+    "appUrl": "https://sailajapinisetty.github.io/demo_app/",
+    "urlEnvironment": "QA",
+    "storyFolder": "T_Story_2",
+    "storySource": "T_Story_2 (re-run)",
+    "projectId": "project_t_1779997209629",
+    "projectName": "t",
+    "status": "PASS",
+    "exitCode": 0,
+    "outputTail": "Enter plain English test scenario: \n1.1) Generating complete manual test cases with acceptance criteria (T_Story_2 (re-run))...\nSaved manual tests: generated_tests/T_Story_2/manual-test-cases.json\nSaved manual tests markdown: generated_tests/T_Story_2/manual-test-cases.md\nSaved automation selection: generated_tests/T_Story_2/automation-selection.json\nCoverage for T_Story_2 (re-run): 100% (0/0).\nNo automatable test cases selected for T_Story_2 (re-run).\n\nNo new unique tests were generated. Existing tests are already covering these stories.\n\nNo automatable tests were generated to execute.\n\nFlow complete: User Story -> Manual Test Cases -> Automation Selection -> Script Generation",
+    "storyPoints": 0,
+    "storyPointEstimate": {
+      "storyPoints": 0,
+      "storyPointLabel": "0 points – may need discussion",
+      "source": "quality-gate",
+      "reasoning": "Story content appears irrelevant, unclear, inappropriate, or not actionable enough to estimate accurately.",
+      "escalationSuggestion": "Escalate this story to the user dashboard for clarification. Ask the user to provide the business context, user role, desired action, expected result, and acceptance criteria.",
+      "needsDiscussion": true,
+      "estimatedAt": "2026-05-28T19:54:02.681Z",
+      "storyFolder": "T_Story_2"
+    },
+    "totals": {
+      "executed": 0,
+      "passed": 0,
+      "failed": 0
+    }
+  }
+]

@@ -1,0 +1,97 @@
+{
+  "generatedAt": "2026-05-29T19:31:52.341Z",
+  "storyCount": 2,
+  "totals": {
+    "stories": 2,
+    "tests": 5,
+    "manual": 3,
+    "automated": 2,
+    "automatable": 2,
+    "automatedRunPassed": 2,
+    "automatedRunFailed": 0,
+    "executionPassed": 2,
+    "executionFailed": 0,
+    "notRun": 3
+  },
+  "coverage": {
+    "covered": 0,
+    "automatable": 2,
+    "overallPercent": 0
+  },
+  "stories": [
+    {
+      "id": "TEST_Story_1",
+      "folderName": "TEST_Story_1",
+      "storySource": "TEST_Story_1 (re-run)",
+      "title": "Undefined User Story",
+      "overallStatus": "PARTIAL_FAIL",
+      "generatedAt": "2026-05-26T18:50:40.034Z",
+      "totals": {
+        "tests": 5,
+        "manual": 3,
+        "automated": 2,
+        "automatable": 2,
+        "covered": 0,
+        "missing": 2,
+        "automatedRunPassed": 2,
+        "automatedRunFailed": 0,
+        "executionPassed": 2,
+        "executionFailed": 0,
+        "notRun": 3
+      },
+      "coverage": {
+        "percent": 0,
+        "coveredCases": [],
+        "missingScenarioTitles": [
+          "Verify system handles undefined or gibberish input gracefully",
+          "Verify system does not crash when receiving random alphanumeric gibberish input"
+        ]
+      },
+      "summary": "Total automated cases: 3 | Execution passed: 2 | Execution failed: 1",
+      "runHistory": [
+        {
+          "generatedAt": "2026-05-26T18:50:40.034Z",
+          "overallStatus": "PARTIAL_FAIL",
+          "summary": "Total automated cases: 3 | Execution passed: 2 | Execution failed: 1",
+          "totals": {
+            "total": 3,
+            "executionPassed": 2,
+            "executionFailed": 1,
+            "validationPassed": 0,
+            "validationFailed": 3
+          }
+        }
+      ],
+      "cases": []
+    },
+    {
+      "id": "T_Story_2",
+      "folderName": "T_Story_2",
+      "storySource": "",
+      "title": "User Story",
+      "overallStatus": "UNKNOWN",
+      "generatedAt": "",
+      "totals": {
+        "tests": 0,
+        "manual": 0,
+        "automated": 0,
+        "automatable": 0,
+        "covered": 0,
+        "missing": 0,
+        "automatedRunPassed": 0,
+        "automatedRunFailed": 0,
+        "executionPassed": 0,
+        "executionFailed": 0,
+        "notRun": 0
+      },
+      "coverage": {
+        "percent": 0,
+        "coveredCases": [],
+        "missingScenarioTitles": []
+      },
+      "summary": "",
+      "runHistory": [],
+      "cases": []
+    }
+  ]
+}
