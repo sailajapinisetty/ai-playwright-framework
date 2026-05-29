@@ -3,9 +3,7 @@
   "name": "AI Playwright Report UI",
   "version": "0.1.0",
   "description": "Report UI packaged as a Chrome extension",
-  "action": {
-    "default_popup": "popup.html"
-  },
+  "action": {},
   "background": {
     "service_worker": "background.js"
   },
